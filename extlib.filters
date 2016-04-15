@@ -81,18 +81,15 @@
     <ClCompile Include="src\winsock2.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\compact_string_body.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ext\FileSystemUtils.hpp">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\string_interpolation.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\strings\aci_string.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\strings\aci_string-yaml.hpp">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\Errors.hpp">
@@ -427,6 +424,24 @@
     </ClInclude>
     <ClInclude Include="include\ext\iostreams\winsock2_inc.hpp">
       <Filter>include\iostreams</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\aci_string-yaml.hpp">
+      <Filter>include\strings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\aci_string.hpp">
+      <Filter>include\strings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\compact_string_body.hpp">
+      <Filter>include\strings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\compact_string.hpp">
+      <Filter>include\strings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\basic_string_facade_integration.hpp">
+      <Filter>include\strings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\basic_string_facade.hpp">
+      <Filter>include\strings</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

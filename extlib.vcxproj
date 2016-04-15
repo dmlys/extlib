@@ -45,6 +45,7 @@
   <ItemGroup>
     <ClCompile Include="src\asio_socket_stream.cpp" />
     <ClCompile Include="src\asio_socket_streambuf.cpp" />
+    <ClCompile Include="src\compact_string_body.cpp" />
     <ClCompile Include="src\cppzlib.cpp" />
     <ClCompile Include="src\Errors.cpp" />
     <ClCompile Include="src\FileSystemGetExePath.cpp" />
@@ -62,8 +63,6 @@
     <ClInclude Include="include\ext\config.hpp" />
     <ClInclude Include="include\ext\cppzlib.hpp" />
     <ClInclude Include="include\ext\functors\indirect_functor.hpp" />
-    <ClInclude Include="include\ext\strings\aci_string-yaml.hpp" />
-    <ClInclude Include="include\ext\strings\aci_string.hpp" />
     <ClInclude Include="include\ext\algorithm.hpp" />
     <ClInclude Include="include\ext\algorithm\binary_find.hpp" />
     <ClInclude Include="include\ext\algorithm\slide.hpp" />
@@ -116,6 +115,12 @@
     <ClInclude Include="include\ext\range\range_traits.hpp" />
     <ClInclude Include="include\ext\regex_utils.hpp" />
     <ClInclude Include="include\ext\shared_by_need.hpp" />
+    <ClInclude Include="include\ext\strings\aci_string-yaml.hpp" />
+    <ClInclude Include="include\ext\strings\aci_string.hpp" />
+    <ClInclude Include="include\ext\strings\basic_string_facade.hpp" />
+    <ClInclude Include="include\ext\strings\basic_string_facade_integration.hpp" />
+    <ClInclude Include="include\ext\strings\compact_string.hpp" />
+    <ClInclude Include="include\ext\strings\compact_string_body.hpp" />
     <ClInclude Include="include\ext\string_interpolation.hpp" />
     <ClInclude Include="include\ext\time_fmt.hpp" />
     <ClInclude Include="include\ext\try_reserve.hpp" />
