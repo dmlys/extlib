@@ -18,25 +18,22 @@ namespace ext
 	inline void socket_stream_init() { ext::winsock2_stream_init(); }
 }
 
-/// для остальных случаев откатываемся на asio реализацию
-/// хорошо бы сделать posix реализацию
-#else  // BOOST_OS_WINDOWS
-#include <ext/iostreams/asio_socket_stream.hpp>
 
-#ifndef EXT_ASIO_SOCKET_STREAM
-#define EXT_ASIO_SOCKET_STREAM
+/// для остальных случаев откатываемся на bsd реализацию
+#else  // BOOST_OS_WINDOWS
+#include <ext/iostreams/bsdsock_stream.hpp>
+
+#ifndef EXT_BSDSOCK_SOCKET_STREAM
+#define EXT_BSDSOCK_SOCKET_STREAM
 #endif
 
 namespace ext
 {
-	typedef ext::asio_socket_streambuf socket_streambuf;
-	typedef ext::asio_socket_stream    socket_stream;
+	typedef ext::bsdsock_streambuf   socket_streambuf;
+	typedef ext::bsdsock_stream      socket_stream;
 
 	/// инициализация библиотек для работы с socket_stream
-	inline void socket_stream_init()
-	{
-		// boost asio производит инициализацию библиотек самостоятельно
-	}
+	inline void socket_stream_init() { bsdsock_stream_init(); }
 }
 
 #endif // BOOST_OS_WINDOWS
