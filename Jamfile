@@ -1,0 +1,71 @@
+# This is Library Jamfile for extlib.
+# use it like extlib//extlib #/<extlib-wopenssl>on/<extlib-wzlib>on
+#
+# Jamroot or site-config/user-config should define /boost projects
+# You can use use-project or boost.use-project, from boost module ;
+
+import os ;
+import feature ;
+import testing ;
+
+local usage-requirements = <include>include ;
+local requirements = $(usage-requirements) <link>static ;
+
+project
+	# attributes	
+	: usage-requirements $(usage-requirements)
+	: requirements       $(requirements)
+	;
+	
+local src =         [ glob src/*.cpp : src/*zlib* src/*openssl* src/*winsock* ] ;
+local zlib_src =    [ glob src/*zlib* ] ;
+local openssl_src = [ glob src/*openssl* ] ;
+local tests_src =   [ glob tests/*cpp ] ;
+
+if [ os.on-windows ]
+{
+	src += [ glob src/*winsock* ] ;
+}
+
+# optional features enabling ZLIB and OPENSSL
+feature.feature extlib-wopenssl : off on : optional ;
+feature.feature extlib-wzlib    : off on : optional ;
+
+alias headers 
+	: # sources
+	: # requirements 
+	: # defaults
+	: # usage-requirements
+	  <extlib-wzlib>on:<define>EXT_ENABLE_CPPZLIB
+	  <extlib-wopenssl>on:<define>EXT_ENABLE_OPENSSL
+	;
+
+lib extlib    # target name
+	: headers
+	  $(src)  # sources 
+	  /boost//headers
+	  # static libs itself do not need other static libs,
+	  # but boost.build supports those depends and can automatically add them to dll/exe.
+	  # consider adding reqired boost libs
+	  
+	  # requirements
+	: [ conditional <extlib-wzlib>on    : <define>EXT_ENABLE_CPPZLIB <source>$(zlib_src) ]
+	  [ conditional <extlib-wopenssl>on : <define>EXT_ENABLE_OPENSSL <source>$(openssl_src) ]	  
+	: # defaults
+	: # usage-requirements
+	  <extlib-wzlib>on:<define>EXT_ENABLE_CPPZLIB
+	  <extlib-wopenssl>on:<define>EXT_ENABLE_OPENSSL
+	;	
+
+	
+
+local boost_libs = system filesystem regex unit_test_framework ;
+	
+unit-test extlib-tests
+	: $(tests_src) # sources 
+	  extlib
+	  /boost//headers
+	  /boost//$(boost_libs)
+	;
+	
+explicit extlib-tests ;
