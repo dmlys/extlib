@@ -1,0 +1,184 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1C5A8C14-535D-44DF-9A69-B5D2BD44F774}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(SolutionDir)SolutionRootBefore.props" Condition="exists('$(SolutionDir)SolutionRootBefore.props')" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(SolutionDir)SolutionRoot.props" Condition="exists('$(SolutionDir)SolutionRoot.props')" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>.\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\asio_socket_stream.cpp" />
+    <ClCompile Include="src\asio_socket_streambuf.cpp" />
+    <ClCompile Include="src\cppzlib.cpp" />
+    <ClCompile Include="src\Errors.cpp" />
+    <ClCompile Include="src\FileSystemGetExePath.cpp" />
+    <ClCompile Include="src\FileSystemUtils.cpp" />
+    <ClCompile Include="src\openssl.cpp" />
+    <ClCompile Include="src\regex_utils.cpp" />
+    <ClCompile Include="src\socket_streambuf_base.cpp" />
+    <ClCompile Include="src\string_interpolation.cpp" />
+    <ClCompile Include="src\time_fmt.cpp" />
+    <ClCompile Include="src\winsock2.cpp" />
+    <ClCompile Include="src\winsock2_stream.cpp" />
+    <ClCompile Include="src\winsock2_streambuf.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\ext\config.hpp" />
+    <ClInclude Include="include\ext\cppzlib.hpp" />
+    <ClInclude Include="include\ext\functors\indirect_functor.hpp" />
+    <ClInclude Include="include\ext\strings\aci_string-yaml.hpp" />
+    <ClInclude Include="include\ext\strings\aci_string.hpp" />
+    <ClInclude Include="include\ext\algorithm.hpp" />
+    <ClInclude Include="include\ext\algorithm\binary_find.hpp" />
+    <ClInclude Include="include\ext\algorithm\slide.hpp" />
+    <ClInclude Include="include\ext\algorithm\tribool_compare.hpp" />
+    <ClInclude Include="include\ext\append_iterator.hpp" />
+    <ClInclude Include="include\ext\codecvt_conv.hpp" />
+    <ClInclude Include="include\ext\codecvt_conv\base.hpp" />
+    <ClInclude Include="include\ext\codecvt_conv\generic_conv.hpp" />
+    <ClInclude Include="include\ext\codecvt_conv\wbuffer_convert.hpp" />
+    <ClInclude Include="include\ext\Errors.hpp" />
+    <ClInclude Include="include\ext\FileSystemUtils.hpp" />
+    <ClInclude Include="include\ext\functors.hpp" />
+    <ClInclude Include="include\ext\functors\ctpred.hpp" />
+    <ClInclude Include="include\ext\functors\get_func.hpp" />
+    <ClInclude Include="include\ext\functors\lcpred.hpp" />
+    <ClInclude Include="include\ext\integer_sequence.hpp" />
+    <ClInclude Include="include\ext\iostreams\streambuf.hpp" />
+    <ClInclude Include="include\ext\iostreams\socket_streambuf_base.hpp" />
+    <ClInclude Include="include\ext\iostreams\winsock2_inc.hpp" />
+    <ClInclude Include="include\ext\iostreams\winsock2_stream.hpp" />
+    <ClInclude Include="include\ext\iostreams\winsock2_streambuf.hpp" />
+    <ClInclude Include="include\ext\iostreams\socket_stream.hpp" />
+    <ClInclude Include="include\ext\iostreams\asio_config.hpp" />
+    <ClInclude Include="include\ext\iostreams\asio_socket_stream.hpp" />
+    <ClInclude Include="include\ext\iostreams\asio_socket_streambuf.hpp" />
+    <ClInclude Include="include\ext\iostreams\blocking_write.hpp" />
+    <ClInclude Include="include\ext\iostreams\basic_base_encoder.hpp" />
+    <ClInclude Include="include\ext\iostreams\transform_width_decoder.hpp" />
+    <ClInclude Include="include\ext\iostreams\transform_width_encoder.hpp" />
+    <ClInclude Include="include\ext\iostreams\linebreak_insert_filter.hpp" />
+    <ClInclude Include="include\ext\itoa.hpp" />
+    <ClInclude Include="include\ext\join_into.hpp" />
+    <ClInclude Include="include\ext\library_logger\logger.hpp" />
+    <ClInclude Include="include\ext\library_logger\logging_macros.hpp" />
+    <ClInclude Include="include\ext\library_logger\simple_logger.hpp" />
+    <ClInclude Include="include\ext\lrucache.hpp" />
+    <ClInclude Include="include\ext\openssl.hpp" />
+    <ClInclude Include="include\ext\range.hpp" />
+    <ClInclude Include="include\ext\range\adapt\boost_match_result.hpp" />
+    <ClInclude Include="include\ext\range\adapt\std_match_result.hpp" />
+    <ClInclude Include="include\ext\range\adaptors.hpp" />
+    <ClInclude Include="include\ext\range\adaptors\moved.hpp" />
+    <ClInclude Include="include\ext\range\adaptors\pair.hpp" />
+    <ClInclude Include="include\ext\range\array_wrapper.hpp" />
+    <ClInclude Include="include\ext\range\combine.hpp" />
+    <ClInclude Include="include\ext\range\input_range_facade.hpp" />
+    <ClInclude Include="include\ext\range\istream_range.hpp" />
+    <ClInclude Include="include\ext\range\line_reader.hpp" />
+    <ClInclude Include="include\ext\range\pretty_printers.hpp" />
+    <ClInclude Include="include\ext\range\range_traits.hpp" />
+    <ClInclude Include="include\ext\regex_utils.hpp" />
+    <ClInclude Include="include\ext\shared_by_need.hpp" />
+    <ClInclude Include="include\ext\string_interpolation.hpp" />
+    <ClInclude Include="include\ext\time_fmt.hpp" />
+    <ClInclude Include="include\ext\try_reserve.hpp" />
+    <ClInclude Include="include\ext\utf8utils.hpp" />
+    <ClInclude Include="include\ext\utility.hpp" />
+    <ClInclude Include="include\ext\varalgo.hpp" />
+    <ClInclude Include="include\ext\varalgo\adjacent_find.hpp" />
+    <ClInclude Include="include\ext\varalgo\all_of.hpp" />
+    <ClInclude Include="include\ext\varalgo\any_of.hpp" />
+    <ClInclude Include="include\ext\varalgo\binary_find.hpp" />
+    <ClInclude Include="include\ext\varalgo\binary_search.hpp" />
+    <ClInclude Include="include\ext\varalgo\copy_if.hpp" />
+    <ClInclude Include="include\ext\varalgo\count_if.hpp" />
+    <ClInclude Include="include\ext\varalgo\equal.hpp" />
+    <ClInclude Include="include\ext\varalgo\equal_range.hpp" />
+    <ClInclude Include="include\ext\varalgo\find_end.hpp" />
+    <ClInclude Include="include\ext\varalgo\find_first_of.hpp" />
+    <ClInclude Include="include\ext\varalgo\find_if.hpp" />
+    <ClInclude Include="include\ext\varalgo\find_if_not.hpp" />
+    <ClInclude Include="include\ext\varalgo\for_each.hpp" />
+    <ClInclude Include="include\ext\varalgo\inplace_merge.hpp" />
+    <ClInclude Include="include\ext\varalgo\is_partitioned.hpp" />
+    <ClInclude Include="include\ext\varalgo\is_sorted.hpp" />
+    <ClInclude Include="include\ext\varalgo\is_sorted_until.hpp" />
+    <ClInclude Include="include\ext\varalgo\lower_bound.hpp" />
+    <ClInclude Include="include\ext\varalgo\merge.hpp" />
+    <ClInclude Include="include\ext\varalgo\minmax.hpp" />
+    <ClInclude Include="include\ext\varalgo\minmax_element.hpp" />
+    <ClInclude Include="include\ext\varalgo\mismatch.hpp" />
+    <ClInclude Include="include\ext\varalgo\modifying_algo.hpp" />
+    <ClInclude Include="include\ext\varalgo\non-modifying_algo.hpp" />
+    <ClInclude Include="include\ext\varalgo\none_of.hpp" />
+    <ClInclude Include="include\ext\varalgo\nth_element.hpp" />
+    <ClInclude Include="include\ext\varalgo\on_sorted_algo.hpp" />
+    <ClInclude Include="include\ext\varalgo\partial_sort.hpp" />
+    <ClInclude Include="include\ext\varalgo\partial_sort_copy.hpp" />
+    <ClInclude Include="include\ext\varalgo\partition.hpp" />
+    <ClInclude Include="include\ext\varalgo\partition_algo.hpp" />
+    <ClInclude Include="include\ext\varalgo\partition_copy.hpp" />
+    <ClInclude Include="include\ext\varalgo\partition_point.hpp" />
+    <ClInclude Include="include\ext\varalgo\remove_copy_if.hpp" />
+    <ClInclude Include="include\ext\varalgo\remove_if.hpp" />
+    <ClInclude Include="include\ext\varalgo\replace_copy_if.hpp" />
+    <ClInclude Include="include\ext\varalgo\replace_if.hpp" />
+    <ClInclude Include="include\ext\varalgo\search.hpp" />
+    <ClInclude Include="include\ext\varalgo\search_n.hpp" />
+    <ClInclude Include="include\ext\varalgo\set_operations.hpp" />
+    <ClInclude Include="include\ext\varalgo\sort.hpp" />
+    <ClInclude Include="include\ext\varalgo\sorting_algo.hpp" />
+    <ClInclude Include="include\ext\varalgo\stable_partition.hpp" />
+    <ClInclude Include="include\ext\varalgo\stable_sort.hpp" />
+    <ClInclude Include="include\ext\varalgo\transform.hpp" />
+    <ClInclude Include="include\ext\varalgo\unique.hpp" />
+    <ClInclude Include="include\ext\varalgo\unique_copy.hpp" />
+    <ClInclude Include="include\ext\varalgo\upper_bound.hpp" />
+    <ClInclude Include="include\ext\zip_iterator.hpp" />
+    <ClInclude Include="include\ext\is_iterator.hpp" />
+    <ClInclude Include="include\ext\type_traits.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="LICENSE_1_0.txt" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
