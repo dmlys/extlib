@@ -183,6 +183,9 @@
   <ItemGroup>
     <Text Include="LICENSE_1_0.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="vsnatvis\ext.natvis" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

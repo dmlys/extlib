@@ -127,6 +127,7 @@ namespace ext
 		BOOST_NORETURN static void throw_xlen();
 
 	protected:
+		BOOST_FORCEINLINE static void set_eos(value_type *) {}
 		BOOST_NOINLINE value_type * grow_to(size_type newsize);
 		BOOST_NOINLINE std::pair<value_type *, size_type> grow_by(size_type size_increment);
 		BOOST_NOINLINE std::pair<value_type *, size_type> shrink_by(size_type size_decrement);
