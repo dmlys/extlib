@@ -10,7 +10,6 @@
 /// иначе возможны проблемы, unreachable код не должен выполняться.
 /// или как вариант можно ставить default в начале switch.
 
-
 #ifndef EXT_UNREACHABLE
 
 #if BOOST_COMP_MSVC
@@ -29,10 +28,8 @@
 #endif // __has_builtin(__builtin_unreachable)
 #endif // BOOST_COMP_CLANG
 
-#endif // ifndef EXT_UNREACHABLE
-
-
-
 #ifndef EXT_UNREACHABLE
-#define EXT_UNREACHABLE()
+#define EXT_UNREACHABLE() (void(0))
 #endif // EXT_UNREACHABLE
+
+#endif // ifndef EXT_UNREACHABLE
