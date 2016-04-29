@@ -5,6 +5,7 @@
 #include <codecvt>
 #include <fstream>
 
+#include "test_files.h"
 #include <ext/codecvt_conv.hpp>
 #include <ext/FileSystemUtils.hpp>
 
@@ -43,10 +44,11 @@ namespace
 		void ReadFiles()
 		{
 			//std::cout << boost::filesystem::current_path() << std::endl;
-			ext::LoadFile("extlib/tests/CodecvtConvTestFiles/Martin_ru_utf8.txt", martin_ru_utf8, std::ios::binary);
-			ext::LoadFile("extlib/tests/CodecvtConvTestFiles/Martin_ru_cp1251.txt", martin_ru_cp1251, std::ios::binary);
+			LoadTestFile("CodecvtConvTestFiles/Martin_ru_utf8.txt", martin_ru_utf8, std::ios::binary);
+			LoadTestFile("CodecvtConvTestFiles/Martin_ru_cp1251.txt", martin_ru_cp1251, std::ios::binary);
 
-			std::wifstream ifs("extlib/tests/CodecvtConvTestFiles/Martin_ru_utf16LE.txt", std::ios::binary);
+			auto file = boost::filesystem::absolute("CodecvtConvTestFiles/Martin_ru_utf16LE.txt", test_files_location);
+			std::wifstream ifs(file.c_str(), std::ios::binary);
 			ifs >> std::noskipws;
 			auto cvt = new std::codecvt_utf16<wchar_t, 0x10FFFF, std::codecvt_mode(/*std::little_endian &*/ std::consume_header)>;
 			ifs.imbue(std::locale(std::locale(), cvt));

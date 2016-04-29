@@ -49,9 +49,10 @@ namespace ext
 	///       * reserve()
 	///       * shrink_to_fit()
 	///       
-	///       * shrink_to()
-	///       * grow_to()
-	///       * grow_by()
+	///       * grow_to(size_type newsize) -> value_type * // new first buffer pointer
+	///       * grow_by(size_type size_increment) -> (new first buffer pointer, newsize after increment)
+	///       * shrink_by(size_type size_decrement) -> (new first buffer pointer, newsize after decrement)
+	///       * set_eos(value_type * endpos) // sets string terminator at pos
 	/// 
 	template <class storage, class char_traits>
 	class basic_string_facade : public storage
@@ -82,9 +83,13 @@ namespace ext
 		static const size_type npos = -1;
 
 	private:
+		const self_type * as_const() { return this; }
 		static BOOST_NORETURN void throw_xpos() { throw std::out_of_range("out_of_range"); }
 		auto make_pointer(size_type pos) -> std::pair<value_type *, value_type *>;
 		auto make_pointer(size_type pos) const -> std::pair<const value_type *, const value_type *>;
+
+		static bool is_inside(const value_type * ptr, size_type count,
+		                      const value_type * first, const value_type * last);
 
 	public:
 		// Workaround for boost::range. Somehow metacode that checks for member method "size" crashes msvs 2013
@@ -151,7 +156,7 @@ namespace ext
 		self_type & assign(const value_type * str);
 		self_type & assign(std::initializer_list<value_type> ilist);
 		
-		self_type & assign(const_iterator first, const_iterator last);
+		self_type & assign(const_iterator first, const_iterator last) { return assign(first, last - first); }
 		self_type & assign(iterator first, iterator last) { return assign(const_iterator(first), const_iterator(last)); }
 
 		template<class InputIterator, class = std::enable_if_t<ext::is_iterator<InputIterator>::value>>
@@ -214,6 +219,7 @@ namespace ext
 		self_type & replace(const_iterator first, const_iterator last, size_type count, value_type ch);
 		self_type & replace(const_iterator first, const_iterator last, std::initializer_list<value_type> ilist);
 		self_type & replace(const_iterator first, const_iterator last, const value_type * str_first, const value_type * str_last);
+		self_type & replace(const_iterator first, const_iterator last, value_type * str_first, value_type * str_last);
 		self_type & replace(size_type pos, size_type count, const self_type & str);
 		self_type & replace(size_type pos, size_type count, const self_type & str, size_type pos2, size_type count2 = npos);
 		self_type & replace(size_type pos, size_type count, const value_type * str);
@@ -256,19 +262,20 @@ namespace ext
 
 	public: // ctors
 		// allocators not supported yet
-		basic_string_facade(size_type count, value_type ch)          { assign(count, ch); }
-		basic_string_facade(const value_type * str)                  { assign(str); }
-		basic_string_facade(const value_type * str, size_type count) { assign(str, count); }
-		basic_string_facade(std::initializer_list<value_type> ilist) { assign(ilist); }
-
-		basic_string_facade(const self_type & other, size_type pos, size_type count = basic_string_facade::npos)
-		{ assign(other, pos, count);  }
+		basic_string_facade(size_type count, value_type ch);
+		basic_string_facade(const value_type * str);
+		basic_string_facade(const value_type * str, size_type count);
+		basic_string_facade(const self_type & str, size_type pos, size_type count = basic_string_facade::npos);
 		
+		basic_string_facade(const value_type * first, const value_type * last) : basic_string_facade(first, last - first) {}
+		basic_string_facade(value_type * first, value_type * last)             : basic_string_facade(first, last - first) {}
+		basic_string_facade(std::initializer_list<value_type> ilist)           : basic_string_facade(ilist.begin(), ilist.size()) {}
+
 		template<class InputIt>
 		basic_string_facade(InputIt first, InputIt last) { assign(first, last); }
 
 	public: // operator =
-		basic_string_facade & operator=(const value_type * str)                  { assign(str); return *this; }
+		basic_string_facade & operator=(const value_type * str)                  { assign(str);   return *this; }
 		basic_string_facade & operator=(value_type ch)                           { assign(1, ch); return *this; }
 		basic_string_facade & operator=(std::initializer_list<value_type> ilist) { assign(ilist); return *this; }
 
@@ -317,7 +324,64 @@ namespace ext
 		if (pos > static_cast<size_type>(last - first)) throw_xpos();
 		return {first + pos, last};
 	}
+
+	template <class storage, class char_traits>
+	BOOST_FORCEINLINE
+	bool basic_string_facade<storage, char_traits>::is_inside
+	(const value_type * ptr, size_type count, const value_type * first, const value_type * last)
+	{
+#ifdef NDEBUG
+		return ptr >= first && ptr <= last;
+#else // NDEBUG
+		if (ptr >= first && ptr <= last)
+		{
+			assert(ptr + count <= last);
+			return true;
+		}
+		else
+			return false;
+#endif
+	}
+
+	/************************************************************************/
+	/*                   constructors                                       */
+	/************************************************************************/
+	template <class storage, class char_traits>
+	basic_string_facade<storage, char_traits>::basic_string_facade(size_type count, value_type ch)
+	{
+		value_type * out = this->grow_to(count);
+		traits_type::assign(out, count, ch);
+		this->set_eos(out + count);
+	}
+
+	template <class storage, class char_traits>
+	inline basic_string_facade<storage, char_traits>::basic_string_facade(const value_type * str)
+		: basic_string_facade(str, traits_type::length(str))
+	{
+
+	}
 	
+	template <class storage, class char_traits>
+	basic_string_facade<storage, char_traits>::basic_string_facade(const value_type * str, size_type count)
+	{
+		value_type * out = this->grow_to(count);
+		traits_type::copy(out, str, count);
+		this->set_eos(out + count);
+	}
+
+	template <class storage, class char_traits>
+	basic_string_facade<storage, char_traits>::basic_string_facade(const self_type & str, size_type pos, size_type count /* = basic_string_facade::npos */)
+	{
+		const value_type * first, *last;
+		std::tie(first, last) = str.make_pointer(pos);
+		count = (std::min<size_type>)(last - first, count);
+
+		value_type * out = this->grow_to(count);
+		traits_type::copy(out, first, count);
+		this->set_eos(out + count);
+	}
+
+
 	/************************************************************************/
 	/*                   assign block                                       */
 	/************************************************************************/
@@ -327,6 +391,7 @@ namespace ext
 	{
 		value_type * out = this->grow_to(count);
 		traits_type::assign(out, count, ch);
+		this->set_eos(out + count);
 		
 		return *this;
 	}
@@ -346,8 +411,20 @@ namespace ext
 		std::tie(first, last) = str.make_pointer(pos);
 		count = (std::min<size_type>)(last - first, count);
 
-		value_type * out = this->grow_to(count);
-		std::memcpy(out, first, count);
+		if (this == &str)
+		{	// we can't assign more than we already have, just move it
+			auto * out = data();
+			traits_type::move(out, first, count);
+			this->set_eos(out + count);
+			this->grow_to(count);
+		}
+		else
+		{
+			value_type * out = this->grow_to(count);
+			traits_type::copy(out, first, count);
+			this->set_eos(out + count);
+		}
+
 		return *this;
 	}
 
@@ -363,8 +440,22 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::assign(const value_type * str, size_type count)
 	{
-		value_type * out = this->grow_to(count);
-		traits_type::copy(out, str, count);
+		value_type * first, * last;
+		std::tie(first, last) = this->range();
+
+		if (is_inside(str, count, first, last))
+		{	// it does not make sense if count is bigger than we already holding - just move it
+			traits_type::move(first, str, count);
+			this->set_eos(first + count);
+			this->grow_to(count);
+		}
+		else
+		{
+			value_type * out = this->grow_to(count);
+			traits_type::copy(out, str, count);
+			this->set_eos(out + count);
+		}
+
 		return *this;
 	}
 
@@ -380,13 +471,6 @@ namespace ext
 		basic_string_facade<storage, char_traits>::assign(std::initializer_list<value_type> ilist)
 	{
 		assign(std::begin(ilist), std::end(ilist));
-	}
-
-	template <class storage, class char_traits>
-	inline basic_string_facade<storage, char_traits> &
-		basic_string_facade<storage, char_traits>::assign(const_iterator first, const_iterator last)
-	{
-		return assign(first, last - first);
 	}
 
 	template <class storage, class char_traits>
@@ -409,6 +493,7 @@ namespace ext
 			for (; first != last; ++first, ++out)
 				traits_type::assign(*out, *first);
 
+			this->set_eos(out);
 			return *this;
 		}
 	}
@@ -426,6 +511,7 @@ namespace ext
 		out += newsize - count;
 
 		traits_type::assign(out, count, ch);
+		this->set_eos(out + count);
 		return *this;
 	}
 
@@ -433,16 +519,20 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::append(const self_type & str, size_type pos, size_type count /* = npos */)
 	{
-		const value_type * first, *last;
+		const value_type * first, * last;
 		std::tie(first, last) = str.make_pointer(pos);
 		count = (std::min<size_type>)(last - first, count);
 
 		value_type * out;
 		size_type newsize;
 		std::tie(out, newsize) = this->grow_by(count);
+		
+		// after grow_by first and last can be invalidated
+		if (this == &str) first = out + pos;
 		out += newsize - count;
 		
-		std::memcpy(out, first, count);
+		traits_type::copy(out, first, count);
+		this->set_eos(out + count);
 		return *this;
 	}
 
@@ -457,12 +547,21 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::append(const value_type * str, size_type count)
 	{
+		const value_type * first, *last;
+		std::tie(first, last) = as_const()->range();
+
+		bool inside = is_inside(str, count, first, last);
+		size_type inspos = str - first;
+
 		value_type * out;
 		size_type newsize;
 		std::tie(out, newsize) = this->grow_by(count);
+
+		if (inside) str = out + inspos;
 		out += newsize - count;
 
 		traits_type::copy(out, str, count);
+		this->set_eos(out + count);
 		return *this;
 	}
 
@@ -503,7 +602,8 @@ namespace ext
 			
 			for (; first != last; ++first, ++out)
 				traits_type::assign(*out, *first);
-
+			
+			this->set_eos(out);
 			return *this;
 		}
 	}
@@ -522,15 +622,16 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::insert(size_type index, size_type count, value_type ch)
 	{
+		size_type oldsize = size();
+		if (index > oldsize) throw_xpos();
+		
 		value_type * out;
 		size_type newsize;
 		std::tie(out, newsize) = this->grow_by(count);
-
-		size_type oldsize = newsize - count;
-		if (index > oldsize) throw_xpos();
 		out += index;
 
 		traits_type::move(out + count, out, oldsize - index);
+		this->set_eos(out - index + newsize);
 		traits_type::assign(out, count, ch);
 		return *this;
 	}
@@ -546,16 +647,32 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::insert(size_type index, const value_type * str, size_type count)
 	{
+		const value_type * first, *last;
+		std::tie(first, last) = as_const()->range();
+
+		size_type oldsize = last - first;
+		if (index > oldsize) throw_xpos();
+
+		bool inside = is_inside(str, count, first, last);
+		size_type inspos = str - first;
+
 		value_type * out;
 		size_type newsize;
 		std::tie(out, newsize) = this->grow_by(count);
-
-		size_type oldsize = newsize - count;
-		if (index > oldsize) throw_xpos();
+		
 		out += index;
-
 		traits_type::move(out + count, out, oldsize - index);
-		traits_type::move(out, str, count);
+		this->set_eos(out - index + newsize);
+
+		if (!inside)
+			traits_type::copy(out, str, count);
+		else
+		{
+			str = out - index + inspos;
+			traits_type::move(out, (str <= out ? str : str + count), count);
+			// it will be moved by count if right from insert point
+		}
+		
 		return *this;
 	}
 
@@ -574,16 +691,26 @@ namespace ext
 		std::tie(first, last) = str.make_pointer(index_str);
 		count = (std::min<size_type>)(last - first, count);
 
+		size_type oldsize = size();
+		if (index > oldsize) throw_xpos();
+
 		value_type * out;
 		size_type newsize;
 		std::tie(out, newsize) = this->grow_by(count);
 		
-		size_type oldsize = newsize - count;
-		if (index > oldsize) throw_xpos();
 		out += index;
-
 		traits_type::move(out + count, out, oldsize - index);
-		traits_type::move(out, first, count);
+		this->set_eos(out - index + newsize);
+
+		if (this != &str)
+			traits_type::copy(out, first, count);
+		else
+		{
+			first = out - index + index_str;
+			traits_type::move(out, (first <= out ? first : first + count), count);
+			// it will be moved by count if right from insert point
+		}
+
 		return *this;
 	}
 
@@ -598,8 +725,8 @@ namespace ext
 	typename basic_string_facade<storage, char_traits>::iterator
 		basic_string_facade<storage, char_traits>::insert(const_iterator pos, size_type count, value_type ch)
 	{
-		size_type index = pos - data();
-		return insert(index, count, ch);
+		auto * ptr = cbegin();
+		return insert(pos - ptr, count, ch);
 	}
 
 	template <class storage, class char_traits>
@@ -613,9 +740,9 @@ namespace ext
 	typename basic_string_facade<storage, char_traits>::iterator
 		basic_string_facade<storage, char_traits>::insert(const_iterator pos, const_iterator first, const_iterator last)
 	{
-		size_type idx = pos - data();
+		size_type idx = pos - cbegin();
 		insert(idx, first, last - first);
-		return data() + idx;
+		return cbegin() + idx;
 	}
 
 	template <class storage, class char_traits>
@@ -627,25 +754,27 @@ namespace ext
 		if (!std::is_convertible<cat, std::random_access_iterator_tag>::value)
 		{
 			insert(pos, self_type(first, last));
-			return data() + pos;
+			return cbegin() + pos;
 		}
 		else
 		{
-			auto index = pos - data();
+			auto index = pos - cbegin();
 			size_type count = std::distance(first, last);
+
+			size_type oldsize = size();
+			if (index > oldsize) throw_xpos();
 
 			size_type newsize;
 			value_type * out;
 			std::tie(out, newsize) = this->grow_by(count);
-
-			size_type oldsize = newsize - count;
-			if (index > oldsize) throw_xpos();
 			out += index;
 
 			traits_type::move(out + count, out, oldsize - index);
+			this->set_eos(out - index + newsize);
+
 			for (auto o = out; first != last; ++first, ++o)
 				traits_type::assign(*o, *first);
-
+			
 			return out;
 		}
 	}
@@ -664,6 +793,7 @@ namespace ext
 		size_type tail_count = last - first - count;
 
 		traits_type::move(first, first + count, tail_count);
+		this->set_eos(last - count);
 		this->shrink_by(count);
 		return *this;
 	}
@@ -680,7 +810,10 @@ namespace ext
 		basic_string_facade<storage, char_traits>::erase(const_iterator first, const_iterator last)
 	{
 		size_type count = last - first;
-		traits_type::move(iterator(first), last, size() - count);
+		value_type * str_last = data_end();
+
+		traits_type::move(iterator(first), last, str_last - last);
+		this->set_eos(str_last - count);
 
 		auto res = this->shrink_by(count);
 		return std::get<0>(res) + std::get<1>(res) - count;
@@ -693,8 +826,8 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::replace(const_iterator first, const_iterator last, const self_type & str)
 	{
-		auto * ptr = data();
-		return replace(ptr - first, last - first, str);
+		auto * ptr = cbegin();
+		return replace(first - ptr, last - first, str);
 	}
 
 	template <class storage, class char_traits>
@@ -715,8 +848,8 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::replace(const_iterator first, const_iterator last, size_type count, value_type ch)
 	{
-		auto * ptr = data();
-		return replace(ptr - first, last - first, count, ch);
+		auto * ptr = cbegin();
+		return replace(first - ptr, last - first, count, ch);
 	}
 
 	template <class storage, class char_traits>
@@ -732,8 +865,18 @@ namespace ext
 			const_iterator first, const_iterator last,
 			const value_type * str_first, const value_type * str_last)
 	{
-		auto * ptr = data();
-		return replace(ptr - first, last - first, str_first, str_last - str_first);
+		auto * ptr = cbegin();
+		return replace(first - ptr, last - first, str_first, str_last - str_first);
+	}
+
+	template <class storage, class char_traits>
+	basic_string_facade<storage, char_traits> &
+		basic_string_facade<storage, char_traits>::replace(
+			const_iterator first, const_iterator last,
+			value_type * str_first, value_type * str_last)
+	{
+		auto * ptr = cbegin();
+		return replace(first - ptr, last - first, str_first, str_last - str_first);
 	}
 
 	template <class storage, class char_traits>
@@ -762,24 +905,63 @@ namespace ext
 		r_count = (std::min<size_type>)(r_last - r_first, r_count);
 		size_type tail_count = o_last - o_first - o_count;
 		
+		// we must handle overlap only on grow.
+		// on shrink we can just move data
 		if (o_count >= r_count)
-		{   // shrink
+		{	// shrink
 			size_type diff = o_count - r_count;
 
-			traits_type::move(o_first, r_first, r_count); // just in case &str == this
+			traits_type::move(o_first, r_first, r_count);
 			traits_type::move(o_first + r_count, o_first + o_count, tail_count);
+			this->set_eos(o_last - diff);
 
 			this->shrink_by(diff);
 			return *this;
 		}
 		else
-		{   // grow
+		{	// grow
 			size_type diff = r_count - o_count;
 			std::tie(o_first, std::ignore) = this->grow_by(diff);
-			o_first += o_pos;
-
-			traits_type::move(o_first + r_count, o_first + o_count, tail_count);
-			traits_type::move(o_first, r_first, r_count); // just in case &str == this
+			
+			if (this != &str)
+			{	// unrelated strings, just move down and copy
+				o_first += o_pos;
+				traits_type::move(o_first + r_count, o_first + o_count, tail_count);
+				this->set_eos(o_first + r_count + tail_count);
+				traits_type::copy(o_first, r_first, r_count);
+			}
+			else
+			{	// strings are same, we must handle overlaps
+				r_first = o_first + r_pos;
+				o_first += o_pos;
+				
+				// substring begins before hole
+				if (r_first <= o_first)
+				{	// remember replacement is bigger than hole (r_count > o_count) and r_first <= o_first
+					// if [r_first, r_last) does not go in tail part - than no problem at all
+					// if it continues after [o_first, o_last) - tail move will not touch replacement data, so it's safe
+					traits_type::move(o_first + r_count, o_first + o_count, tail_count); // move_tail
+					this->set_eos(o_first + r_count + tail_count); // set eos at buffer end
+					traits_type::move(o_first, r_first, r_count);
+				}
+				// substring begins after hole
+				else if (r_first >= o_first + o_count)
+				{	// we move tail, and than copy replacement(forwarded by diff) into replaceable
+					traits_type::move(o_first + r_count, o_first + o_count, tail_count); // move tail
+					this->set_eos(o_first + r_count + tail_count); // set eos at buffer end
+					traits_type::copy(o_first, r_first + diff, r_count); // replacement was moved by diff
+				}
+				else // substring begins in hole
+				{	// remember replacement is bigger than hole.
+					// first we move hole substring to beginning of hole.
+					// then normal tail move, and than move tail part(diff corrected) after hole
+					traits_type::copy(o_first, r_first, o_count); // fill replaceable hole
+					traits_type::move(o_first + r_count, o_first + o_count, tail_count); // move tail after hole
+					this->set_eos(o_first + r_count + tail_count); // set eos at buffer end
+					traits_type::copy(o_first + o_count, r_first + o_count + diff, diff); // fill after hole
+				}
+			}
+			
 			return *this;
 		}
 	}
@@ -802,24 +984,67 @@ namespace ext
 		count = (std::min<size_type>)(last - first, count);
 		size_type tail_count = last - first - count;
 		
+		// we must handle overlap only on grow.
+		// on shrink we can just move data
 		if (count >= count2)
-		{   // shrink
+		{	// shrink
 			size_type diff = count - count2;
 
 			traits_type::move(first, str, count2);
 			traits_type::move(first + count2, first + count, tail_count);
+			this->set_eos(last - diff);
 
 			this->shrink_by(diff);
 			return *this;
 		}
 		else
-		{   // grow
+		{	// grow
+			first -= pos;
+			bool inside = is_inside(str, count, first, last);
+			size_type inspos = str - first;
+
 			size_type diff = count2 - count;
 			std::tie(first, std::ignore) = this->grow_by(diff);
-			first += pos;
+			
+			if (!inside)
+			{	// unrelated strings, just move down and copy
+				first += pos;
+				traits_type::move(first + count2, first + count, tail_count);
+				this->set_eos(first + count2 + tail_count);
+				traits_type::move(first, str, count2);
+			}
+			else
+			{	// strings are same, we must handle overlaps
+				str = first + inspos;
+				first += pos;
 
-			traits_type::move(first + count2, first + count, tail_count);
-			traits_type::move(first, str, count2);
+				// substring begins before hole
+				if (str <= first)
+				{	// remember replacement is bigger than hole (count2 > count) and str <= fist
+					// if [str, str + count) does not go in tail part - than no problem at all
+					// if it continues after [first, last) - tail move will not touch replacement data, so it's safe
+					traits_type::move(first + count2, first + count, tail_count); // move_tail
+					this->set_eos(first + count2 + tail_count); // set eos at buffer end
+					traits_type::move(first, str, count2);
+				}
+				// substring begins after hole
+				else if (str >= first + count)
+				{	// we move tail, and than copy replacement(forwarded by diff) into replaceable
+					traits_type::move(first + count2, first + count, tail_count); // move tail
+					this->set_eos(first + count2 + tail_count); // set eos at buffer end
+					traits_type::copy(first, str + diff, count2); // replacement was moved by diff
+				}
+				else // substring begins in hole
+				{	// remember replacement is bigger than hole.
+					// first we move hole substring to beginning of hole.
+					// then normal tail move, and than move tail part(diff corrected) after hole
+					traits_type::copy(first, str, count); // fill replaceable hole
+					traits_type::move(first + count2, first + count, tail_count); // move tail after hole
+					this->set_eos(first + count2 + tail_count); // set eos at buffer end
+					traits_type::copy(first + count, str + count + diff, diff); // fill after hole
+				}
+			}
+
 			return *this;
 		}
 	}
@@ -828,6 +1053,7 @@ namespace ext
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::replace(size_type o_pos, size_type o_count, size_type r_count, value_type ch)
 	{
+		// with this function there are cannot be overlapping by design
 		value_type * o_first;
 		value_type * o_last;
 		std::tie(o_first, o_last) = make_pointer(o_pos);
@@ -836,22 +1062,24 @@ namespace ext
 		size_type tail_count = o_last - o_first - o_count;
 		
 		if (o_count >= r_count)
-		{   // shrink
+		{	// shrink
 			size_type diff = o_count - r_count;
 			
 			traits_type::assign(o_first, r_count, ch);
 			traits_type::move(o_first + r_count, o_first + o_count, tail_count);
+			this->set_eos(o_last - diff);
 
 			this->shrink_by(diff);
 			return *this;
 		}
 		else
-		{   // grow
+		{	// grow
 			size_type diff = r_count - o_count;
 			std::tie(o_first, std::ignore) = this->grow_by(diff);
 			o_first += o_pos;
 
 			traits_type::move(o_first + r_count, o_first + o_count, tail_count);
+			this->set_eos(o_first + r_count + tail_count);
 			traits_type::assign(o_first, r_count, ch);
 			return *this;
 		}
@@ -868,6 +1096,10 @@ namespace ext
 			return replace(o_first, o_last, self_type(r_first, r_last));
 		}
 
+		// we handle overlapping only for overloads tacking value_type * and iterators
+		// (currently out iterators adre value_type *)
+		// for other kind of iterators it's we do not handle overloads, even if they are random_access.
+		
 		// o_ - our, r_ - remote
 		value_type * first;
 		value_type * last;
@@ -877,34 +1109,37 @@ namespace ext
 		assert(o_last <= last);
 
 		//size_type o_pos = first - o_first;
-		size_type o_count = o_last - o_first;		
+		size_type o_count = o_last - o_first;
 		size_type r_count = std::distance(r_first, r_last);
+		size_type tail_count = last - o_last;
 
 		if (o_count >= r_count)
-		{   // shrink
+		{	// shrink
 			size_type diff = o_count - r_count;
+			first = const_cast<value_type *>(o_first);
 
-			for (; r_first < r_last; ++r_first, ++o_first)
-				traits_type::assign(const_cast<value_type &>(*o_first), *r_first);
-			
+			for (; r_first < r_last; ++r_first, ++first)
+				traits_type::assign(*first, *r_first);
+
 			// move trailing
-			traits_type::move(const_cast<value_type *>(o_first), o_last, last - o_first);
-
+			traits_type::move(first, o_last, tail_count);
+			this->set_eos(last - diff);
 			this->shrink_by(diff);
 			return *this;
 		}
 		else
-		{   // grow
+		{	// grow
 			size_type pos = o_first - first;
 			size_type diff = r_count - o_count;
-			std::tie(o_first, std::ignore) = this->grow_by(diff);
-			o_first = first + pos;
+			std::tie(first, std::ignore) = this->grow_by(diff);
+			first += pos;
 
-			traits_type::move(const_cast<value_type *>(o_first + diff), o_first, last - o_first);
+			traits_type::move(first + r_count, first + o_count, tail_count);
+			this->set_eos(first + r_count + tail_count);
 
-			for (; r_first < r_last; ++r_first, ++o_first)
-				traits_type::assign(const_cast<value_type &>(*o_first), *r_first);
-			
+			for (; r_first < r_last; ++r_first, ++first)
+				traits_type::assign(*first, *r_first);
+
 			return *this;
 		}
 	}
