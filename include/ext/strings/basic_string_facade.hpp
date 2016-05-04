@@ -121,8 +121,8 @@ namespace ext
 		const_reference back() const BOOST_NOEXCEPT { return *(data_end() - 1); }
 
 	public: // [done]
-		void pop_back()               { this->shrink_by(1); };
-		void push_back(value_type ch) { append(1, ch); }
+		void pop_back() BOOST_NOEXCEPT { this->shrink_by(1); };
+		void push_back(value_type ch)  { append(1, ch); }
 
 		void clear()              BOOST_NOEXCEPT  { resize(0); }
 		size_type length() const  BOOST_NOEXCEPT  { return size(); }
