@@ -43,8 +43,8 @@ namespace zlib
 		std::error_code ec;
 
 	public:
-		const std::error_code & code() const { return ec; }
-		const char * what() const override { return errmsg.c_str(); }
+		const std::error_code & code() const BOOST_NOEXCEPT { return ec; }
+		const char * what() const BOOST_NOEXCEPT override { return errmsg.c_str(); }
 		
 		zlib_error(int code, const char * msg);
 	};
@@ -347,6 +347,7 @@ namespace zlib
 
 			int res = deflateInit(native(), compressionLevel);
 			check_error(res, native());
+			return res;
 		}
 
 		/// method is Z_DEFLATED
