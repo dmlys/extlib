@@ -72,21 +72,24 @@ namespace ext
 
 	void inet_ntop(const sockaddr * addr, std::string & str, unsigned short & port)
 	{
+		// on HPUX libc(not libxnet) somehow sa_family is not set in ::getpeername/::getsockname
+		const int force_afinet = BOOST_OS_HPUX;
+
 		const char * res;
 		const socklen_t buflen = INET6_ADDRSTRLEN;
 		char buffer[buflen];
 
-		if (addr->sa_family == AF_INET)
-		{
-			auto * addr4 = reinterpret_cast<const sockaddr_in *>(addr);
-			res = ::inet_ntop(AF_INET, const_cast<in_addr *>(&addr4->sin_addr), buffer, buflen);
-			port = ntohs(addr4->sin_port);
-		}
-		else if (addr->sa_family == AF_INET6)
+		if (addr->sa_family == AF_INET6)
 		{
 			auto * addr6 = reinterpret_cast<const sockaddr_in6 *>(addr);
 			res = ::inet_ntop(AF_INET6, const_cast<in6_addr *>(&addr6->sin6_addr), buffer, buflen);
 			port = ntohs(addr6->sin6_port);
+		}
+		else if (addr->sa_family == AF_INET || force_afinet)
+		{
+			auto * addr4 = reinterpret_cast<const sockaddr_in *>(addr);
+			res = ::inet_ntop(AF_INET, const_cast<in_addr *>(&addr4->sin_addr), buffer, buflen);
+			port = ntohs(addr4->sin_port);
 		}
 		else
 		{
@@ -189,6 +192,8 @@ namespace ext
 	static inline void make_timeval(timeval & tv, std::chrono::system_clock::duration val)
 	{
 		long micro = std::chrono::duration_cast<std::chrono::microseconds>(val).count();
+		if (micro < 0) micro = 0;
+
 		tv.tv_sec = micro / 1000000;
 		tv.tv_usec = micro % 1000000;
 	}
@@ -281,11 +286,11 @@ namespace ext
 	
 	bool bsdsock_streambuf::do_sockconnect(handle_type sock, const addrinfo_type * addr)
 	{
-		int err, res;
-		socklen_t solen;
+		int err, res, pipefd[2]; // self pipe trick. [0] readable, [1] writable
+		bool closepipe, pubres;  // должны ли мы закрыть pipe, или он был закрыт в interrupt
+		sockoptlen_t solen;
 		StateType prevstate;
-		bool closepipe, pubres; // в должны ли мы закрыть pipe, или он был закрыт в interrupt
-		int pipefd[2]; // self pipe trick. [0] readable, [1] writable
+		auto until = time_point::clock::now() + m_timeout;
 		
 		prevstate = Closed;
 		m_lasterror.clear();
@@ -296,7 +301,7 @@ namespace ext
 		// что бы сделать timeout при подключении - устанавливаем не блокирующее поведение
 		res = ::fcntl(sock, F_SETFL, ::fcntl(sock, F_GETFL, 0) | O_NONBLOCK);
 		if (res != 0) goto sockerror;
-
+		
 		res = ::connect(sock, addr->ai_addr, addr->ai_addrlen);
 		if (res == 0) goto connected; // connected immediately
 		assert(res == -1);
@@ -304,12 +309,12 @@ namespace ext
 		if ((err = errno) != EINPROGRESS)
 			goto error;
 
+	again:
 		pubres = publish_connecting(pipefd[1]);
 		if (!pubres) goto intrreq;
-
-	again:
+	
 		struct timeval timeout;
-		make_timeval(timeout, m_timeout);
+		make_timeval(timeout, until - time_point::clock::now());
 
 		fd_set write_set, read_set;
 		FD_ZERO(&write_set);
@@ -337,9 +342,11 @@ namespace ext
 		pubres = publish_opened(sock, prevstate);
 		if (!pubres) goto intrreq;
 
+#if EXT_BSDSOCK_USE_SOTIMEOUT
 		// восстанавливаем blocking behavior
 		res = ::fcntl(sock, F_SETFL, ::fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
 		if (res != 0) goto sockerror;
+#endif
 
 		m_lasterror.clear();
 		return true;
@@ -391,6 +398,7 @@ namespace ext
 					return false;
 			}
 
+#if EXT_BSDSOCK_USE_SOTIMEOUT
 			// выставляем timeout'ы. если не получилось - все очень плохо
 			res = do_socktimeouts(sock);
 			if (!res)
@@ -398,6 +406,7 @@ namespace ext
 				::close(sock);
 				return false;
 			}
+#endif
 
 			// do_sockconnect публикует sock в m_sockhandle, а также учитывает interrupt сигналы.
 			// в случае успеха:
@@ -588,6 +597,79 @@ namespace ext
 		return m_sockhandle != -1;
 	}
 
+	bool bsdsock_streambuf::wait_readable(time_point until)
+	{
+		int err;
+		sockoptlen_t solen;
+
+	again:
+		struct timeval timeout;
+		make_timeval(timeout, until - time_point::clock::now());
+
+		fd_set read_set;
+		FD_ZERO(&read_set);
+		FD_SET(m_sockhandle, &read_set);
+
+		int res = ::select(m_sockhandle + 1, &read_set, nullptr, nullptr, &timeout);
+		if (res == 0) // timeout
+		{
+			m_lasterror.assign(ETIMEDOUT, std::generic_category());
+			return false;
+		}
+
+		if (res == -1) goto sockerror;
+		
+		solen = sizeof(err);
+		res = ::getsockopt(m_sockhandle, SOL_SOCKET, SO_ERROR, &err, &solen);
+		if (res != 0) goto sockerror;
+		if (err != 0) goto error;
+
+		return true;
+
+	sockerror:
+		err = errno;
+	error:
+		if (rw_error(-1, err, m_lasterror)) goto again;
+		return false;
+	}
+
+	bool bsdsock_streambuf::wait_writable(time_point until)
+	{
+		int err;
+		sockoptlen_t solen;
+
+	again:
+		struct timeval timeout;
+		make_timeval(timeout, until - time_point::clock::now());
+
+		fd_set write_set;
+		FD_ZERO(&write_set);
+		FD_SET(m_sockhandle, &write_set);
+		
+		int res = ::select(m_sockhandle + 1, nullptr, &write_set, nullptr, &timeout);
+		if (res == 0) // timeout
+		{
+			m_lasterror.assign(ETIMEDOUT, std::generic_category());
+			return false;
+		}
+		
+		if (res == -1) goto sockerror;
+		assert(res >= 1);
+	
+		solen = sizeof(err);
+		res = ::getsockopt(m_sockhandle, SOL_SOCKET, SO_ERROR, &err, &solen);
+		if (res != 0) goto sockerror;
+		if (err != 0) goto error;
+		
+		return true;
+		
+	sockerror:
+		err = errno;
+	error:
+		if (rw_error(-1, err, m_lasterror)) goto again;
+		return false;
+	}
+
 	std::streamsize bsdsock_streambuf::showmanyc()
 	{
 		//if (!is_valid()) return 0;
@@ -608,23 +690,28 @@ namespace ext
 	{
 		//if (!is_valid()) return 0;
 
+#if !EXT_BSDSOCK_USE_SOTIMEOUT
+	       auto until = time_point::clock::now() + m_timeout;
+	again: if (!wait_readable(until)) return 0;
+#else
+	again:
+#endif
+
 #ifdef EXT_ENABLE_OPENSSL
 		if (ssl_started())
 		{
-		ssl_again:
-			res = ::SSL_read(m_sslhandle, data, count);
+			int res = ::SSL_read(m_sslhandle, data, count);
 			if (res > 0) return res;
 			
-			if (ssl_rw_error(res, m_lasterror)) goto ssl_again;
+			if (ssl_rw_error(res, m_lasterror)) goto again;
 			return 0;
 		}
 #endif // EXT_ENABLE_OPENSSL
-
-	again:
+	
 		int res = ::recv(m_sockhandle, data, count, 0);
-		if (res >= 0) return res;
+		if (res > 0) return res;
 		
-		if (rw_error(errno, m_lasterror)) goto again;
+		if (rw_error(res, errno, m_lasterror)) goto again;
 		return 0;
 	}
 
@@ -632,27 +719,32 @@ namespace ext
 	{
 		//if (!is_valid()) return 0;
 
+#if !EXT_BSDSOCK_USE_SOTIMEOUT
+	       auto until = time_point::clock::now() + m_timeout;
+	again: if (!wait_writable(until)) return 0;
+#else
+	again:
+#endif
+
 #ifdef EXT_ENABLE_OPENSSL
 		if (ssl_started())
 		{
-		ssl_again:
-			res = ::SSL_write(m_sslhandle, data, count);
+			int res = ::SSL_write(m_sslhandle, data, count);
 			if (res > 0) return res;
 
-			if (ssl_rw_error(res, m_lasterror)) goto ssl_again;
+			if (ssl_rw_error(res, m_lasterror)) goto again;
 			return 0;
 		}
 #endif // EXT_ENABLE_OPENSSL
 
-	again:
 		int res = ::send(m_sockhandle, data, count, 0);
-		if (res >= 0) return res;
+		if (res > 0) return res;
 
-		if (rw_error(errno, m_lasterror)) goto again;
+		if (rw_error(res, errno, m_lasterror)) goto again;
 		return 0;
 	}
 	
-	bool bsdsock_streambuf::rw_error(int err, error_code_type & err_code)
+	bool bsdsock_streambuf::rw_error(int res, int err, error_code_type & err_code)
 	{
 		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
@@ -662,11 +754,21 @@ namespace ext
 			return false;
 		}
 		
+		// it was eof
+		if (res >= 0) return false;
+		
 		if (err == EINTR) return true;
 		
+#if EXT_BSDSOCK_USE_SOTIMEOUT
 		// linux and probably other *nix 
 		// returns EAGAIN if SO_RCVTIMEO timeout occurs
 		if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
+#else
+		// if we using select + send/recv,
+		// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
+		// also select allowed return EAGAIN instead of ENOMEM -> repeat either
+		if (err == EAGAIN || err == EWOULDBLOCK) return true;
+#endif
 		
 		err_code.assign(err, std::generic_category());
 		return false;
@@ -731,6 +833,8 @@ namespace ext
 #ifdef EXT_ENABLE_OPENSSL
 	bool bsdsock_streambuf::ssl_rw_error(int res, error_code_type & err_code)
 	{
+		int err;
+
 		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
 		if (state >= Interrupting)
@@ -742,7 +846,6 @@ namespace ext
 		if (ssl_started())
 		{
 			res = SSL_get_error(m_sslhandle, res);
-			int err;
 			switch (res)
 			{
 				// can this happen? just try to handle as SSL_ERROR_SYSCALL
@@ -765,9 +868,16 @@ namespace ext
 					{
 						if (err == EINTR) return true;
 
+#if EXT_BSDSOCK_USE_SOTIMEOUT
 						// linux and probably other *nix 
 						// returns EAGAIN if SO_RCVTIMEO timeout occurs
 						if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
+#else
+						// if we using select + send/recv,
+						// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
+						// also select allowed return EAGAIN instead of ENOMEM -> repeat either
+						if (err == EAGAIN || err == EWOULDBLOCK) return true;
+#endif
 
 						err_code.assign(err, std::generic_category());
 						return false;
@@ -783,14 +893,21 @@ namespace ext
 			}
 		}
 
-		res = errno; // unused
-		if (res == EINTR) return true;
+		err = errno; // unused
+		if (err == EINTR) return true;
 
+#if EXT_BSDSOCK_USE_SOTIMEOUT
 		// linux and probably other *nix 
 		// returns EAGAIN if SO_RCVTIMEO timeout occurs
-		if (res == EAGAIN || res == EWOULDBLOCK) res = ETIMEDOUT;
+		if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
+#else
+		// if we using select + send/recv,
+		// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
+		// also select allowed return EAGAIN instead of ENOMEM -> repeat either
+		if (err == EAGAIN || err == EWOULDBLOCK) return true;
+#endif
 
-		err_code.assign(res, std::generic_category());
+		err_code.assign(err, std::generic_category());
 		return false;
 	}
 
@@ -961,7 +1078,8 @@ namespace ext
 		if (!is_open())
 			throw std::runtime_error("bsdsock_streambuf::getpeername: bad socket");
 
-		auto res = ::getpeername(m_sockhandle, addr, addrlen);
+		sockoptlen_t * so_addrlen = reinterpret_cast<sockoptlen_t *>(addrlen);
+		auto res = ::getpeername(m_sockhandle, addr, so_addrlen);
 		if (res != 0)
 		{
 			throw system_error_type(
@@ -976,7 +1094,8 @@ namespace ext
 		if (!is_open())
 			throw std::runtime_error("bsdsock_streambuf::getsockname: bad socket");
 
-		auto res = ::getsockname(m_sockhandle, addr, addrlen);
+		sockoptlen_t * so_addrlen = reinterpret_cast<sockoptlen_t *>(addrlen);
+		auto res = ::getsockname(m_sockhandle, addr, so_addrlen);
 		if (res != 0)
 		{
 			throw std::system_error(
