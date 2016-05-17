@@ -14,28 +14,13 @@
 
 #include <boost/config.hpp>
 #include <ext/iostreams/socket_streambuf_base.hpp>
-
-
-struct addrinfo;
-struct sockaddr;
-typedef unsigned int socklen_t;
-
-#ifdef EXT_ENABLE_OPENSSL
-/// forward some openssl types
-struct ssl_st;
-struct ssl_ctx_st;
-struct ssl_method_st;
-
-typedef struct ssl_st        SSL;
-typedef struct ssl_ctx_st    SSL_CTX;
-typedef struct ssl_method_st SSL_METHOD;
-#endif // EXT_ENABLE_OPENSSL
+#include <ext/iostreams/bsdsock_config.hpp>
 
 namespace ext
 {
 	typedef addrinfo addrinfo_type;
 	typedef sockaddr sockaddr_type;
-	typedef int      socket_handle_type;	
+	typedef int      socket_handle_type;
 
 	struct addrinfo_deleter
 	{
@@ -121,7 +106,9 @@ namespace ext
 	public:
 		typedef std::error_code       error_code_type;
 		typedef std::system_error     system_error_type;
-		typedef std::chrono::system_clock::duration duration_type;
+
+		typedef std::chrono::system_clock::duration    duration_type;
+		typedef std::chrono::system_clock::time_point  time_point;
 
 		typedef socket_handle_type    handle_type;
 
@@ -157,7 +144,7 @@ namespace ext
 		std::atomic<StateType> m_state = {Closed};
 
 		error_code_type m_lasterror;
-		duration_type m_timeout = std::chrono::seconds(10);
+		duration_type m_timeout = std::chrono::seconds(10); 
 
 	private:
 		/// публикует сокет для которого началось подключение,
@@ -199,10 +186,11 @@ namespace ext
 		bool do_connect(const addrinfo_type * addr);
 
 		/// анализирует ошибку read/wrtie операции.
+		/// res - результат операции recv/write, если 0 - то это eof и проверяется только State >=
 		/// err - код ошибки операции errno/getsockopt(..., SO_ERROR, ...)
 		/// В err_code записывает итоговую ошибку.
 		/// возвращает флаг, нужно ли повторить операцию(реакция на EINTR).
-		bool rw_error(int err, error_code_type & err_code);
+		bool rw_error(int res, int err, error_code_type & err_code);
 		
 #ifdef EXT_ENABLE_OPENSSL
 		error_code_type ssl_error(SSL * ssl, int error);
@@ -224,6 +212,18 @@ namespace ext
 		bool do_sslshutdown(SSL * ssl);
 #endif //EXT_ENABLE_OPENSSL
 
+	private:
+		/// ожидает пока сокет не станет доступен на чтение с помощью select.
+		/// until - предельная точка ожидания.
+		/// в случае ошибки - возвращает false.
+		/// учитывает EINTR/EAGAIN - повторяет ожидание, если только не было вызова interrupt
+		bool wait_readable(time_point until);
+		/// ожидает пока сокет не станет доступен на запись с помощью select.
+		/// until - предельная точка ожидания.
+		/// в случае ошибки - возвращает false.
+		/// учитывает EINTR/EAGAIN - повторяет ожидание, если только не было вызова interrupt
+		bool wait_writable(time_point until);
+
 	public:
 		std::streamsize showmanyc() override;
 		std::size_t read_some(char_type * data, std::size_t count) override;
@@ -232,7 +232,7 @@ namespace ext
 	public:
 		/// timeout любых операций на сокетом,
 		/// в случае превышения вызовы underflow/overflow/sync и другие вернут eof/-1/ошибку,
-		/// а last_error() == WSAETIMEDOUT
+		/// а last_error() == ETIMEDOUT
 		duration_type timeout() const { return m_timeout; }
 		duration_type timeout(duration_type newtimeout);
 		/// возвращает последнюю ошибку возникшую в ходе выполнения операции
