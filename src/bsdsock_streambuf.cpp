@@ -85,7 +85,7 @@ namespace ext
 		else if (addr->sa_family == AF_INET6)
 		{
 			auto * addr6 = reinterpret_cast<const sockaddr_in6 *>(addr);
-			res = inet_ntop(AF_INET6, const_cast<in6_addr *>(&addr6->sin6_addr), buffer, buflen);
+			res = ::inet_ntop(AF_INET6, const_cast<in6_addr *>(&addr6->sin6_addr), buffer, buflen);
 			port = ntohs(addr6->sin6_port);
 		}
 		else
@@ -126,7 +126,7 @@ namespace ext
 		{
 			throw bsdsock_streambuf::system_error_type(
 				std::make_error_code(std::errc::address_family_not_supported),
-				"inet_ntop unsupported address family"
+				"inet_pton unsupported address family"
 			);
 		}
 
@@ -307,6 +307,7 @@ namespace ext
 		pubres = publish_connecting(pipefd[1]);
 		if (!pubres) goto intrreq;
 
+	again:
 		struct timeval timeout;
 		make_timeval(timeout, m_timeout);
 
@@ -316,7 +317,6 @@ namespace ext
 		FD_ZERO(&read_set);
 		FD_SET(pipefd[0], &read_set);
 		
-	again:
 		prevstate = Connecting;
 		res = ::select(std::max(sock, pipefd[0]) + 1, &read_set, &write_set, nullptr, &timeout);
 		if (res == 0) // timeout
@@ -607,54 +607,52 @@ namespace ext
 	std::size_t bsdsock_streambuf::read_some(char_type * data, std::size_t count)
 	{
 		//if (!is_valid()) return 0;
-		int res;
 
 #ifdef EXT_ENABLE_OPENSSL
 		if (ssl_started())
 		{
 		ssl_again:
-			res = SSL_read(m_sslhandle, data, count);
+			res = ::SSL_read(m_sslhandle, data, count);
 			if (res > 0) return res;
 			
-			if (rw_error(res, m_lasterror)) goto ssl_again;
+			if (ssl_rw_error(res, m_lasterror)) goto ssl_again;
 			return 0;
 		}
 #endif // EXT_ENABLE_OPENSSL
 
 	again:
-		res = ::recv(m_sockhandle, data, count, 0);
-		if (res > 0) return res;
+		int res = ::recv(m_sockhandle, data, count, 0);
+		if (res >= 0) return res;
 		
-		if (rw_error(res, m_lasterror)) goto again;
+		if (rw_error(errno, m_lasterror)) goto again;
 		return 0;
 	}
 
 	std::size_t bsdsock_streambuf::write_some(const char_type * data, std::size_t count)
 	{
 		//if (!is_valid()) return 0;
-		int res;
 
 #ifdef EXT_ENABLE_OPENSSL
 		if (ssl_started())
 		{
 		ssl_again:
-			res = SSL_write(m_sslhandle, data, count);
+			res = ::SSL_write(m_sslhandle, data, count);
 			if (res > 0) return res;
 
-			if (rw_error(res, m_lasterror)) goto ssl_again;
+			if (ssl_rw_error(res, m_lasterror)) goto ssl_again;
 			return 0;
 		}
 #endif // EXT_ENABLE_OPENSSL
 
 	again:
-		res = ::send(m_sockhandle, data, count, 0);
-		if (res > 0) return res;
+		int res = ::send(m_sockhandle, data, count, 0);
+		if (res >= 0) return res;
 
-		if (rw_error(res, m_lasterror)) goto again;
+		if (rw_error(errno, m_lasterror)) goto again;
 		return 0;
 	}
 	
-	bool bsdsock_streambuf::rw_error(int res, error_code_type & err_code)
+	bool bsdsock_streambuf::rw_error(int err, error_code_type & err_code)
 	{
 		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
@@ -664,60 +662,13 @@ namespace ext
 			return false;
 		}
 		
-#ifdef EXT_ENABLE_OPENSSL
-		if (ssl_started())
-		{
-			res = SSL_get_error(m_sslhandle, res);
-			int err;
-			switch (res)
-			{
-				// can this happen? just try to handle as SSL_ERROR_SYSCALL
-				case SSL_ERROR_NONE:
-				
-				// if it's SSL_ERROR_WANT_{WRITE,READ}
-				// errno can be EAGAIN - then it's timeout, or EINTR - repeat operation
-				case SSL_ERROR_WANT_READ:
-				case SSL_ERROR_WANT_WRITE:
-				case SSL_ERROR_SYSCALL:
-				case SSL_ERROR_SSL:
-					// if it some generic SSL error
-					if ((err = ERR_get_error()))
-					{
-						err_code.assign(err, ext::openssl_err_category());
-						return false;
-					}
-					
-					if ((err = errno))
-					{
-						if (err == EINTR) return true;
-
-						// linux and probably other *nix 
-						// returns EAGAIN if SO_RCVTIMEO timeout accurs
-						if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
-						
-						err_code.assign(err, std::generic_category());
-						return false;
-					}
-				
-				case SSL_ERROR_ZERO_RETURN:
-				case SSL_ERROR_WANT_X509_LOOKUP:
-				case SSL_ERROR_WANT_CONNECT:
-				case SSL_ERROR_WANT_ACCEPT:
-				default:
-					m_lasterror.assign(res, ext::openssl_err_category());
-					return false;
-			}
-		}
-#endif // EXT_ENABLE_OPENSSL
-		
-		res = errno; // unused
-		if (res == EINTR) return true;
+		if (err == EINTR) return true;
 		
 		// linux and probably other *nix 
-		// returns EAGAIN if SO_RCVTIMEO timeout accurs
-		if (res == EAGAIN || res == EWOULDBLOCK) res = ETIMEDOUT;
+		// returns EAGAIN if SO_RCVTIMEO timeout occurs
+		if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
 		
-		err_code.assign(res, std::generic_category());
+		err_code.assign(err, std::generic_category());
 		return false;
 	}
 	
@@ -778,6 +729,71 @@ namespace ext
 	/*                     ssl stuff                                        */
 	/************************************************************************/
 #ifdef EXT_ENABLE_OPENSSL
+	bool bsdsock_streambuf::ssl_rw_error(int res, error_code_type & err_code)
+	{
+		// error can be result of shutdown from interrupt
+		auto state = m_state.load(std::memory_order_relaxed);
+		if (state >= Interrupting)
+		{
+			err_code = std::make_error_code(std::errc::interrupted);
+			return false;
+		}
+
+		if (ssl_started())
+		{
+			res = SSL_get_error(m_sslhandle, res);
+			int err;
+			switch (res)
+			{
+				// can this happen? just try to handle as SSL_ERROR_SYSCALL
+				case SSL_ERROR_NONE:
+
+					// if it's SSL_ERROR_WANT_{WRITE,READ}
+					// errno can be EAGAIN - then it's timeout, or EINTR - repeat operation
+				case SSL_ERROR_WANT_READ:
+				case SSL_ERROR_WANT_WRITE:
+				case SSL_ERROR_SYSCALL:
+				case SSL_ERROR_SSL:
+					// if it some generic SSL error
+					if ((err = ERR_get_error()))
+					{
+						err_code.assign(err, ext::openssl_err_category());
+						return false;
+					}
+
+					if ((err = errno))
+					{
+						if (err == EINTR) return true;
+
+						// linux and probably other *nix 
+						// returns EAGAIN if SO_RCVTIMEO timeout occurs
+						if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
+
+						err_code.assign(err, std::generic_category());
+						return false;
+					}
+
+				case SSL_ERROR_ZERO_RETURN:
+				case SSL_ERROR_WANT_X509_LOOKUP:
+				case SSL_ERROR_WANT_CONNECT:
+				case SSL_ERROR_WANT_ACCEPT:
+				default:
+					m_lasterror.assign(res, ext::openssl_err_category());
+					return false;
+			}
+		}
+
+		res = errno; // unused
+		if (res == EINTR) return true;
+
+		// linux and probably other *nix 
+		// returns EAGAIN if SO_RCVTIMEO timeout occurs
+		if (res == EAGAIN || res == EWOULDBLOCK) res = ETIMEDOUT;
+
+		err_code.assign(res, std::generic_category());
+		return false;
+	}
+
 	bool bsdsock_streambuf::ssl_started() const
 	{
 		return m_sslhandle != nullptr && SSL_get_session(m_sslhandle) != nullptr;
@@ -823,7 +839,7 @@ namespace ext
 		int res = SSL_connect(ssl);
 		if (res > 0) return true;
 
-		if (rw_error(res, m_lasterror)) goto again;
+		if (ssl_rw_error(res, m_lasterror)) goto again;
 		return false;
 	}
 
