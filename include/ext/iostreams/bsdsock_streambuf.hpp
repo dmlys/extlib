@@ -199,13 +199,18 @@ namespace ext
 		bool do_connect(const addrinfo_type * addr);
 
 		/// анализирует ошибку read/wrtie операции.
-		/// res - результат операции(возращаяемое значение ::read, ::write, ::SSL_read, ::SSL_write, ...).
-		/// В err записывает итоговую ошибку.
-		/// возвращает флаг, нужно ли повторить операцию(реакция на EINTR).		
-		bool rw_error(int res, error_code_type & err_code);
+		/// err - код ошибки операции errno/getsockopt(..., SO_ERROR, ...)
+		/// В err_code записывает итоговую ошибку.
+		/// возвращает флаг, нужно ли повторить операцию(реакция на EINTR).
+		bool rw_error(int err, error_code_type & err_code);
 		
 #ifdef EXT_ENABLE_OPENSSL
 		error_code_type ssl_error(SSL * ssl, int error);
+		/// анализирует ошибку ssl read/wrtie операции.
+		/// res - результат операции(возращаяемое значение ::SSL_read, ::SSL_write).
+		/// В err_code записывает итоговую ошибку.
+		/// возвращает флаг, нужно ли повторить операцию(реакция на EINTR).
+		bool ssl_rw_error(int res, error_code_type & err_code);
 		/// освобождает ресурсы связанные с ssl
 		void do_sslreset();
 		/// создает ssl объект, ассоциирует его с дескриптором сокета и настраивает его.
