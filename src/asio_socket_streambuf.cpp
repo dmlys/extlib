@@ -126,7 +126,9 @@ namespace ext
 		~device() = default;
 		void reset();
 
-		boost::system::error_code last_error() const { return m_last_error; }
+		const boost::system::error_code & last_error() const { return m_last_error; }
+		      boost::system::error_code & last_error()       { return m_last_error; }
+
 		std::shared_ptr<boost::asio::io_service> service() const { return m_ioserv; }
 		boost::asio::ip::tcp::socket & socket() { return m_sock; }
 
@@ -626,7 +628,12 @@ namespace ext
 		return m_device->timeout(newtimeout);
 	}
 
-	asio_socket_streambuf::error_code_type asio_socket_streambuf::last_error() const
+	const asio_socket_streambuf::error_code_type & asio_socket_streambuf::last_error() const
+	{
+		return m_device->last_error();
+	}
+
+	asio_socket_streambuf::error_code_type & asio_socket_streambuf::last_error()
 	{
 		return m_device->last_error();
 	}

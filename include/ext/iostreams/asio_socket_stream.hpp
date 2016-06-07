@@ -23,7 +23,9 @@ namespace ext
 		duration_type timeout() const                   { return m_streambuf.timeout();  }
 		duration_type timeout(duration_type newtimeout) { return m_streambuf.timeout(newtimeout); }
 		
-		boost::system::error_code last_error() const { return m_streambuf.last_error(); }
+		const boost::system::error_code & last_error() const { return m_streambuf.last_error(); }
+		      boost::system::error_code & last_error()       { return m_streambuf.last_error(); }
+
 		asio_socket_streambuf * rdbuf() { return &m_streambuf; }
 		std::shared_ptr<boost::asio::io_service> service() const { return m_streambuf.service(); }
 		boost::asio::ip::tcp::socket & socket() { return m_streambuf.socket(); }

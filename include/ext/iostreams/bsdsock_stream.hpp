@@ -33,7 +33,9 @@ namespace ext
 		duration_type timeout() const                   { return m_streambuf.timeout();  }
 		duration_type timeout(duration_type newtimeout) { return m_streambuf.timeout(newtimeout); }
 		
-		error_code_type last_error() const { return m_streambuf.last_error(); }
+		const error_code_type & last_error() const { return m_streambuf.last_error(); }
+		      error_code_type & last_error()       { return m_streambuf.last_error(); }
+
 		ext::bsdsock_streambuf * rdbuf() { return &m_streambuf; }
 		handle_type socket() { return m_streambuf.socket(); }
 

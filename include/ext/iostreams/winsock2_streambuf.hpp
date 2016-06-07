@@ -256,7 +256,8 @@ namespace ext
 		duration_type timeout(duration_type newtimeout);
 		/// возвращает последнюю ошибку возникшую в ходе выполнения операции
 		/// или ok если ошибок не было
-		error_code_type last_error() const { return m_lasterror; }
+		const error_code_type & last_error() const { return m_lasterror; }
+		      error_code_type & last_error()       { return m_lasterror; }
 
 		/// позволяет получить доступ к нижележащему сокету
 		/// при изменении свойств сокета - никаких гарантий работы класса,

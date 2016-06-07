@@ -82,7 +82,8 @@ namespace ext
 		duration_type timeout(duration_type newtimeout);
 		/// возвращает последнюю ошибку возникшую в ходе выполнения операции
 		/// или ok если ошибок не было
-		error_code_type last_error() const;
+		const error_code_type & last_error() const;
+		      error_code_type & last_error();
 
 		/// сервис с которым был создан сокет
 		std::shared_ptr<boost::asio::io_service> service() const;
