@@ -81,6 +81,9 @@
     <ClCompile Include="src\winsock2.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\threaded_scheduler.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ext\FileSystemUtils.hpp">
@@ -443,6 +446,8 @@
     <ClInclude Include="include\ext\intrusive_cow_ptr.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\ext\threaded_scheduler.hpp" />
+    <ClInclude Include="include\ext\scheduler.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE_1_0.txt" />
