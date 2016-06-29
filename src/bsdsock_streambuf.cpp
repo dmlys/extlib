@@ -629,8 +629,8 @@ namespace ext
 	sockerror:
 		err = errno;
 	error:
-		if (rw_error(-1, err, m_lasterror)) goto again;
-		return false;
+		if (rw_error(-1, err, m_lasterror)) return false;
+		goto again;		
 	}
 
 	bool bsdsock_streambuf::wait_writable(time_point until)
@@ -666,8 +666,8 @@ namespace ext
 	sockerror:
 		err = errno;
 	error:
-		if (rw_error(-1, err, m_lasterror)) goto again;
-		return false;
+		if (rw_error(-1, err, m_lasterror)) return false;
+		goto again;		
 	}
 
 	std::streamsize bsdsock_streambuf::showmanyc()
@@ -691,27 +691,32 @@ namespace ext
 		//if (!is_valid()) return 0;
 
 #if !EXT_BSDSOCK_USE_SOTIMEOUT
-	       auto until = time_point::clock::now() + m_timeout;
-	again: if (!wait_readable(until)) return 0;
-#else
-	again:
+		auto until = time_point::clock::now() + m_timeout;
 #endif
+		do {
 
 #ifdef EXT_ENABLE_OPENSSL
-		if (ssl_started())
-		{
-			int res = ::SSL_read(m_sslhandle, data, count);
-			if (res > 0) return res;
-			
-			if (ssl_rw_error(res, m_lasterror)) goto again;
-			return 0;
-		}
+			if (ssl_started())
+			{
+				int res = ::SSL_read(m_sslhandle, data, count);
+				if (res > 0) return res;
+
+				if (ssl_rw_error(res, m_lasterror)) return 0;
+				continue;
+			}
 #endif // EXT_ENABLE_OPENSSL
-	
-		int res = ::recv(m_sockhandle, data, count, 0);
-		if (res > 0) return res;
-		
-		if (rw_error(res, errno, m_lasterror)) goto again;
+
+			int res = ::recv(m_sockhandle, data, count, 0);
+			if (res > 0) return res;
+
+			if (rw_error(res, errno, m_lasterror)) return 0;
+			continue;
+
+#if !EXT_BSDSOCK_USE_SOTIMEOUT
+		} while (wait_readable(until));
+#else
+		} while (false);		
+#endif
 		return 0;
 	}
 
@@ -719,28 +724,34 @@ namespace ext
 	{
 		//if (!is_valid()) return 0;
 
+
 #if !EXT_BSDSOCK_USE_SOTIMEOUT
-	       auto until = time_point::clock::now() + m_timeout;
-	again: if (!wait_writable(until)) return 0;
-#else
-	again:
+		auto until = time_point::clock::now() + m_timeout;
 #endif
+		do {
 
 #ifdef EXT_ENABLE_OPENSSL
-		if (ssl_started())
-		{
-			int res = ::SSL_write(m_sslhandle, data, count);
-			if (res > 0) return res;
+			if (ssl_started())
+			{
+				int res = ::SSL_write(m_sslhandle, data, count);
+				if (res > 0) return res;
 
-			if (ssl_rw_error(res, m_lasterror)) goto again;
-			return 0;
-		}
+				if (ssl_rw_error(res, m_lasterror)) return 0;
+				continue;
+			}
 #endif // EXT_ENABLE_OPENSSL
 
-		int res = ::send(m_sockhandle, data, count, 0);
-		if (res > 0) return res;
+			int res = ::send(m_sockhandle, data, count, 0);
+			if (res > 0) return res;
 
-		if (rw_error(res, errno, m_lasterror)) goto again;
+			if (rw_error(res, errno, m_lasterror)) return 0;
+			continue;
+
+#if !EXT_BSDSOCK_USE_SOTIMEOUT
+		} while (wait_readable(until));
+#else
+		} while (false);
+#endif
 		return 0;
 	}
 	
@@ -751,13 +762,13 @@ namespace ext
 		if (state >= Interrupting) 
 		{
 			err_code = std::make_error_code(std::errc::interrupted);
-			return false;
+			return true;
 		}
 		
 		// it was eof
-		if (res >= 0) return false;
+		if (res >= 0) return true;
 		
-		if (err == EINTR) return true;
+		if (err == EINTR) return false;
 		
 #if EXT_BSDSOCK_USE_SOTIMEOUT
 		// linux and probably other *nix 
@@ -767,11 +778,11 @@ namespace ext
 		// if we using select + send/recv,
 		// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
 		// also select allowed return EAGAIN instead of ENOMEM -> repeat either
-		if (err == EAGAIN || err == EWOULDBLOCK) return true;
+		if (err == EAGAIN || err == EWOULDBLOCK) return false;
 #endif
 		
 		err_code.assign(err, std::generic_category());
-		return false;
+		return true;
 	}
 	
 	/************************************************************************/
@@ -833,6 +844,7 @@ namespace ext
 #ifdef EXT_ENABLE_OPENSSL
 	bool bsdsock_streambuf::ssl_rw_error(int res, error_code_type & err_code)
 	{
+		assert(ssl_started());
 		int err;
 
 		// error can be result of shutdown from interrupt
@@ -840,75 +852,55 @@ namespace ext
 		if (state >= Interrupting)
 		{
 			err_code = std::make_error_code(std::errc::interrupted);
-			return false;
+			return true;
 		}
 
-		if (ssl_started())
+		res = SSL_get_error(m_sslhandle, res);
+		switch (res)
 		{
-			res = SSL_get_error(m_sslhandle, res);
-			switch (res)
-			{
-				// can this happen? just try to handle as SSL_ERROR_SYSCALL
-				case SSL_ERROR_NONE:
+			// can this happen? just try to handle as SSL_ERROR_SYSCALL
+			case SSL_ERROR_NONE:
 
-					// if it's SSL_ERROR_WANT_{WRITE,READ}
-					// errno can be EAGAIN - then it's timeout, or EINTR - repeat operation
-				case SSL_ERROR_WANT_READ:
-				case SSL_ERROR_WANT_WRITE:
-				case SSL_ERROR_SYSCALL:
-				case SSL_ERROR_SSL:
-					// if it some generic SSL error
-					if ((err = ERR_get_error()))
-					{
-						err_code.assign(err, ext::openssl_err_category());
-						return false;
-					}
+			// if it's SSL_ERROR_WANT_{WRITE,READ}
+			// errno can be EAGAIN - then it's timeout, or EINTR - repeat operation
+			case SSL_ERROR_WANT_READ:
+			case SSL_ERROR_WANT_WRITE:
+			case SSL_ERROR_SYSCALL:
+			case SSL_ERROR_SSL:
+				// if it some generic SSL error
+				if ((err = ERR_get_error()))
+				{
+					err_code.assign(err, ext::openssl_err_category());
+					return true;
+				}
 
-					if ((err = errno))
-					{
-						if (err == EINTR) return true;
+				if ((err = errno))
+				{
+					if (err == EINTR) return false;
 
 #if EXT_BSDSOCK_USE_SOTIMEOUT
-						// linux and probably other *nix 
-						// returns EAGAIN if SO_RCVTIMEO timeout occurs
-						if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
+					// linux and probably other *nix 
+					// returns EAGAIN if SO_RCVTIMEO timeout occurs
+					if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
 #else
-						// if we using select + send/recv,
-						// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
-						// also select allowed return EAGAIN instead of ENOMEM -> repeat either
-						if (err == EAGAIN || err == EWOULDBLOCK) return true;
+					// if we using select + send/recv,
+					// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
+					// also select allowed return EAGAIN instead of ENOMEM -> repeat either
+					if (err == EAGAIN || err == EWOULDBLOCK) return false;
 #endif
 
-						err_code.assign(err, std::generic_category());
-						return false;
-					}
+					err_code.assign(err, std::generic_category());
+					return true;
+				}
 
-				case SSL_ERROR_ZERO_RETURN:
-				case SSL_ERROR_WANT_X509_LOOKUP:
-				case SSL_ERROR_WANT_CONNECT:
-				case SSL_ERROR_WANT_ACCEPT:
-				default:
-					m_lasterror.assign(res, ext::openssl_err_category());
-					return false;
-			}
+			case SSL_ERROR_ZERO_RETURN:
+			case SSL_ERROR_WANT_X509_LOOKUP:
+			case SSL_ERROR_WANT_CONNECT:
+			case SSL_ERROR_WANT_ACCEPT:
+			default:
+				m_lasterror.assign(res, ext::openssl_err_category());
+				return true;
 		}
-
-		err = errno; // unused
-		if (err == EINTR) return true;
-
-#if EXT_BSDSOCK_USE_SOTIMEOUT
-		// linux and probably other *nix 
-		// returns EAGAIN if SO_RCVTIMEO timeout occurs
-		if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
-#else
-		// if we using select + send/recv,
-		// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
-		// also select allowed return EAGAIN instead of ENOMEM -> repeat either
-		if (err == EAGAIN || err == EWOULDBLOCK) return true;
-#endif
-
-		err_code.assign(err, std::generic_category());
-		return false;
 	}
 
 	bool bsdsock_streambuf::ssl_started() const
@@ -956,8 +948,8 @@ namespace ext
 		int res = SSL_connect(ssl);
 		if (res > 0) return true;
 
-		if (ssl_rw_error(res, m_lasterror)) goto again;
-		return false;
+		if (ssl_rw_error(res, m_lasterror)) return false;
+		goto again;
 	}
 
 	bool bsdsock_streambuf::do_sslshutdown(SSL * ssl)
