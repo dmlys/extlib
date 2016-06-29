@@ -189,7 +189,7 @@ namespace ext
 		/// res - результат операции recv/write, если 0 - то это eof и проверяется только State >=
 		/// err - код ошибки операции errno/getsockopt(..., SO_ERROR, ...)
 		/// В err_code записывает итоговую ошибку.
-		/// возвращает флаг, нужно ли повторить операцию(реакция на EINTR).
+		/// возвращает была ли действительно ошибка, или нужно повторить операцию(реакция на EINTR).
 		bool rw_error(int res, int err, error_code_type & err_code);
 		
 #ifdef EXT_ENABLE_OPENSSL
@@ -197,7 +197,7 @@ namespace ext
 		/// анализирует ошибку ssl read/wrtie операции.
 		/// res - результат операции(возращаяемое значение ::SSL_read, ::SSL_write).
 		/// В err_code записывает итоговую ошибку.
-		/// возвращает флаг, нужно ли повторить операцию(реакция на EINTR).
+		/// возвращает была ли действительно ошибка, или нужно повторить операцию(реакция на EINTR).
 		bool ssl_rw_error(int res, error_code_type & err_code);
 		/// освобождает ресурсы связанные с ssl
 		void do_sslreset();
