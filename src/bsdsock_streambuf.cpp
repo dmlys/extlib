@@ -231,18 +231,10 @@ namespace ext
 		return false;
 	}
 	
-	bool bsdsock_streambuf::do_socktimeouts(handle_type sock)
+	bool bsdsock_streambuf::do_setnonblocking(handle_type sock)
 	{
-		int res;
-		/// timeout для blocking операций
-		struct timeval tv;
-		make_timeval(tv, m_timeout);
-
-		res = ::setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+		int res = ::fcntl(sock, F_SETFL, ::fcntl(sock, F_GETFL, 0) | O_NONBLOCK);
 		if (res != 0) goto sockerror;
-		res = ::setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-		if (res != 0) goto sockerror;
-
 		return true;
 
 	sockerror:
@@ -298,10 +290,6 @@ namespace ext
 		res = ::pipe(pipefd);
 		if (res != 0) goto sockerror;
 		
-		// что бы сделать timeout при подключении - устанавливаем не блокирующее поведение
-		res = ::fcntl(sock, F_SETFL, ::fcntl(sock, F_GETFL, 0) | O_NONBLOCK);
-		if (res != 0) goto sockerror;
-		
 		res = ::connect(sock, addr->ai_addr, addr->ai_addrlen);
 		if (res == 0) goto connected; // connected immediately
 		assert(res == -1);
@@ -341,12 +329,6 @@ namespace ext
 	connected:
 		pubres = publish_opened(sock, prevstate);
 		if (!pubres) goto intrreq;
-
-#if EXT_BSDSOCK_USE_SOTIMEOUT
-		// восстанавливаем blocking behavior
-		res = ::fcntl(sock, F_SETFL, ::fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
-		if (res != 0) goto sockerror;
-#endif
 
 		m_lasterror.clear();
 		return true;
@@ -398,15 +380,13 @@ namespace ext
 					return false;
 			}
 
-#if EXT_BSDSOCK_USE_SOTIMEOUT
-			// выставляем timeout'ы. если не получилось - все очень плохо
-			res = do_socktimeouts(sock);
+			// выставляем non blocking режим. если не получилось - все очень плохо
+			res = do_setnonblocking(sock);
 			if (!res)
 			{
 				::close(sock);
 				return false;
 			}
-#endif
 
 			// do_sockconnect публикует sock в m_sockhandle, а также учитывает interrupt сигналы.
 			// в случае успеха:
@@ -690,9 +670,7 @@ namespace ext
 	{
 		//if (!is_valid()) return 0;
 
-#if !EXT_BSDSOCK_USE_SOTIMEOUT
 		auto until = time_point::clock::now() + m_timeout;
-#endif
 		do {
 
 #ifdef EXT_ENABLE_OPENSSL
@@ -712,11 +690,7 @@ namespace ext
 			if (rw_error(res, errno, m_lasterror)) return 0;
 			continue;
 
-#if !EXT_BSDSOCK_USE_SOTIMEOUT
 		} while (wait_readable(until));
-#else
-		} while (false);		
-#endif
 		return 0;
 	}
 
@@ -724,10 +698,7 @@ namespace ext
 	{
 		//if (!is_valid()) return 0;
 
-
-#if !EXT_BSDSOCK_USE_SOTIMEOUT
 		auto until = time_point::clock::now() + m_timeout;
-#endif
 		do {
 
 #ifdef EXT_ENABLE_OPENSSL
@@ -747,11 +718,7 @@ namespace ext
 			if (rw_error(res, errno, m_lasterror)) return 0;
 			continue;
 
-#if !EXT_BSDSOCK_USE_SOTIMEOUT
 		} while (wait_readable(until));
-#else
-		} while (false);
-#endif
 		return 0;
 	}
 	
@@ -770,16 +737,9 @@ namespace ext
 		
 		if (err == EINTR) return false;
 		
-#if EXT_BSDSOCK_USE_SOTIMEOUT
-		// linux and probably other *nix 
-		// returns EAGAIN if SO_RCVTIMEO timeout occurs
-		if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
-#else
-		// if we using select + send/recv,
-		// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
+		// when using nonblocking socket, EAGAIN/EWOULDBLOCK mean repeat operation later,
 		// also select allowed return EAGAIN instead of ENOMEM -> repeat either
 		if (err == EAGAIN || err == EWOULDBLOCK) return false;
-#endif
 		
 		err_code.assign(err, std::generic_category());
 		return true;
@@ -878,16 +838,9 @@ namespace ext
 				{
 					if (err == EINTR) return false;
 
-#if EXT_BSDSOCK_USE_SOTIMEOUT
-					// linux and probably other *nix 
-					// returns EAGAIN if SO_RCVTIMEO timeout occurs
-					if (err == EAGAIN || err == EWOULDBLOCK) err = ETIMEDOUT;
-#else
-					// if we using select + send/recv,
-					// then EAGAIN/EWOULDBLOCK would mean repeat operation later,
+					// when using nonblocking socket, EAGAIN/EWOULDBLOCK mean repeat operation later,
 					// also select allowed return EAGAIN instead of ENOMEM -> repeat either
 					if (err == EAGAIN || err == EWOULDBLOCK) return false;
-#endif
 
 					err_code.assign(err, std::generic_category());
 					return true;
@@ -1060,9 +1013,7 @@ namespace ext
 		if (newtimeout < std::chrono::seconds(1))
 			newtimeout = std::chrono::seconds(1);
 		
-		newtimeout = std::exchange(m_timeout, newtimeout);
-		if (is_open()) do_socktimeouts(m_sockhandle);
-		return newtimeout;
+		return std::exchange(m_timeout, newtimeout);
 	}
 
 	void bsdsock_streambuf::getpeername(sockaddr_type * addr, socklen_t * addrlen)

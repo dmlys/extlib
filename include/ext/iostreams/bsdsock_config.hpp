@@ -15,14 +15,9 @@
 /// * socklen_t
 /// * sockoptlen_t - type that setsockopt accepts as len parameter, 
 ///                  normally it should same as socklen_t but on some platforms can be different
-///                  
-/// define EXT_BSDSOCK_USE_SOTIMEOUT 1/0 - USE SO_RCVTIMEO/SO_SNDTIMEO or select + send/recv pair
 /// 
 
 #if BOOST_OS_LINUX
-
-	// linux supports SO_RCVTIMEO, SO_SNDTIMEO
-	#define EXT_BSDSOCK_USE_SOTIMEOUT 1
 	
 	struct addrinfo;
 	struct sockaddr;
@@ -32,10 +27,6 @@
 #elif BOOST_OS_HPUX
 
 	// hp-ux have 2 net libraries, standard libc and libxnet
-	// both do not support SO_RCVTIMEO, SO_SNDTIMEO
-	// xnet setsockopt returns ENOPROTOOPT, libc setsockopt returns success, but it's noop
-	#define EXT_BSDSOCK_USE_SOTIMEOUT 0
-
 	struct addrinfo;
 	struct sockaddr;
 	typedef std::size_t  socklen_t;
@@ -48,8 +39,6 @@
 	#endif
 
 #else
-	// assume on others that  SO_RCVTIMEO/SO_SNDTIMEO are not supported
-	#define EXT_BSDSOCK_USE_SOTIMEOUT 0
 
 	struct addrinfo;
 	struct sockaddr;
