@@ -159,9 +159,9 @@ namespace ext
 		/// выполняет resolve с помощью getaddrinfo
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
 		bool do_resolve(const char * host, const char * service, addrinfo_type ** result);
-		/// Проводит конфигурирование timeout'ов блокирующих операций
+		/// устанавливает не блокирующий режим работы сокета.
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
-		bool do_socktimeouts(handle_type sock);
+		bool do_setnonblocking(handle_type sock);
 		/// создает сокет с параметрами из addr.
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
 		bool do_createsocket(handle_type & sock, const addrinfo_type * addr);
