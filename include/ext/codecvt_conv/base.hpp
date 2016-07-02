@@ -16,8 +16,8 @@ namespace ext
 
 		namespace internal
 		{
-			//this struct is used with from_bytes_step/to_bytes_step
-			//it groups parameters and holds state of invocation of codecvt
+			// this struct is used with from_bytes_step/to_bytes_step
+			// it groups parameters and holds state of invocation of codecvt
 			template <class InputType, class OutputType, class StateType>
 			struct cvt_context
 			{
@@ -25,7 +25,7 @@ namespace ext
 				typedef OutputType output_type;
 				typedef StateType state_type;
 
-				//input vars
+				// input vars
 				const input_type * from_beg;
 				const input_type * from_end;
 
@@ -34,17 +34,17 @@ namespace ext
 
 				state_type state;
 
-				//output vars
+				// output vars
 				std::codecvt_base::result res;
-				//if res == partial, it points is it
-				//truncated input(last character not full), or insufficient output buffer
+				// if res == partial, it points is it
+				// truncated input(last character not full), or insufficient output buffer
 				bool is_partial_input;
 
-				const input_type * from_stopped; //where input stopped, not including
-				output_type * to_stopped; //where output stopped, not including
+				const input_type * from_stopped; // where input stopped, not including
+				output_type * to_stopped;        // where output stopped, not including
 			};
 
-			///deduce types for cvt_context from CodeCvt
+			/// deduce types for cvt_context from CodeCvt
 			template <class CodeCvt>
 			struct make_to_bytes_context
 			{
@@ -55,7 +55,7 @@ namespace ext
 				> type;
 			};
 
-			///deduce types for cvt_context from CodeCvt
+			/// deduce types for cvt_context from CodeCvt
 			template <class CodeCvt>
 			struct make_from_bytes_context
 			{
@@ -66,9 +66,9 @@ namespace ext
 				> type;
 			};
 
-			///calls cvt.in from contex, if result == partial, determines input or output is partial
-			template <class CodeCvt>
-			void from_bytes_step(CodeCvt const & cvt, typename make_from_bytes_context<CodeCvt>::type & ctx)
+			/// calls cvt.in from contex, if result == partial, determines input or output is partial
+			template <class ... CvtTypes>
+			void from_bytes_step(const std::codecvt<CvtTypes...> & cvt, typename make_from_bytes_context<std::codecvt<CvtTypes...>>::type & ctx)
 			{
 				ctx.res = cvt.in(ctx.state,
 				                 ctx.from_beg, ctx.from_end, ctx.from_stopped,
@@ -81,9 +81,9 @@ namespace ext
 				}
 			}
 
-			///calls cvt.out from contex, if result == partial, determines input or output is partial
-			template <class CodeCvt>
-			void to_bytes_step(CodeCvt const & cvt, typename make_to_bytes_context<CodeCvt>::type & ctx)
+			/// calls cvt.out from contex, if result == partial, determines input or output is partial
+			template <class ... CvtTypes>
+			void to_bytes_step(const std::codecvt<CvtTypes...> & cvt, typename make_to_bytes_context<std::codecvt<CvtTypes...>>::type & ctx)
 			{
 				ctx.res = cvt.out(ctx.state,
 				                  ctx.from_beg, ctx.from_end, ctx.from_stopped,
@@ -100,7 +100,7 @@ namespace ext
 			void noconv_copy(Context & ctx)
 			{
 				auto tocopy = (std::min)(ctx.to_end - ctx.to_beg, ctx.from_end - ctx.from_beg);
-				//to_stopped/from_stopped tracks where we stopped, we make reference shortcut to them
+				// to_stopped/from_stopped tracks where we stopped, we make reference shortcut to them
 				auto & to_cur = ctx.to_stopped = ctx.to_beg;
 				auto & from_cur = ctx.from_stopped = ctx.from_beg;
 
@@ -112,6 +112,6 @@ namespace ext
 						static_cast<typename std::make_unsigned<input_type>::type>(*from_cur++));
 				}
 			}
-		} //namespace internal
-	} //namespace codecvt_convert
-} //namespace ext
+		} // namespace internal
+	} // namespace codecvt_convert
+} // namespace ext
