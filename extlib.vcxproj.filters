@@ -81,9 +81,6 @@
     <ClCompile Include="src\winsock2.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\compact_string_body.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ext\FileSystemUtils.hpp">

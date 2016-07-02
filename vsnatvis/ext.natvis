@@ -1,60 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-    <Type Name="ext::compact_string_base">
+    <Type Name="ext::compact_string_base&lt;*&gt;">
         <DisplayString Condition="type == 0">{inpbuf, [inplen]}</DisplayString>
         <DisplayString Condition="type == 1">
-          {reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length] }
+          {reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->size] }
         </DisplayString>
         <DisplayString Condition="type == 2">
-          {reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length] }
+          {reinterpret_cast&lt;ext::compact_string_detail::heap_small_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_small_body  *&gt;(extptr &lt;&lt; 2)->size] }
         </DisplayString>
         <DisplayString Condition="type == 3">
-          {reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->length] }
+          {reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->size] }
         </DisplayString>
         
         <StringView Condition="type == 0">inpbuf, [inplen]</StringView>
         <StringView Condition="type == 1">
-            reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length]
+            reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->size]
         </StringView>
         <StringView Condition="type == 2">
-            reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length]
+            reinterpret_cast&lt;ext::compact_string_detail::heap_small_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_small_body *&gt;(extptr &lt;&lt; 2)->size]
         </StringView>
         <StringView Condition="type == 3">
-            reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->length]
+            reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->size]
         </StringView>
         
         <Expand>
           <Item Name="type">type</Item>
 
-          <Item Name="length" Condition="type == 0">inplen</Item>
-          <Item Name="length" Condition="type == 1">reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length</Item>
-          <Item Name="length" Condition="type == 2">reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length</Item>
-          <Item Name="length" Condition="type == 3">reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->length</Item>
+          <Item Name="size" Condition="type == 0">inplen</Item>
+          <Item Name="size" Condition="type == 1">reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->size</Item>
+          <Item Name="size" Condition="type == 2">reinterpret_cast&lt;ext::compact_string_detail::heap_small_body *&gt;(extptr &lt;&lt; 2)->size</Item>
+          <Item Name="size" Condition="type == 3">reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->size</Item>
 
-          <Item Name="capacity" Condition="type == 0">sizeof(*this) - 1</Item>
-          <Item Name="capacity" Condition="type == 1">15</Item>
-          <Item Name="capacity" Condition="type == 2">31</Item>
-          <Item Name="capacity" Condition="type == 3">reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->capacity</Item>
+          <Item Name="capacity" Condition="type == 0">inplace_size</Item>
+          <Item Name="capacity" Condition="type == 1">reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->capacity</Item>
+          <Item Name="capacity" Condition="type == 2">reinterpret_cast&lt;ext::compact_string_detail::heap_small_body *&gt;(extptr &lt;&lt; 2)->capacity</Item>
+          <Item Name="capacity" Condition="type == 3">reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->capacity</Item>
           
           <Item Name="buffer" Condition="type == 0">inpbuf,[inplen]</Item>
           <Item Name="buffer" Condition="type == 1">
-            reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length]
+            reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_short_body *&gt;(extptr &lt;&lt; 2)->size]
           </Item>
           <Item Name="buffer" Condition="type == 2">
-            reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_compact_body *&gt;(extptr &lt;&lt; 3)->length]
+            reinterpret_cast&lt;ext::compact_string_detail::heap_small_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_small_body *&gt;(extptr &lt;&lt; 2)->size]
           </Item>
           <Item Name="buffer" Condition="type == 3">
-            reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->buffer,
-           [reinterpret_cast&lt;ext::compact_string_detail::heap_normal_body *&gt;(extptr &lt;&lt; 3)->length]
+            reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->buffer,
+           [reinterpret_cast&lt;ext::compact_string_detail::heap_long_body *&gt;(extptr &lt;&lt; 2)->size]
           </Item>
         </Expand>
         

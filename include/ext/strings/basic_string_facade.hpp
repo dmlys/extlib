@@ -288,12 +288,6 @@ namespace ext
 		
 		basic_string_facade(basic_string_facade &&)              BOOST_NOEXCEPT_IF(std::is_nothrow_move_constructible<base_type>::value) = default;
 		basic_string_facade & operator =(basic_string_facade &&) BOOST_NOEXCEPT_IF(std::is_nothrow_move_assignable<base_type>::value) = default;
-		
-		inline friend void swap(basic_string_facade & s1, basic_string_facade & s2)
-			BOOST_NOEXCEPT_IF(swap(std::declval<base_type &>(), std::declval<base_type &>()))
-		{
-			swap(static_cast<base_type &>(s1), static_cast<base_type &>(s2));
-		}
 	};
 
 	/************************************************************************/

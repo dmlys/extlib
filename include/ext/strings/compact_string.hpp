@@ -7,7 +7,7 @@
 namespace ext
 {
 	typedef ext::basic_string_facade<
-		ext::compact_string_base,
+		ext::compact_string_base<sizeof(std::uintptr_t)>,
 		std::char_traits<char>
 	> compact_string;
 }
