@@ -45,7 +45,6 @@
   <ItemGroup>
     <ClCompile Include="src\asio_socket_stream.cpp" />
     <ClCompile Include="src\asio_socket_streambuf.cpp" />
-    <ClCompile Include="src\compact_string_body.cpp" />
     <ClCompile Include="src\cppzlib.cpp" />
     <ClCompile Include="src\Errors.cpp" />
     <ClCompile Include="src\FileSystemGetExePath.cpp" />
