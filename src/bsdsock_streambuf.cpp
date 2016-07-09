@@ -306,8 +306,8 @@ namespace ext
 
 		fd_set write_set, read_set;
 		FD_ZERO(&write_set);
-		FD_SET(sock, &write_set);
 		FD_ZERO(&read_set);
+		FD_SET(sock, &write_set);
 		FD_SET(pipefd[0], &read_set);
 		
 		prevstate = Connecting;
@@ -534,7 +534,7 @@ namespace ext
 				        // никаких доп действий не требуется. Но состояние перекинуто в Interrupted.
 			
 			case Connecting:
-				// состояние подключения, это значит что есть поток который внутри класса и он на некоей стадии подключения.
+				// состояние подключения, это значит что есть поток внутри класса и он на некоей стадии подключения.
 				// вместе с сокетом внутри do_connect был создан pipe. Он вместе с socket слушается в select.
 				// что бы прервать нужно записать что-нибудь в pipe.
 				assert(sock != -1);
