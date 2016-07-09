@@ -150,11 +150,13 @@ namespace ext
 		typedef winsock2_streambuf self_type;
 
 	public:
-		typedef std::error_code error_code_type;
-		typedef std::system_error system_error_type;
-		typedef std::chrono::system_clock::duration duration_type;
+		typedef std::error_code       error_code_type;
+		typedef std::system_error     system_error_type;
 
-		typedef socket_handle_type handle_type;
+		typedef std::chrono::system_clock::duration    duration_type;
+		typedef std::chrono::system_clock::time_point  time_point;
+
+		typedef socket_handle_type    handle_type;
 
 	private:
 		/// внутреннее состояние класса, нужно для поддержки вызова interrupt.
@@ -201,9 +203,9 @@ namespace ext
 		/// выполняет resolve с помощью getaddrinfo
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
 		bool do_resolve(const wchar_t * host, const wchar_t * serviсe, addrinfo_type ** result);
-		/// Проводит конфигурирование timeout'ов блокирующих операций
+		/// устанавливает не блокирующий режим работы сокета.
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
-		bool do_socktimeouts(handle_type sock);
+		bool do_setnonblocking(handle_type sock);
 		/// создает сокет с параметрами из addr.
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
 		bool do_createsocket(handle_type & sock, const addrinfo_type * addr);
@@ -227,9 +229,20 @@ namespace ext
 		/// в случае ошибки возвращает false, а m_lasterror содержит ошибку
 		bool do_connect(const addrinfo_type * addr);
 
+		/// анализирует ошибку read/wrtie операции.
+		/// res - результат операции recv/write, если 0 - то это eof и проверяется только State >=
+		/// err - код ошибки операции errno/getsockopt(..., SO_ERROR, ...)
+		/// В err_code записывает итоговую ошибку.
+		/// возвращает была ли действительно ошибка, или нужно повторить операцию(реакция на EINTR).
+		bool rw_error(int res, int err, error_code_type & err_code);
+
 #ifdef EXT_ENABLE_OPENSSL
 		error_code_type ssl_error(SSL * ssl, int error);
-		error_code_type ssl_rw_error(int error);
+		/// анализирует ошибку ssl read/wrtie операции.
+		/// res - результат операции(возращаяемое значение ::SSL_read, ::SSL_write).
+		/// В err_code записывает итоговую ошибку.
+		/// возвращает была ли действительно ошибка, или нужно повторить операцию(реакция на EINTR).
+		bool ssl_rw_error(int res, error_code_type & err_code);
 		/// освобождает ресурсы связанные с ssl
 		void do_sslreset();
 		/// создает ssl объект, ассоциирует его с дескриптором сокета и настраивает его.
@@ -243,13 +256,25 @@ namespace ext
 		bool do_sslshutdown(SSL * ssl);
 #endif //EXT_ENABLE_OPENSSL
 
+	private:
+		/// ожидает пока сокет не станет доступен на чтение с помощью select.
+		/// until - предельная точка ожидания.
+		/// в случае ошибки - возвращает false.
+		/// учитывает WSAEINTR - повторяет ожидание, если только не было вызова interrupt
+		bool wait_readable(time_point until);
+		/// ожидает пока сокет не станет доступен на запись с помощью select.
+		/// until - предельная точка ожидания.
+		/// в случае ошибки - возвращает false.
+		/// учитывает WSAEINTR - повторяет ожидание, если только не было вызова interrupt
+		bool wait_writable(time_point until);
+
 	public:
 		std::streamsize showmanyc() override;
 		std::size_t read_some(char_type * data, std::size_t count) override;
 		std::size_t write_some(const char_type * data, std::size_t count) override;
 
 	public:
-		/// timeout любых операций на сокетом,
+		/// timeout любых операций над сокетом,
 		/// в случае превышения вызовы underflow/overflow/sync и другие вернут eof/-1/ошибку,
 		/// а last_error() == WSAETIMEDOUT
 		duration_type timeout() const { return m_timeout; }

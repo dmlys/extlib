@@ -26,7 +26,6 @@
 // warning C4244: '=' : conversion from '__int64' to 'long', possible loss of data
 // warning C4244: 'initializing' : conversion from '__int64' to 'long', possible loss of data
 #pragma warning(disable : 4267 4244)
-
 #endif // _MSC_VER
 
 namespace ext
@@ -70,7 +69,7 @@ namespace ext
 	{
 		addrinfo_type hints;
 		
-		::ZeroMemory(&hints, sizeof(hints));
+		std::memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_protocol = IPPROTO_TCP;
 		hints.ai_socktype = SOCK_STREAM;
@@ -83,17 +82,11 @@ namespace ext
 		return false;
 	}
 
-	bool winsock2_streambuf::do_socktimeouts(handle_type sock)
+	bool winsock2_streambuf::do_setnonblocking(handle_type sock)
 	{
-		int res;
-		/// timeout для blocking операций
-		DWORD millis = std::chrono::duration_cast<std::chrono::milliseconds>(m_timeout).count();
-
-		res = ::setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char *>(&millis), sizeof(millis));
+		unsigned long enabled = 1;
+		int res = ::ioctlsocket(sock, FIONBIO, &enabled);
 		if (res != 0) goto sockerror;
-		res = ::setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char *>(&millis), sizeof(millis));
-		if (res != 0) goto sockerror;
-
 		return true;
 
 	sockerror:
@@ -142,23 +135,7 @@ namespace ext
 		bool closesock; // в случае ошибки закрыть сокет
 		
 		prevstate = Closed;
-		m_sockhandle = sock;
 		m_lasterror.clear();
-
-		// что бы сделать timeout при подключении - устанавливаем не блокирующее поведение
-		unsigned long enabled = 1;
-		res = ::ioctlsocket(sock, FIONBIO, &enabled);
-		if (res != 0) goto sockerror;
-
-		TIMEVAL timeout;
-		make_timeval(timeout, m_timeout);
-
-		fd_set write_set, err_set;
-		FD_ZERO(&write_set);
-		FD_ZERO(&err_set);
-
-		FD_SET(sock, &write_set);
-		FD_SET(sock, &err_set);
 
 		res = ::connect(sock, addr->ai_addr, addr->ai_addrlen);
 		if (res == 0) goto connected; // connected immediately
@@ -170,6 +147,15 @@ namespace ext
 		auto pubres = publish_connecting(sock);
 		if (!pubres) goto intrreq;
 
+		timeval timeout;
+		make_timeval(timeout, m_timeout);
+
+		fd_set write_set, err_set;
+		FD_ZERO(&write_set);
+		FD_ZERO(&err_set);
+		FD_SET(sock, &write_set);
+		FD_SET(sock, &err_set);
+
 		prevstate = Connecting;
 		res = ::select(0, nullptr, &write_set, &err_set, &timeout);
 		if (res == 0) // timeout
@@ -179,25 +165,16 @@ namespace ext
 		}
 
 		if (res == SOCKET_ERROR) goto sockerror;
-
 		assert(res == 1);
-		bool err = FD_ISSET(sock, &err_set) != 0;
-		if (err)
-		{
-			int len = sizeof(wsaerr);
-			res = ::getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&wsaerr), &len);
-			if (res != 0) goto sockerror;
-			goto wsaerror;
-		}
+
+		int solen = sizeof(wsaerr);
+		res = ::getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&wsaerr), &solen);
+		if (res != 0)    goto sockerror;
+		if (wsaerr != 0) goto wsaerror;
 		
 	connected:
 		pubres = publish_opened(sock, prevstate);
 		if (!pubres) goto intrreq;
-
-		// восстанавливаем blocking behavior
-		enabled = 0;
-		res = ::ioctlsocket(sock, FIONBIO, &enabled);
-		if (res != 0) goto sockerror;
 
 		m_lasterror.clear();
 		return true;
@@ -249,8 +226,8 @@ namespace ext
 					return false;
 			}
 
-			// выставляем timeout'ы. если не получилось - все очень плохо
-			res = do_socktimeouts(sock);
+			// выставляем non blocking режим. если не получилось - все очень плохо
+			res = do_setnonblocking(sock);
 			if (!res)
 			{
 				::closesocket(sock);
@@ -301,7 +278,8 @@ namespace ext
 	inline bool winsock2_streambuf::publish_opened(handle_type sock, StateType & expected)
 	{
 		// пытаемся переключится в Opened
-		return m_state.compare_exchange_strong(expected, Opened, std::memory_order_relaxed);
+		// m_sockhandle = sock;
+		return m_state.compare_exchange_strong(expected, Opened, std::memory_order_release);
 	}
 
 	bool winsock2_streambuf::do_shutdown()
@@ -404,7 +382,7 @@ namespace ext
 				        // никаких доп действий не требуется. Но состояние перекинуто в Interrupted.
 			
 			case Connecting:
-				// состояние подключения, это значит что есть поток который внутри класса и он на некоей стадии подключения.
+				// состояние подключения, это значит что есть поток внутри класса и он на некоей стадии подключения.
 				// В идеале хотелось бы сделать shutdown,
 				// но по факту в winsock2 обмен пакетами подключения начинается не мгновенно,
 				// а с некоторой задержкой, при этом вызов shutdown вернет ошибку.
@@ -448,6 +426,84 @@ namespace ext
 		return m_sockhandle != INVALID_SOCKET;
 	}
 
+	bool winsock2_streambuf::wait_readable(time_point until)
+	{
+		int wsaerr;
+		int solen;
+
+	again:
+		struct timeval timeout;
+		make_timeval(timeout, until - time_point::clock::now());
+
+		fd_set read_set, err_set;
+		FD_ZERO(&read_set);
+		FD_ZERO(&err_set);
+		FD_SET(m_sockhandle, &read_set);
+		FD_SET(m_sockhandle, &err_set);
+
+		int res = ::select(m_sockhandle + 1, &read_set, nullptr, &err_set, &timeout);
+		if (res == 0) // timeout
+		{
+			m_lasterror.assign(WSAETIMEDOUT, std::system_category());
+			return false;
+		}
+
+		if (res == -1) goto sockerror;
+		assert(res >= 1);
+
+		solen = sizeof(wsaerr);
+		res = ::getsockopt(m_sockhandle, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&wsaerr), &solen);
+		if (res != 0)    goto sockerror;
+		if (wsaerr != 0) goto wsaerror;
+
+		return true;
+
+	sockerror:
+		wsaerr = ::WSAGetLastError();
+	wsaerror:
+		if (rw_error(-1, wsaerr, m_lasterror)) return false;
+		goto again;
+	}
+
+	bool winsock2_streambuf::wait_writable(time_point until)
+	{
+		int wsaerr;
+		int solen;
+
+	again:
+		struct timeval timeout;
+		make_timeval(timeout, until - time_point::clock::now());
+
+		fd_set write_set, err_set;
+		FD_ZERO(&write_set);
+		FD_ZERO(&err_set);
+		FD_SET(m_sockhandle, &write_set);
+		FD_SET(m_sockhandle, &err_set);
+		
+		int res = ::select(m_sockhandle + 1, nullptr, &write_set, nullptr, &timeout);
+		if (res == 0) // timeout
+		{
+			m_lasterror.assign(WSAETIMEDOUT, std::system_category());
+			return false;
+		}
+		
+		if (res == -1) goto sockerror;
+		assert(res >= 1);
+	
+		solen = sizeof(wsaerr);
+		res = ::getsockopt(m_sockhandle, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&wsaerr), &solen);
+		if (res != 0)    goto sockerror;
+		if (wsaerr != 0) goto wsaerror;
+		
+		return true;
+		
+	sockerror:
+		wsaerr = ::WSAGetLastError();
+	wsaerror:
+		if (rw_error(-1, wsaerr, m_lasterror)) return false;
+		goto again;
+	}
+
 	std::streamsize winsock2_streambuf::showmanyc()
 	{
 		//if (!is_valid()) return 0;
@@ -467,67 +523,76 @@ namespace ext
 	std::size_t winsock2_streambuf::read_some(char_type * data, std::size_t count)
 	{
 		//if (!is_valid()) return 0;
-		int res;
+		auto until = time_point::clock::now() + m_timeout;
+		do {
 
 #ifdef EXT_ENABLE_OPENSSL
-		if (ssl_started())
-		{
-			res = SSL_read(m_sslhandle, data, count);
-			if (res > 0) return res;
-			
-			m_lasterror = ssl_rw_error(res);
-			return 0;
-		}
+			if (ssl_started())
+			{
+				int res = ::SSL_read(m_sslhandle, data, count);
+				if (res > 0) return res;
+
+				if (ssl_rw_error(res, m_lasterror)) return 0;
+				continue;
+			}
 #endif // EXT_ENABLE_OPENSSL
 
-		res = ::recv(m_sockhandle, data, count, 0);
-		if (res > 0) return res;
+			int res = ::recv(m_sockhandle, data, count, 0);
+			if (res > 0) return res;
 
-		// can be result of shutdown from interrupt
-		auto state = m_state.load(std::memory_order_relaxed);
-		if (state >= Interrupting)
-		{
-			m_lasterror = std::make_error_code(std::errc::interrupted);
-			return 0;
-		}
+			if (rw_error(res, ::WSAGetLastError(), m_lasterror)) return 0;
+			continue;
 
-		if (res < 0)
-			m_lasterror.assign(::WSAGetLastError(), std::system_category());
-
+		} while (wait_readable(until));
 		return 0;
 	}
 
 	std::size_t winsock2_streambuf::write_some(const char_type * data, std::size_t count)
 	{
 		//if (!is_valid()) return 0;
-		int res;
+
+		auto until = time_point::clock::now() + m_timeout;
+		do {
 
 #ifdef EXT_ENABLE_OPENSSL
-		if (ssl_started())
-		{
-			res = SSL_write(m_sslhandle, data, count);
-			if (res > 0) return res;
+			if (ssl_started())
+			{
+				int res = ::SSL_write(m_sslhandle, data, count);
+				if (res > 0) return res;
 
-			m_lasterror = ssl_rw_error(res);
-			return 0;
-		}
+				if (ssl_rw_error(res, m_lasterror)) return 0;
+				continue;
+			}
 #endif // EXT_ENABLE_OPENSSL
 
-		res = ::send(m_sockhandle, data, count, 0);
-		if (res > 0) return res;
+			int res = ::send(m_sockhandle, data, count, 0);
+			if (res > 0) return res;
 
-		// can be result of shutdown from interrupt
+			if (rw_error(res, ::WSAGetLastError(), m_lasterror)) return 0;
+			continue;
+
+		} while (wait_readable(until));
+		return 0;
+	}
+
+	bool winsock2_streambuf::rw_error(int res, int err, error_code_type & err_code)
+	{
+		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
 		if (state >= Interrupting)
 		{
-			m_lasterror = std::make_error_code(std::errc::interrupted);
-			return 0;
+			err_code = std::make_error_code(std::errc::interrupted);
+			return true;
 		}
 
-		if (res < 0)
-			m_lasterror.assign(::WSAGetLastError(), std::system_category());
+		// it was eof
+		if (res >= 0) return true;
 
-		return 0;
+		// when using nonblocking socket, EWOULDBLOCK mean repeat operation later,
+		if (err == WSAEINTR || err == WSAEWOULDBLOCK) return false;
+
+		err_code.assign(err, std::system_category());
+		return true;
 	}
 
 	/************************************************************************/
@@ -619,35 +684,56 @@ namespace ext
 		return ext::openssl_geterror(ssl_err);
 	}
 
-	winsock2_streambuf::error_code_type winsock2_streambuf::ssl_rw_error(int error)
+	bool winsock2_streambuf::ssl_rw_error(int res, error_code_type & err_code)
 	{
-		error_code_type errcode;
-		// can be result of shutdown from interrupt or shutdown from peer
+		assert(ssl_started());
+		int wsaerr;
+
+		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
 		if (state >= Interrupting)
-			errcode = std::make_error_code(std::errc::interrupted);
-		else
 		{
-			int res = SSL_get_error(m_sslhandle, error);
-			switch (res)
-			{
-				case SSL_ERROR_NONE:
-					break;
-				
-				case SSL_ERROR_ZERO_RETURN:
-				case SSL_ERROR_SSL:
-				case SSL_ERROR_WANT_READ:
-				case SSL_ERROR_WANT_WRITE:
-				case SSL_ERROR_WANT_X509_LOOKUP:
-				case SSL_ERROR_SYSCALL:
-				case SSL_ERROR_WANT_CONNECT:
-				case SSL_ERROR_WANT_ACCEPT:
-				default:
-					errcode = ext::openssl_geterror(res);
-			}
+			err_code = std::make_error_code(std::errc::interrupted);
+			return true;
 		}
 
-		return errcode;
+		res = SSL_get_error(m_sslhandle, res);
+		switch (res)
+		{
+			// can this happen? just try to handle as SSL_ERROR_SYSCALL
+			case SSL_ERROR_NONE:
+
+			// if it's SSL_ERROR_WANT_{WRITE,READ}
+			// WSAGetLastError() can be WSAEAGAIN - then it's timeout, or WSAEINTR - repeat operation
+			case SSL_ERROR_WANT_READ:
+			case SSL_ERROR_WANT_WRITE:
+			case SSL_ERROR_SYSCALL:
+			case SSL_ERROR_SSL:
+				// if it some generic SSL error
+				if ((wsaerr = ERR_get_error()))
+				{
+					err_code.assign(wsaerr, ext::openssl_err_category());
+					return true;
+				}
+
+				if ((wsaerr = ::WSAGetLastError()))
+				{
+					// when using nonblocking socket, EWOULDBLOCK mean repeat operation later,
+					if (wsaerr == WSAEINTR || wsaerr == WSAEWOULDBLOCK) return false;
+
+					err_code.assign(wsaerr, std::system_category());
+					return true;
+				}
+
+			case SSL_ERROR_ZERO_RETURN:
+			case SSL_ERROR_WANT_X509_LOOKUP:
+			case SSL_ERROR_WANT_CONNECT:
+			case SSL_ERROR_WANT_ACCEPT:
+			default:
+				m_lasterror.assign(res, ext::openssl_err_category());
+				return true;
+		}
+
 	}
 
 	bool winsock2_streambuf::do_createssl(SSL *& ssl, SSL_CTX * sslctx)
@@ -655,7 +741,7 @@ namespace ext
 		ssl = SSL_new(sslctx);
 		if (!ssl)
 		{
-			m_lasterror.assign(static_cast<int>(ERR_get_error()), ext::openssl_err_category());
+			m_lasterror.assign(ERR_get_error(), ext::openssl_err_category());
 			return false;
 		}
 
@@ -674,11 +760,12 @@ namespace ext
 
 	bool winsock2_streambuf::do_sslconnect(SSL * ssl)
 	{
+	again:
 		int res = SSL_connect(ssl);
 		if (res > 0) return true;
 
-		m_lasterror = ssl_rw_error(res);
-		return false;
+		if (ssl_rw_error(res, m_lasterror)) return false;
+		goto again;
 	}
 
 	bool winsock2_streambuf::do_sslshutdown(SSL * ssl)
@@ -750,7 +837,7 @@ namespace ext
 		SSL_CTX * sslctx = SSL_CTX_new(sslmethod);
 		if (sslctx == nullptr)
 		{
-			m_lasterror.assign(static_cast<int>(ERR_get_error()), ext::openssl_err_category());
+			m_lasterror.assign(ERR_get_error(), ext::openssl_err_category());
 			return false;
 		}
 
@@ -789,9 +876,7 @@ namespace ext
 		if (newtimeout < std::chrono::seconds(1))
 			newtimeout = std::chrono::seconds(1);
 		
-		newtimeout = std::exchange(m_timeout, newtimeout);
-		if (is_open()) do_socktimeouts(m_sockhandle);
-		return newtimeout;
+		return std::exchange(m_timeout, newtimeout);
 	}
 
 	void winsock2_streambuf::getpeername(sockaddr_type * addr, int * addrlen)

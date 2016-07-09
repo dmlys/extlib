@@ -8,9 +8,9 @@
 #include <iostream>
 
 #include <ext/iostreams/winsock2_inc.hpp>
+#include <ext/iostreams/winsock2_streambuf.hpp>
 #include <ext/codecvt_conv.hpp>
 #include <ext/Errors.hpp>  // for ext::FormatError
-#include <ext/iostreams/winsock2_streambuf.hpp>
 
 #ifdef EXT_ENABLE_OPENSSL
 #include <openssl/ssl.h>
