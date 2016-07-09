@@ -51,6 +51,7 @@
     <ClCompile Include="src\FileSystemUtils.cpp" />
     <ClCompile Include="src\openssl.cpp" />
     <ClCompile Include="src\regex_utils.cpp" />
+    <ClCompile Include="src\socket_types.cpp" />
     <ClCompile Include="src\socket_streambuf_base.cpp" />
     <ClCompile Include="src\string_interpolation.cpp" />
     <ClCompile Include="src\threaded_scheduler.cpp" />
@@ -80,6 +81,7 @@
     <ClInclude Include="include\ext\functors\lcpred.hpp" />
     <ClInclude Include="include\ext\integer_sequence.hpp" />
     <ClInclude Include="include\ext\intrusive_cow_ptr.hpp" />
+    <ClInclude Include="include\ext\iostreams\socket_types.hpp" />
     <ClInclude Include="include\ext\iostreams\streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\socket_streambuf_base.hpp" />
     <ClInclude Include="include\ext\iostreams\winsock2_inc.hpp" />

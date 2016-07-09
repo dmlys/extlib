@@ -256,7 +256,7 @@ namespace ext
 		bool do_sslshutdown(SSL * ssl);
 #endif //EXT_ENABLE_OPENSSL
 
-	private:
+	public:
 		/// ожидает пока сокет не станет доступен на чтение с помощью select.
 		/// until - предельная точка ожидания.
 		/// в случае ошибки - возвращает false.

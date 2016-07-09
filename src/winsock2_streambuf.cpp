@@ -15,6 +15,7 @@
 
 #include <ext/iostreams/winsock2_inc.hpp>
 #include <ext/iostreams/winsock2_streambuf.hpp>
+#include <ext/iostreams/socket_types.hpp>
 
 #ifdef EXT_ENABLE_OPENSSL
 #include <openssl/ssl.h>
@@ -133,6 +134,7 @@ namespace ext
 		int wsaerr, res;
 		StateType prevstate;
 		bool closesock; // в случае ошибки закрыть сокет
+		auto until = time_point::clock::now() + m_timeout;
 		
 		prevstate = Closed;
 		m_lasterror.clear();
@@ -144,11 +146,12 @@ namespace ext
 		if ((wsaerr = ::WSAGetLastError()) != WSAEWOULDBLOCK)
 			goto wsaerror;
 
+	again:
 		auto pubres = publish_connecting(sock);
 		if (!pubres) goto intrreq;
 
 		timeval timeout;
-		make_timeval(timeout, m_timeout);
+		make_timeval(timeout, until - time_point::clock::now());
 
 		fd_set write_set, err_set;
 		FD_ZERO(&write_set);
@@ -187,6 +190,7 @@ namespace ext
 		// если мы успешно перешли в Closed - interrupt'а не было, а значит это обычная ошибка
 		if (pubres)
 		{
+			if (wsaerr == WSAEINTR) goto again;
 			m_lasterror.assign(wsaerr, std::system_category());
 			closesock = true;
 		}
@@ -550,7 +554,6 @@ namespace ext
 	std::size_t winsock2_streambuf::write_some(const char_type * data, std::size_t count)
 	{
 		//if (!is_valid()) return 0;
-
 		auto until = time_point::clock::now() + m_timeout;
 		do {
 
@@ -586,7 +589,11 @@ namespace ext
 		}
 
 		// it was eof
-		if (res >= 0) return true;
+		if (res >= 0)
+		{
+			err_code = make_error_code(sock_errc::eof);
+			return true;
+		}
 
 		// when using nonblocking socket, EWOULDBLOCK mean repeat operation later,
 		if (err == WSAEINTR || err == WSAEWOULDBLOCK) return false;
@@ -686,7 +693,6 @@ namespace ext
 
 	bool winsock2_streambuf::ssl_rw_error(int res, error_code_type & err_code)
 	{
-		assert(ssl_started());
 		int wsaerr;
 
 		// error can be result of shutdown from interrupt
@@ -704,7 +710,7 @@ namespace ext
 			case SSL_ERROR_NONE:
 
 			// if it's SSL_ERROR_WANT_{WRITE,READ}
-			// WSAGetLastError() can be WSAEAGAIN - then it's timeout, or WSAEINTR - repeat operation
+			// WSAGetLastError() can be WSAEWOULDBLOCK or WSAEINTR - repeat operation
 			case SSL_ERROR_WANT_READ:
 			case SSL_ERROR_WANT_WRITE:
 			case SSL_ERROR_SYSCALL:
@@ -730,7 +736,7 @@ namespace ext
 			case SSL_ERROR_WANT_CONNECT:
 			case SSL_ERROR_WANT_ACCEPT:
 			default:
-				m_lasterror.assign(res, ext::openssl_err_category());
+				err_code.assign(res, ext::openssl_ssl_category());
 				return true;
 		}
 
