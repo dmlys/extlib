@@ -27,7 +27,7 @@ namespace ext
 	private:
 		char_type * m_input_buffer = nullptr;
 		char_type * m_output_buffer = nullptr;
-		std::size_t m_buffer_size;
+		std::size_t m_buffer_size = 0;
 		
 		bool m_tie_io = true;
 		std::unique_ptr<char_type[]> m_buffer;
