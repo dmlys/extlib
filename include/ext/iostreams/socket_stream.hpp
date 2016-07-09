@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/predef.h>
+#include <ext/iostreams/socket_types.hpp>
 
 /// для windows у нас есть реализация на winsock2
 #if BOOST_OS_WINDOWS

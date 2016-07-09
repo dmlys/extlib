@@ -14,6 +14,7 @@
 #include <ext/Errors.hpp>  // for ext::FormatError
 
 #include <ext/iostreams/bsdsock_streambuf.hpp>
+#include <ext/iostreams/socket_types.hpp>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -187,7 +188,7 @@ namespace ext
 	}
 
 	/************************************************************************/
-	/*                bsdsock_streambuf                                */
+	/*                bsdsock_streambuf                                     */
 	/************************************************************************/
 	static inline void make_timeval(timeval & tv, bsdsock_streambuf::duration_type val)
 	{
@@ -733,13 +734,15 @@ namespace ext
 		}
 		
 		// it was eof
-		if (res >= 0) return true;
-		
-		if (err == EINTR) return false;
+		if (res >= 0)
+		{
+			err_code = make_error_code(sock_errc::eof);
+			return true;
+		}
 		
 		// when using nonblocking socket, EAGAIN/EWOULDBLOCK mean repeat operation later,
 		// also select allowed return EAGAIN instead of ENOMEM -> repeat either
-		if (err == EAGAIN || err == EWOULDBLOCK) return false;
+		if (err == EAGAIN || err == EWOULDBLOCK || err == EINTR) return false;
 		
 		err_code.assign(err, std::generic_category());
 		return true;
@@ -804,7 +807,6 @@ namespace ext
 #ifdef EXT_ENABLE_OPENSSL
 	bool bsdsock_streambuf::ssl_rw_error(int res, error_code_type & err_code)
 	{
-		assert(ssl_started());
 		int err;
 
 		// error can be result of shutdown from interrupt
@@ -822,7 +824,7 @@ namespace ext
 			case SSL_ERROR_NONE:
 
 			// if it's SSL_ERROR_WANT_{WRITE,READ}
-			// errno can be EAGAIN - then it's timeout, or EINTR - repeat operation
+			// errno can be EAGAIN or EINTR - repeat operation
 			case SSL_ERROR_WANT_READ:
 			case SSL_ERROR_WANT_WRITE:
 			case SSL_ERROR_SYSCALL:
@@ -851,7 +853,7 @@ namespace ext
 			case SSL_ERROR_WANT_CONNECT:
 			case SSL_ERROR_WANT_ACCEPT:
 			default:
-				m_lasterror.assign(res, ext::openssl_err_category());
+				err_code.assign(res, ext::openssl_ssl_category());
 				return true;
 		}
 	}

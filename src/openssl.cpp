@@ -3,20 +3,32 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <boost/predef.h> // for BOOST_OS_WINDOWS
+#include <boost/static_assert.hpp>
 
 namespace ext {
 namespace openssl
 {
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::none)              == SSL_ERROR_NONE);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::ssl)               == SSL_ERROR_SSL);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_read)         == SSL_ERROR_WANT_READ);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_write)        == SSL_ERROR_WANT_WRITE);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_X509_lookup)  == SSL_ERROR_WANT_X509_LOOKUP);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::syscall)           == SSL_ERROR_SYSCALL);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::zero_return)       == SSL_ERROR_ZERO_RETURN);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_connect)      == SSL_ERROR_WANT_CONNECT);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_accept)       == SSL_ERROR_WANT_ACCEPT);
+
+
 	/************************************************************************/
 	/*                      error_category                                  */
 	/************************************************************************/
 	struct openssl_err_category_impl : std::error_category
 	{
-		const char * name() const BOOST_NOEXCEPT override;
+		const char * name() const noexcept override;
 		std::string message(int code) const override;
 	};
 
-	const char * openssl_err_category_impl::name() const BOOST_NOEXCEPT
+	const char * openssl_err_category_impl::name() const noexcept
 	{
 		return "openssl_err";
 	}
@@ -34,11 +46,11 @@ namespace openssl
 
 	struct openssl_ssl_category_impl : std::error_category
 	{
-		const char * name() const BOOST_NOEXCEPT override;
+		const char * name() const noexcept override;
 		std::string message(int code) const override;
 	};
 
-	const char * openssl_ssl_category_impl::name() const BOOST_NOEXCEPT
+	const char * openssl_ssl_category_impl::name() const noexcept
 	{
 		return "openssl_ssl";
 	}
@@ -65,17 +77,17 @@ namespace openssl
 	openssl_err_category_impl openssl_err_category_instance;
 	openssl_ssl_category_impl openssl_ssl_category_instance;
 
-	const std::error_category & openssl_err_category() BOOST_NOEXCEPT
+	const std::error_category & openssl_err_category() noexcept
 	{
 		return openssl_err_category_instance;
 	}
 
-	const std::error_category & openssl_ssl_category() BOOST_NOEXCEPT
+	const std::error_category & openssl_ssl_category() noexcept
 	{
 		return openssl_ssl_category_instance;
 	}
 
-	std::error_code openssl_geterror(int sslcode) BOOST_NOEXCEPT
+	std::error_code openssl_geterror(int sslcode) noexcept
 	{
 		if (sslcode == SSL_ERROR_SSL || sslcode == SSL_ERROR_SYSCALL)
 		{
