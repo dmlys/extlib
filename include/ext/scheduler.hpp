@@ -13,8 +13,8 @@ namespace ext
 	{
 	public:
 		typedef std::function<void()> function_type;
-		typedef std::chrono::system_clock::time_point time_point;
-		typedef std::chrono::system_clock::duration   duration;
+		typedef std::chrono::steady_clock::time_point time_point;
+		typedef std::chrono::steady_clock::duration   duration;
 
 	protected:
 		/// see handle class description

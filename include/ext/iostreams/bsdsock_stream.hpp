@@ -21,6 +21,7 @@ namespace ext
 		typedef ext::bsdsock_streambuf::error_code_type     error_code_type;
 		typedef ext::bsdsock_streambuf::system_error_type   system_error_type;
 		typedef ext::bsdsock_streambuf::duration_type       duration_type;
+		typedef ext::bsdsock_streambuf::time_point          time_point;
 		typedef ext::bsdsock_streambuf::handle_type         handle_type;
 
 	public:

@@ -107,8 +107,8 @@ namespace ext
 		typedef std::error_code       error_code_type;
 		typedef std::system_error     system_error_type;
 
-		typedef std::chrono::system_clock::duration    duration_type;
-		typedef std::chrono::system_clock::time_point  time_point;
+		typedef std::chrono::steady_clock::duration    duration_type;
+		typedef std::chrono::steady_clock::time_point  time_point;
 
 		typedef socket_handle_type    handle_type;
 

@@ -18,13 +18,13 @@ namespace ext
 		ext::winsock2_streambuf m_streambuf;
 
 	public:
-		typedef std::error_code error_code_type;
-		typedef std::system_error system_error_type;
-		typedef std::chrono::system_clock::duration duration_type;
+		typedef ext::winsock2_streambuf::error_code_type   error_code_type;
+		typedef ext::winsock2_streambuf::system_error_type system_error_type;
 
-		typedef addrinfoW addrinfo_type;
-		typedef sockaddr sockaddr_type;
-		typedef std::uintptr_t handle_type;
+		typedef ext::winsock2_streambuf::duration_type duration_type;
+		typedef ext::winsock2_streambuf::time_point    time_point;
+
+		typedef ext::winsock2_streambuf::handle_type   handle_type;
 
 	public:
 		/************************************************************************/
