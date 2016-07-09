@@ -189,7 +189,7 @@ namespace ext
 	/************************************************************************/
 	/*                bsdsock_streambuf                                */
 	/************************************************************************/
-	static inline void make_timeval(timeval & tv, std::chrono::system_clock::duration val)
+	static inline void make_timeval(timeval & tv, bsdsock_streambuf::duration_type val)
 	{
 		long micro = std::chrono::duration_cast<std::chrono::microseconds>(val).count();
 		if (micro < 0) micro = 0;
