@@ -2,24 +2,20 @@
 
 namespace ext
 {
-	namespace
+	std::string to_isodate(const std::tm * t)
 	{
-		static std::string to_isodate(const std::tm * t)
-		{
-			const int bufsz = 32;
-			char buffer[bufsz];
-			auto sz = std::strftime(buffer, bufsz, "%Y-%m-%dT%H:%M:%S", t);
-			return {buffer, sz};
-		}
+		const int bufsz = 32;
+		char buffer[bufsz];
+		auto sz = std::strftime(buffer, bufsz, "%Y-%m-%dT%H:%M:%S", t);
+		return {buffer, sz};
+	}
 
-		static std::string to_isodate_undelimeted(const std::tm * t)
-		{
-			const int bufsz = 32;
-			char buffer[bufsz];
-			auto sz = std::strftime(buffer, bufsz, "%Y%m%dT%H%M%S", t);
-			return {buffer, sz};
-		}
-
+	std::string to_isodate_undelimeted(const std::tm * t)
+	{
+		const int bufsz = 32;
+		char buffer[bufsz];
+		auto sz = std::strftime(buffer, bufsz, "%Y%m%dT%H%M%S", t);
+		return {buffer, sz};
 	}
 
 	std::string to_isodate(std::time_t tpoint)
