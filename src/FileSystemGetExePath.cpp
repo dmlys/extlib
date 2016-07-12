@@ -7,14 +7,14 @@
 /************************************************************************/
 namespace ext
 {
-	static boost::filesystem::path GetExePath(int argc, char *argv[], boost::system::error_code & ec);
+	static void GetExePath(int argc, char *argv[], boost::filesystem::path & path, boost::system::error_code & ec);
 
 	boost::filesystem::path GetExePath(int argc, char *argv[])
 	{
 		boost::system::error_code ec;
-		auto path = GetExePath(argc, argv, ec);
-		if (ec)
-			throw boost::system::system_error(ec, "CurrentExePath failed");
+		boost::filesystem::path path;
+		GetExePath(argc, argv, path, ec);
+		if (ec) throw boost::system::system_error(ec, "CurrentExePath failed");
 
 		return path;
 	}
@@ -98,24 +98,22 @@ which did not change it before executing your program.
 
 namespace ext
 {
-	boost::filesystem::path GetExePath(int argc, char *argv[], boost::system::error_code & ec)
+	void GetExePath(int argc, char *argv[], boost::filesystem::path & path, boost::system::error_code & ec)
 	{
-		std::vector<wchar_t> path(MAX_PATH);
+		std::vector<wchar_t> buffer(MAX_PATH);
 
-		DWORD sz = ::GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
-		while (path.size() == sz) // if buffer size is not enough, increase by 2
+		DWORD sz = ::GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+		while (buffer.size() == sz) // if buffer size is not enough, increase by 2
 		{
-			path.resize(path.size() * 2);
-			sz = ::GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
+			buffer.resize(buffer.size() * 2);
+			sz = ::GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
 		}
 
-		if (!sz) {
-			ec.assign(GetLastError(), boost::system::system_category());
-			return "";
-		}
+		if (!sz)
+			ec.assign(::GetLastError(), boost::system::system_category());
+		else
+			path.assign(buffer.data(), buffer.data() + sz);
 
-		ec.clear();
-		return boost::filesystem::path(path.data(), path.data() + sz);
 	}
 }
 
@@ -125,17 +123,15 @@ namespace ext
 
 namespace ext
 {
-	boost::filesystem::path GetExePath(int argc, char *argv[], boost::system::error_code & ec)
+	void GetExePath(int argc, char *argv[], boost::filesystem::path & path, boost::system::error_code & ec)
 	{
-		char exePath[PATH_MAX];
+		char buffer[PATH_MAX];
 		
-		ssize_t len = ::readlink("/proc/self/exe", exePath, sizeof(exePath));
-		if (len == -1 || len == sizeof(exePath))
-			len = 0;
-
-		exePath[len] = '\0';
-
-		return boost::filesystem::path(exePath, exePath + len);
+		ssize_t len = ::readlink("/proc/self/exe", buffer, sizeof(buffer));
+		if (len == -1 || len == sizeof(buffer))
+			ec.assign(errno, boost::system::generic_category());
+		else
+			path.assign(buffer, buffer + len);
 	}
 }
 
@@ -144,23 +140,24 @@ namespace ext
 
 namespace ext
 {
-	boost::filesystem::path GetExePath(int argc, char *argv[], boost::system::error_code & ec)
+	void GetExePath(int argc, char *argv[], boost::filesystem::path & path, boost::system::error_code & ec)
 	{
-		char exePath[PATH_MAX];
-		uint32_t len = sizeof(exePath);
+		char buffer[PATH_MAX];
+		uint32_t len = sizeof(buffer);
 
-		if (_NSGetExecutablePath(exePath, &len) != 0) 
+		if (_NSGetExecutablePath(buffer, &len) != 0)
 		{
-			exePath[0] = '\0'; // buffer too small (!)
+			ec.assign(errno, boost::system::system_category());
 		}
 		else
 		{
 			// resolve symlinks, ., .. if possible
-			auto * canonicalPath = realpath(exePath, NULL);
+			auto * canonicalPath = ::realpath(buffer, NULL);
 			if (canonicalPath != NULL)
 			{
-				strncpy(exePath, canonicalPath, len);
+				strncpy(buffer, canonicalPath, len);
 				free(canonicalPath);
+				path.assign(buffer, buffer + len);
 			}
 		}
 	}
@@ -172,13 +169,13 @@ namespace ext
 
 namespace ext
 {
-	boost::filesystem::path GetExePath(int argc, char *argv[], boost::system::error_code & ec)
+	void GetExePath(int argc, char *argv[], boost::filesystem::path & path, boost::system::error_code & ec)
 	{
-		char exePath[PATH_MAX];
-		if (realpath(getexecname(), exePath) == NULL)
-			exePath[0] = '\0';
-
-		return boost::filesystem::path(exePath);
+		char buffer[PATH_MAX];
+		if (::realpath(getexecname(), buffer) == NULL)
+			ec.assign(errno, boost::system::generic_category());
+		else
+			path.assign(buffer);
 	}
 }
 
@@ -188,21 +185,57 @@ namespace ext
 
 namespace ext
 {
-	boost::filesystem::path GetExePath(int argc, char *argv[], boost::system::error_code & ec)
+	void GetExePath(int argc, char *argv[], boost::filesystem::path & path, boost::system::error_code & ec)
 	{
-		int mib[4];  
+		int mib[4];
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_PROC;
 		mib[2] = KERN_PROC_PATHNAME;
 		mib[3] = -1;
 
-		char exePath[2048];
-		size_t len = sizeof(exePath);
+		char buffer[2048];
+		size_t len = sizeof(buffer);
 
-		if (sysctl(mib, 4, exePath, &len, NULL, 0) != 0)
-			exePath[0] = '\0';
+		if (sysctl(mib, 4, buffer, &len, NULL, 0) != 0)
+			ec.assign(errno, boost::system::generic_category());
+		else
+			path.assign(buffer, buffer + len);
+	}
+}
 
-		return boost::filesystem::path(exePath);
+#elif BOOST_OS_HPUX
+#include <sys/pstat.h>
+
+namespace ext
+{
+	void GetExePath(int argc, char *argv[], boost::filesystem::path & path, boost::system::error_code & ec)
+	{
+		struct pst_status pst;
+		std::memset(&pst, 0, sizeof(pst));
+
+		int res, pid = ::getpid();
+		// Acquire proc info, it contains file id of text file(executable)
+		res = ::pstat_getproc(&pst, sizeof(pst), 0, pid);
+		if (res < 0)
+		{
+			ec.assign(errno, boost::system::generic_category());
+			return;
+		}
+
+		pst_fid * fid_text = &pst.pst_fid_text;
+		char buffer[PATH_MAX];
+
+		// Now get pathname. According to man pstat_getpathname returns name from system cache,
+		// and it actually can be missing this information.
+		// In this case function will return 0, errno will be unchanged
+		res = ::pstat_getpathname(buffer, PATH_MAX, fid_text);
+		if (res < 0)
+		{
+			ec.assign(errno, boost::system::generic_category());
+			return;
+		}
+
+		path.assign(buffer, buffer + res);
 	}
 }
 
