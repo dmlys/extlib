@@ -71,9 +71,8 @@ namespace ext
 		void connect(const std::string & host, const std::string & service);
 
 #ifdef EXT_ENABLE_OPENSSL
-		/// выоляет подключение rdbuf()->connect(host, service);
-		/// в случае ошибки устанавливает failbit | badbit
 		bool ssl_started() const { return m_streambuf.ssl_started(); }
+		SSL * ssl_handle() { return m_streambuf.ssl_handle(); }
 		/// rdbuf()->start_ssl()
 		/// в случае ошибки устанавливает failbit | badbit
 		void start_ssl();
@@ -86,6 +85,8 @@ namespace ext
 		/// rdbuf()->stop_ssl()
 		/// в случае ошибки устанавливает failbit | badbit
 		void stop_ssl();
+		/// rdbuf()->free_ssl();
+		void free_ssl() { return m_streambuf.free_ssl(); }
 #endif //EXT_ENABLE_OPENSSL
 
 		/// rdbuf()->studown()
