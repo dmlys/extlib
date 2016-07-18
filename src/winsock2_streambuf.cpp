@@ -304,7 +304,7 @@ namespace ext
 		StateType prev = m_state.exchange(Closed, std::memory_order_release);
 
 #ifdef EXT_ENABLE_OPENSSL
-		do_sslreset();
+		free_ssl();
 #endif //EXT_ENABLE_OPENSSL
 
 		auto sock = m_sockhandle;
@@ -430,7 +430,7 @@ namespace ext
 		return m_sockhandle != INVALID_SOCKET;
 	}
 
-	bool winsock2_streambuf::wait_readable(time_point until)
+	bool winsock2_streambuf::wait_state(time_point until, int fstate)
 	{
 		int wsaerr;
 		int solen;
@@ -439,13 +439,28 @@ namespace ext
 		struct timeval timeout;
 		make_timeval(timeout, until - time_point::clock::now());
 
-		fd_set read_set, err_set;
-		FD_ZERO(&read_set);
+		fd_set read_set, write_set, err_set;
+		fd_set * pread_set = nullptr;
+		fd_set * pwrite_set = nullptr;
+
+		if (fstate & freadable)
+		{
+			pread_set = &read_set;
+			FD_ZERO(pread_set);
+			FD_SET(m_sockhandle, pread_set);
+		}
+
+		if (fstate & fwritable)
+		{
+			pwrite_set = &write_set;
+			FD_ZERO(pwrite_set);
+			FD_SET(m_sockhandle, pwrite_set);
+		}
+		
 		FD_ZERO(&err_set);
-		FD_SET(m_sockhandle, &read_set);
 		FD_SET(m_sockhandle, &err_set);
 
-		int res = ::select(m_sockhandle + 1, &read_set, nullptr, &err_set, &timeout);
+		int res = ::select(m_sockhandle + 1, pread_set, pwrite_set, &err_set, &timeout);
 		if (res == 0) // timeout
 		{
 			m_lasterror.assign(WSAETIMEDOUT, std::system_category());
@@ -462,45 +477,6 @@ namespace ext
 
 		return true;
 
-	sockerror:
-		wsaerr = ::WSAGetLastError();
-	wsaerror:
-		if (rw_error(-1, wsaerr, m_lasterror)) return false;
-		goto again;
-	}
-
-	bool winsock2_streambuf::wait_writable(time_point until)
-	{
-		int wsaerr;
-		int solen;
-
-	again:
-		struct timeval timeout;
-		make_timeval(timeout, until - time_point::clock::now());
-
-		fd_set write_set, err_set;
-		FD_ZERO(&write_set);
-		FD_ZERO(&err_set);
-		FD_SET(m_sockhandle, &write_set);
-		FD_SET(m_sockhandle, &err_set);
-		
-		int res = ::select(m_sockhandle + 1, nullptr, &write_set, nullptr, &timeout);
-		if (res == 0) // timeout
-		{
-			m_lasterror.assign(WSAETIMEDOUT, std::system_category());
-			return false;
-		}
-		
-		if (res == -1) goto sockerror;
-		assert(res >= 1);
-	
-		solen = sizeof(wsaerr);
-		res = ::getsockopt(m_sockhandle, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&wsaerr), &solen);
-		if (res != 0)    goto sockerror;
-		if (wsaerr != 0) goto wsaerror;
-		
-		return true;
-		
 	sockerror:
 		wsaerr = ::WSAGetLastError();
 	wsaerror:
@@ -515,7 +491,7 @@ namespace ext
 #ifdef EXT_ENABLE_OPENSSL
 		if (ssl_started())
 		{
-			return SSL_pending(m_sslhandle);
+			return ::SSL_pending(m_sslhandle);
 		}
 #endif //EXT_ENABLE_OPENSSL
 
@@ -676,18 +652,12 @@ namespace ext
 #ifdef EXT_ENABLE_OPENSSL
 	bool winsock2_streambuf::ssl_started() const
 	{
-		return m_sslhandle != nullptr && SSL_get_session(m_sslhandle) != nullptr;
-	}
-
-	void winsock2_streambuf::do_sslreset()
-	{
-		SSL_free(m_sslhandle);
-		m_sslhandle = nullptr;
+		return m_sslhandle != nullptr && ::SSL_get_session(m_sslhandle) != nullptr;
 	}
 
 	winsock2_streambuf::error_code_type winsock2_streambuf::ssl_error(SSL * ssl, int error)
 	{
-		int ssl_err = SSL_get_error(ssl, error);
+		int ssl_err = ::SSL_get_error(ssl, error);
 		return ext::openssl_geterror(ssl_err);
 	}
 
@@ -703,7 +673,7 @@ namespace ext
 			return true;
 		}
 
-		res = SSL_get_error(m_sslhandle, res);
+		res = ::SSL_get_error(m_sslhandle, res);
 		switch (res)
 		{
 			// can this happen? just try to handle as SSL_ERROR_SYSCALL
@@ -716,7 +686,7 @@ namespace ext
 			case SSL_ERROR_SYSCALL:
 			case SSL_ERROR_SSL:
 				// if it some generic SSL error
-				if ((wsaerr = ERR_get_error()))
+				if ((wsaerr = ::ERR_get_error()))
 				{
 					err_code.assign(wsaerr, ext::openssl_err_category());
 					return true;
@@ -744,52 +714,61 @@ namespace ext
 
 	bool winsock2_streambuf::do_createssl(SSL *& ssl, SSL_CTX * sslctx)
 	{
-		ssl = SSL_new(sslctx);
+		ssl = ::SSL_new(sslctx);
 		if (!ssl)
 		{
-			m_lasterror.assign(ERR_get_error(), ext::openssl_err_category());
+			m_lasterror.assign(::ERR_get_error(), ext::openssl_err_category());
 			return false;
 		}
 
-		int res = SSL_set_fd(ssl, m_sockhandle);
+		int res = ::SSL_set_fd(ssl, m_sockhandle);
 		if (res <= 0) goto error;
 
-		SSL_set_mode(ssl, SSL_get_mode(ssl) | SSL_MODE_AUTO_RETRY);
+		::SSL_set_mode(ssl, ::SSL_get_mode(ssl) | SSL_MODE_AUTO_RETRY);
 		return true;
 
 	error:
 		m_lasterror = ssl_error(ssl, res);
-		SSL_free(ssl);
+		::SSL_free(ssl);
 		ssl = nullptr;
 		return false;
 	}
 
 	bool winsock2_streambuf::do_sslconnect(SSL * ssl)
 	{
-	again:
-		int res = SSL_connect(ssl);
-		if (res > 0) return true;
+		auto until = time_point::clock::now() + m_timeout;
+		int fstate;
 
-		if (ssl_rw_error(res, m_lasterror)) return false;
-		goto again;
+		do {
+			int res = ::SSL_connect(ssl);
+			if (res > 0) return true;
+
+			if (ssl_rw_error(res, m_lasterror)) return false;
+			
+			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
+			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
+			else        /* ??? */                 fstate = freadable | fwritable;
+
+		} while (wait_state(until, fstate));
+		return false;
 	}
 
 	bool winsock2_streambuf::do_sslshutdown(SSL * ssl)
 	{
 		// смотри описание 2х фазного SSL_shutdown в описании функции SSL_shutdown:
 		// https://www.openssl.org/docs/manmaster/ssl/SSL_shutdown.html
-		int res = SSL_shutdown(ssl);
+		int res = ::SSL_shutdown(ssl);
 		if (res < 0) goto error;
 		if (res == 0)
 		{
-			res = SSL_shutdown(ssl);
+			res = ::SSL_shutdown(ssl);
 			if (res <= 0)
 			{
 				m_lasterror = ssl_error(ssl, res);
 				// второй shutdown не получился, это может быть как ошибка,
 				// так и нам просто закрыли канал по shutdown на другой стороне. проверяем
 
-				handle_type sock = SSL_get_fd(ssl);
+				handle_type sock = ::SSL_get_fd(ssl);
 				fd_set rdset;
 				FD_ZERO(&rdset);
 				FD_SET(sock, &rdset);
@@ -807,7 +786,7 @@ namespace ext
 			}
 		}
 
-		res = SSL_clear(ssl);
+		res = ::SSL_clear(ssl);
 		if (res <= 0) goto error;
 
 		return true;
@@ -826,29 +805,36 @@ namespace ext
 			return false;
 		}
 
-		if (ssl_started()) return true;
-		do_sslreset();
-		return do_createssl(m_sslhandle, sslctx) && do_sslconnect(m_sslhandle);
+		if (m_sslhandle)
+		{
+			::SSL_set_SSL_CTX(m_sslhandle, sslctx);
+			return do_sslconnect(m_sslhandle);
+		}
+		else
+		{
+			return do_createssl(m_sslhandle, sslctx) &&
+			       do_sslconnect(m_sslhandle);
+		}
 	}
 
 	bool winsock2_streambuf::start_ssl(SSL_CTX * sslctx)
 	{
 		auto res = start_ssl_weak(sslctx);
-		SSL_CTX_free(sslctx);
+		::SSL_CTX_free(sslctx);
 		return res;
 	}
 
 	bool winsock2_streambuf::start_ssl(const SSL_METHOD * sslmethod)
 	{
-		SSL_CTX * sslctx = SSL_CTX_new(sslmethod);
+		SSL_CTX * sslctx = ::SSL_CTX_new(sslmethod);
 		if (sslctx == nullptr)
 		{
-			m_lasterror.assign(ERR_get_error(), ext::openssl_err_category());
+			m_lasterror.assign(::ERR_get_error(), ext::openssl_err_category());
 			return false;
 		}
 
 		auto res = start_ssl_weak(sslctx);
-		SSL_CTX_free(sslctx);
+		::SSL_CTX_free(sslctx);
 		return res;
 	}
 
@@ -858,7 +844,7 @@ namespace ext
 			return do_sslconnect(m_sslhandle);
 		else
 		{
-			const SSL_METHOD * sslm = SSLv23_client_method();
+			const SSL_METHOD * sslm = ::SSLv23_client_method();
 			return start_ssl(sslm);
 		}
 	}
@@ -870,6 +856,12 @@ namespace ext
 		// flush failed
 		if (sync() == -1) return false;
 		return do_sslshutdown(m_sslhandle);
+	}
+
+	void winsock2_streambuf::free_ssl()
+	{
+		::SSL_free(m_sslhandle);
+		m_sslhandle = nullptr;
 	}
 
 #endif //EXT_ENABLE_OPENSSL

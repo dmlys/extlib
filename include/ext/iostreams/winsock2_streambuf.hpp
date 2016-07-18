@@ -158,6 +158,12 @@ namespace ext
 
 		typedef socket_handle_type    handle_type;
 
+		enum // flags for wait_state
+		{
+			freadable = 1,  // wait readable
+			fwritable = 2,  // wait writable
+		};
+
 	private:
 		/// внутреннее состояние класса, нужно для поддержки вызова interrupt.
 		/// все состояния кроме Interrupting / Interrupted последовательно меняется из основного потока работы.
@@ -238,13 +244,11 @@ namespace ext
 
 #ifdef EXT_ENABLE_OPENSSL
 		error_code_type ssl_error(SSL * ssl, int error);
-		/// анализирует ошибку ssl read/wrtie операции.
+		/// анализирует ошибку ssl read/write операции.
 		/// res - результат операции(возращаяемое значение ::SSL_read, ::SSL_write).
 		/// В err_code записывает итоговую ошибку.
 		/// возвращает была ли действительно ошибка, или нужно повторить операцию(реакция на EINTR).
 		bool ssl_rw_error(int res, error_code_type & err_code);
-		/// освобождает ресурсы связанные с ssl
-		void do_sslreset();
 		/// создает ssl объект, ассоциирует его с дескриптором сокета и настраивает его.
 		/// в случае ошибок возвращает false, ssl == nullptr, m_lasterror содержит ошибку
 		bool do_createssl(SSL *& ssl, SSL_CTX * sslctx);
@@ -257,16 +261,23 @@ namespace ext
 #endif //EXT_ENABLE_OPENSSL
 
 	public:
+		/// ожидает пока сокет не станет доступен на чтение/запись(задается fstate) с помощью select.
+		/// until - предельная точка ожидания.
+		/// fstate должно быть комбинацией freadable, fwritable.
+		/// в случае ошибки - возвращает false.
+		/// учитывает WSAEINTR - повторяет ожидание, если только не было вызова interrupt
+		bool wait_state(time_point until, int fstate);
+
 		/// ожидает пока сокет не станет доступен на чтение с помощью select.
 		/// until - предельная точка ожидания.
 		/// в случае ошибки - возвращает false.
 		/// учитывает WSAEINTR - повторяет ожидание, если только не было вызова interrupt
-		bool wait_readable(time_point until);
+		bool wait_readable(time_point until) { return wait_state(until, freadable); }
 		/// ожидает пока сокет не станет доступен на запись с помощью select.
 		/// until - предельная точка ожидания.
 		/// в случае ошибки - возвращает false.
 		/// учитывает WSAEINTR - повторяет ожидание, если только не было вызова interrupt
-		bool wait_writable(time_point until);
+		bool wait_writable(time_point until) { return wait_state(until, fwritable); }
 
 	public:
 		std::streamsize showmanyc() override;
@@ -349,32 +360,45 @@ namespace ext
 		/// есть ли активная ssl сессия
 		bool ssl_started() const;
 		
-		/// если сейчас уже есть активная сессия - ничего не делает и возвращает true.
+		/// возвращает текущую SSL сессию. 
+		/// если вызова start_ssl еще не было - returns nullptr, 
+		/// тем не менее stop_ssl останавливает ssl соединение, но не удаляет сессию,
+		/// повторный вызов start_ssl переиспользует ее.
+		/// вызов close - освобождает ssl сессию.
+		/// На данный момент нельзя передать объект сессии из вне.
+		SSL * ssl_handle() { return m_sslhandle; }
+
 		/// переключается в режим ssl c параметрами заданными последним вызовом bool start_ssl(SSL_CTX * sslctx)
 		/// если такого вызова не было - аналогично start_ssl(SSLv23_client_method()).
 		/// в случае ошибок возвращает false.
+		/// NOTE: метод не проверяет наличие активной сессии
 		bool start_ssl();
 
-		/// если сейчас уже есть активная сессия - ничего не делает и возвращает true.
 		/// выполняет установку ssl сессии с заданными параметрами - в случае успеха возвращает true
 		/// данный метод подразумевает владение sslctx и взывает для него SSL_CTX_free
 		/// в случае ошибок возвращает false.
+		/// NOTE: метод не проверяет наличие активной сессии
 		bool start_ssl(SSL_CTX * sslctx);
 		
-		/// если сейчас уже есть активная сессия - ничего не делает и возвращает true.
 		/// выполняет установку ssl сессии с заданными параметрами - в случае успеха возвращает true
 		/// данный метод не подразумевает владеет владение sslctx и НЕ взывает для него SSL_CTX_free
 		/// в случае ошибок возвращает false.
+		/// NOTE: метод не проверяет наличие активной сессии
 		bool start_ssl_weak(SSL_CTX * sslctx);
 
-		/// если сейчас уже есть активная сессия - ничего не делает и возвращает true.
 		/// создает сессию с заданным методом и устанавливает ssl сессию
 		/// в случае ошибок возвращает false.
+		/// NOTE: метод не проверяет наличие активной сессии
 		bool start_ssl(const SSL_METHOD * sslmethod);
 
 		/// сбрасывает буфер и останавливает ssl сессию, если сессии не было - возвращает true
 		/// если на каком либо из этапов возникла ошибка - returns false
 		bool stop_ssl();
+
+		/// Вызывает SSL_free(ssl_handle()). устанавливает его в nullptr.
+		/// Следует вызвать только при закрытой сессии(stop_ssl).
+		/// Автоматически вызывается в close. В целом обычно вызвать данный метод не следует.
+		void free_ssl();
 #endif
 
 		/// если закрывается исходящее соединение - сбрасывает исходящий буфер
