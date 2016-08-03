@@ -444,16 +444,16 @@
     <ClInclude Include="include\ext\strings\basic_string_facade.hpp">
       <Filter>include\strings</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\intrusive_cow_ptr.hpp">
+    <ClInclude Include="include\ext\threaded_scheduler.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\threaded_scheduler.hpp" >
+    <ClInclude Include="include\ext\scheduler.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\scheduler.hpp" >
+    <ClInclude Include="include\ext\iostreams\socket_types.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\iostreams\socket_types.hpp" >
+    <ClInclude Include="include\ext\intrusive_ptr.hpp">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
