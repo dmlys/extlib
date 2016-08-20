@@ -85,6 +85,7 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\socket_types.cpp" />
+    <ClCompile Include="src\future.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ext\FileSystemUtils.hpp">
@@ -456,6 +457,7 @@
     <ClInclude Include="include\ext\intrusive_ptr.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\ext\future.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE_1_0.txt" />
