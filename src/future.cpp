@@ -63,7 +63,7 @@ namespace ext
 		
 		struct backoff_type
 		{
-			void operator()() const noexcept 
+			void operator()() const noexcept
 			{
 				std::this_thread::yield(); // yield maybe not a good idea
 			}
@@ -514,7 +514,7 @@ namespace ext
 	}
 
 	bool lockfree_continuation_pool::putback(waiter_ptr & ptr) noexcept
-	{		
+	{
 		backoff_type backoff;
 
 		std::size_t first_avail, first_free, new_free;
@@ -532,7 +532,7 @@ namespace ext
 		} while(not m_first_free.compare_exchange_weak(first_free, new_free, std::memory_order_relaxed));
 		
 		m_objects[first_free] = std::move(ptr);
-			
+		
 		// There can be multiple concurrent calls to putback, m_last_avail should be increased in order,
 		// but writing can be out of order - later call, can finish writing to cell earlier.
 		// Force order, by incrementing m_last_avail, only when m_last_avail is index of our cell.

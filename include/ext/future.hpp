@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <system_error>
 
+#include <thread>
 #include <mutex>
 #include <condition_variable>
 
@@ -89,6 +90,23 @@ namespace ext
 	template <class Type>
 	future<std::decay_t<Type>> make_ready_future(Type && val);
 
+	template<class Function, class ... Args>
+	auto async(ext::launch policy, Function && f, Args && ... args) ->
+		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>;
+
+	template<class Function, class ... Args>
+	auto async(Function && f, Args && ... args) ->
+		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>
+	{
+		constexpr ext::launch pol = static_cast<ext::launch>(
+			static_cast<unsigned>(ext::launch::async) |
+			static_cast<unsigned>(ext::launch::deferred)
+		);
+
+		return async(pol, std::forward<Function>(f), std::forward<Args>(args)...);
+	}
+
+
 	void init_future_library(); // std::thread::hardware_concurrency() * 4
 	void init_future_library(unsigned waiter_slots);
 	void free_future_library();
@@ -148,6 +166,7 @@ namespace ext
 
 	class continuation_waiter;
 	template <class> class packaged_task_impl;
+	template <class> class deffered_task_impl;
 	template <class> class continuation_task;
 	
 	/// shared_state_basic type independent part, implementation of promise state, continuations
@@ -634,11 +653,13 @@ namespace ext
 	template <class Ret, class ... Args>
 	class packaged_task_impl<Ret(Args...)> : public shared_state<Ret>
 	{
+		typedef packaged_task_impl           self_type;
+		typedef shared_state<Ret>            base_type;
+
 	public:
 		typedef std::function<Ret(Args...)>  function_type;
-		typedef packaged_task_impl           self_type;
 
-	private:
+	protected:
 		function_type m_function;
 
 	public:
@@ -656,11 +677,13 @@ namespace ext
 	template <class ... Args>
 	class packaged_task_impl<void(Args...)> : public shared_state<void>
 	{
+		typedef packaged_task_impl           self_type;
+		typedef shared_state<void>           base_type;
+
 	public:
 		typedef std::function<void(Args...)> function_type;
-		typedef packaged_task_impl           self_type;
 
-	private:
+	protected:
 		function_type m_function;
 
 	public:
@@ -673,6 +696,24 @@ namespace ext
 		packaged_task_impl(function_type f)
 			: m_function(std::move(f)) {}
 	};
+
+
+	template <class Ret>
+	class deffered_task_impl<Ret()> : public packaged_task_impl<Ret()>
+	{
+		typedef deffered_task_impl           self_type;
+		typedef packaged_task_impl<Ret()>    base_type;
+
+	public:
+		void wait() const override;
+		future_status wait_for(std::chrono::steady_clock::duration timeout_duration) const override  { return future_status::deferred; }
+		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
+
+	public:
+		// inherit constructors
+		using base_type::base_type;
+	};
+
 
 	/// Implements continuation used for waiting by shared_state_basic.
 	/// Derived from shared_state_basic, sort of recursion
@@ -826,7 +867,7 @@ namespace ext
 	template <class Type>
 	auto shared_state<Type>::get() -> value_type &
 	{
-		self_type::wait();
+		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchromize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
@@ -897,7 +938,7 @@ namespace ext
 	template <class Type>
 	auto shared_state<Type &>::get() -> value_type &
 	{
-		self_type::wait();
+		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchromize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
@@ -957,7 +998,7 @@ namespace ext
 	/************************************************************************/
 	inline void shared_state<void>::get()
 	{
-		self_type::wait();
+		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchromize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
@@ -1013,7 +1054,7 @@ namespace ext
 	template <class Type>
 	auto shared_state_unexceptional<Type>::get() -> value_type &
 	{
-		self_type::wait();
+		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchromize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
@@ -1074,7 +1115,7 @@ namespace ext
 	template <class Type>
 	auto shared_state_unexceptional<Type &>::get() -> value_type &
 	{
-		self_type::wait();
+		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchromize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
@@ -1105,7 +1146,7 @@ namespace ext
 	/************************************************************************/
 	inline void shared_state_unexceptional<void>::get()
 	{
-		self_type::wait();
+		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchromize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
@@ -1176,6 +1217,39 @@ namespace ext
 	{
 		this->release_promise();
 		return new self_type(std::move(m_function));
+	}
+
+	template <class Ret>
+	void deffered_task_impl<Ret()>::wait() const
+	{
+		if (not ext::unconst(this)->mark_uncancellable())
+			return base_type::wait();
+
+		try
+		{
+			ext::unconst(this)->set_value(ext::unconst(this)->m_function());
+		}
+		catch (...)
+		{
+			ext::unconst(this)->set_exception(std::current_exception());
+		}
+	}
+
+	template <>
+	inline void deffered_task_impl<void()>::wait() const
+	{
+		if (not ext::unconst(this)->mark_uncancellable())
+			return base_type::wait();
+
+		try
+		{
+			ext::unconst(this)->m_function();
+			ext::unconst(this)->set_value();
+		}
+		catch (...)
+		{
+			ext::unconst(this)->set_exception(std::current_exception());
+		}
 	}
 
 	template <class Type>
@@ -1630,6 +1704,30 @@ namespace ext
 		auto ptr = ext::make_intrusive<ext::shared_state_unexceptional<void>>();
 		ptr->set_value();
 		return {ptr};
+	}
+
+	template<class Function, class... Args>
+	auto async(ext::launch policy, Function && func, Args && ... args) ->
+		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>
+	{
+		typedef std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)> result_type;
+		std::function<result_type()> functor = std::bind(std::forward<Function>(func), std::forward<Args>(args)...);
+
+		if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::async))
+		{
+			ext::packaged_task<result_type()> pt {std::move(functor)};
+			auto result = pt.get_future();
+
+			std::thread thx {std::move(pt)};
+			thx.detach();
+
+			return result;
+		}
+		else //if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::deferred))
+		{
+			auto pt = ext::make_intrusive<deffered_task_impl<result_type()>>(std::move(func));
+			return ext::future<result_type>(std::move(pt));
+		}
 	}
 
 	/************************************************************************/
