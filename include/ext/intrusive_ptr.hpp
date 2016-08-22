@@ -80,7 +80,7 @@ namespace ext
 		auto reset(value_type * ptr, bool add_ref)  noexcept;
 		auto reset()                                noexcept { return reset(nullptr); }
 
-		value_type * get() const noexcept{ return m_ptr; }
+		value_type * get() const noexcept { return m_ptr; }
 		value_type & operator *() const noexcept { return *get(); }
 		value_type * operator ->() const noexcept { return get(); }
 
@@ -165,19 +165,19 @@ namespace ext
 	template <class DestType, class Type>
 	inline intrusive_ptr<DestType> const_pointer_cast(const intrusive_ptr<Type> & ptr)
 	{
-		return intrusive_ptr<DestType> {const_cast<DestType *>(ptr.get_ptr())};
+		return intrusive_ptr<DestType> {const_cast<DestType *>(ptr.get())};
 	}
 
 	template <class DestType, class Type>
 	inline intrusive_ptr<DestType> static_pointer_cast(const intrusive_ptr<Type> & ptr)
 	{
-		return intrusive_ptr<DestType> {static_cast<DestType *>(ptr.get_ptr())};
+		return intrusive_ptr<DestType> {static_cast<DestType *>(ptr.get())};
 	}
 
 	template <class DestType, class Type>
 	inline intrusive_ptr<DestType> dynamic_pointer_cast(const intrusive_ptr<Type> & ptr)
 	{
-		return intrusive_ptr<DestType> {dynamic_cast<DestType *>(ptr.get_ptr())};
+		return intrusive_ptr<DestType> {dynamic_cast<DestType *>(ptr.get())};
 	}
 
 
