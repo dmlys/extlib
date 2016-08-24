@@ -43,8 +43,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\asio_socket_stream.cpp" />
-    <ClCompile Include="src\asio_socket_streambuf.cpp" />
     <ClCompile Include="src\cppzlib.cpp" />
     <ClCompile Include="src\Errors.cpp" />
     <ClCompile Include="src\FileSystemGetExePath.cpp" />
@@ -90,9 +88,6 @@
     <ClInclude Include="include\ext\iostreams\winsock2_stream.hpp" />
     <ClInclude Include="include\ext\iostreams\winsock2_streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\socket_stream.hpp" />
-    <ClInclude Include="include\ext\iostreams\asio_config.hpp" />
-    <ClInclude Include="include\ext\iostreams\asio_socket_stream.hpp" />
-    <ClInclude Include="include\ext\iostreams\asio_socket_streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\blocking_write.hpp" />
     <ClInclude Include="include\ext\iostreams\basic_base_encoder.hpp" />
     <ClInclude Include="include\ext\iostreams\transform_width_decoder.hpp" />
