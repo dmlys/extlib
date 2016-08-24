@@ -72,12 +72,6 @@
     <ClCompile Include="src\openssl.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\asio_socket_streambuf.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\asio_socket_stream.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\winsock2.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -388,9 +382,6 @@
     <ClInclude Include="include\ext\is_iterator.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\iostreams\asio_config.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\iostreams\socket_streambuf_base.hpp">
       <Filter>include\iostreams</Filter>
     </ClInclude>
@@ -417,12 +408,6 @@
     </ClInclude>
     <ClInclude Include="include\ext\openssl.hpp">
       <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\asio_socket_streambuf.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\asio_socket_stream.hpp">
-      <Filter>include\iostreams</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\iostreams\winsock2_inc.hpp">
       <Filter>include\iostreams</Filter>

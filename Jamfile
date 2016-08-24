@@ -17,7 +17,7 @@ project
 	: requirements       $(requirements)
 	;
 	
-local src =         [ glob src/*.cpp : src/*asio* src/*zlib* src/*openssl* src/*winsock* src/*bsdsock* ] ;
+local src =         [ glob src/*.cpp : src/*zlib* src/*openssl* src/*winsock* src/*bsdsock* ] ;
 local zlib_src =    [ glob src/*zlib* ] ;
 local openssl_src = [ glob src/*openssl* ] ;
 local tests_src =   [ glob tests/*cpp ] ;
