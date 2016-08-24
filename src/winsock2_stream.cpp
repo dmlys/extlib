@@ -134,8 +134,8 @@ namespace ext
 		: std::iostream(std::move(op)),
 		  m_streambuf(std::move(op.m_streambuf))
 	{
-
-	}
+		set_rdbuf(&m_streambuf);
+	};
 
 	winsock2_stream & winsock2_stream::operator =(winsock2_stream && op) BOOST_NOEXCEPT
 	{
