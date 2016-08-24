@@ -106,7 +106,7 @@ namespace ext
 		: std::iostream(std::move(op)),
 		  m_streambuf(std::move(op.m_streambuf))
 	{
-
+		set_rdbuf(&m_streambuf);
 	}
 
 	bsdsock_stream & bsdsock_stream::operator =(bsdsock_stream && op) BOOST_NOEXCEPT
