@@ -134,7 +134,7 @@ namespace ext
 
 		std::chrono::system_clock::duration timeout() const { return m_timeout; }
 		std::chrono::system_clock::duration timeout(std::chrono::system_clock::duration newtimeout)
-		{ return ext::exchange(m_timeout, newtimeout); }
+		{ return std::exchange(m_timeout, newtimeout); }
 
 
 		bool is_open() { return m_sock.is_open(); }

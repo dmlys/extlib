@@ -6,7 +6,6 @@
 #include <utility>
 #include <stdexcept>
 #include <system_error>
-#include <ext/utility.hpp>
 #include <boost/config.hpp> // for BOOST_NOEXCEPT
 
 /// very simple z_stream wrapper
@@ -128,7 +127,7 @@ namespace zlib
 		zstream & operator =(const zstream & ) = delete;
 
 		zstream(zstream && op) BOOST_NOEXCEPT : handle(std::move(op.handle)) {}
-		zstream & operator =(zstream && op) BOOST_NOEXCEPT {handle = ext::exchange(op.handle, true); return *this;}
+		zstream & operator =(zstream && op) BOOST_NOEXCEPT {handle = std::exchange(op.handle, true); return *this;}
 
 		//zstream(zstream &&) = default;
 		//zstream & operator =(zstream &&) = default;

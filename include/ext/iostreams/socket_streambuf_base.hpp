@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
+#include <utility> // for std::exchange
 #include <streambuf>
-#include <ext/utility.hpp>
 #include <ext/iostreams/streambuf.hpp>
 #include <boost/config.hpp>
 
@@ -72,7 +72,7 @@ namespace ext
 	public:
 		/// синхронизация входящего потока с исходящим, по умолчанию включена
 		bool self_tie() const { return m_tie_io; }
-		bool self_tie(bool tie) { return ext::exchange(m_tie_io, tie); }
+		bool self_tie(bool tie) { return std::exchange(m_tie_io, tie); }
 
 	protected:
 		socket_streambuf_base();

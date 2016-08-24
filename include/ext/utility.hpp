@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <utility>
 #include <tuple>
+#include <functional>
 //this utility.h acts as common header, so include integer_sequence
 #include <ext/integer_sequence.hpp>
 
@@ -17,15 +18,6 @@ namespace ext
 	template <class Type> constexpr inline std::remove_const_t<Type> & unconst(const Type & ref) noexcept { return const_cast<std::remove_const_t<Type> &>(ref); }
 	template <class Type> constexpr inline std::remove_const_t<Type> * unconst(const Type * ptr) noexcept { return const_cast<std::remove_const_t<Type> *>(ptr); }
 
-
-	/// C++14 std::exchange
-	template<class T, class U = T>
-	T exchange(T & obj, U && new_value)
-	{
-		T old_value = std::move(obj);
-		obj = std::forward<U>(new_value);
-		return old_value;
-	}
 
 	/// находит элемент в карте по ключу и возвращает ссылку на него,
 	/// если элемента нет - создает его с помощью параметров args
