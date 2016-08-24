@@ -19,6 +19,128 @@ namespace ext
 	template <class Type> constexpr inline std::remove_const_t<Type> * unconst(const Type * ptr) noexcept { return const_cast<std::remove_const_t<Type> *>(ptr); }
 
 
+	namespace detail
+	{
+		template <class Type>
+		struct is_reference_wrapper : std::false_type {};
+
+		template <class Type>
+		struct is_reference_wrapper<std::reference_wrapper<Type>> : std::true_type {};
+
+		/// pointer to member function + object
+		template <class Base, class FuncType, class Derived, class ... Args>
+		auto INVOKE(FuncType Base::*pmf, Derived && ref, Args && ... args)
+			noexcept(noexcept((std::forward<Derived>(ref).*pmf)(std::forward<Args>(args)...)))
+			-> std::enable_if_t<
+				std::is_function<FuncType>::value && 
+				std::is_base_of<Base, std::decay_t<Derived>>::value,
+				decltype((std::forward<Derived>(ref).*pmf)(std::forward<Args>(args)...))
+			>
+		{
+			return (std::forward<Derived>(ref).*pmf)(std::forward<Args>(args)...);
+		}
+
+		/// pointer to member function + std::reference_wrapper of object
+		template <class Base, class FuncType, class RefWrap, class ... Args>
+		auto INVOKE(FuncType Base::*pmf, RefWrap && ref, Args && ... args)
+			noexcept(noexcept((ref.get().*pmf)(std::forward<Args>(args)...)))
+			-> std::enable_if_t<
+				std::is_function<FuncType>::value &&
+				is_reference_wrapper<std::decay_t<RefWrap>>::value,
+				decltype((ref.get().*pmf)(std::forward<Args>(args)...))
+			>
+		{
+			  return (ref.get().*pmf)(std::forward<Args>(args)...);
+		}
+
+		/// pointer to member function + pointer to object
+		template <class Base, class FuncType, class Pointer, class ... Args>
+		auto INVOKE(FuncType Base::*pmf, Pointer && ptr, Args && ... args)
+			noexcept(noexcept(((*std::forward<Pointer>(ptr)).*pmf)(std::forward<Args>(args)...)))
+			-> std::enable_if_t<
+				std::is_function<FuncType>::value && 
+				is_reference_wrapper<std::decay_t<Pointer>>::value &&
+				!std::is_base_of<Base, std::decay_t<Pointer>>::value,
+				decltype(((*std::forward<Pointer>(ptr)).*pmf)(std::forward<Args>(args)...))
+			>
+		{
+			return ((*std::forward<Pointer>(ptr)).*pmf)(std::forward<Args>(args)...);
+		}
+
+		/// pointer to member field + object
+		template <class Base, class Type, class Derived>
+		auto INVOKE(Type Base::*pmd, Derived && ref)
+			noexcept(noexcept(std::forward<Derived>(ref).*pmd))
+			-> std::enable_if_t<
+				!std::is_function<Type>::value &&
+				std::is_base_of<Base, std::decay_t<Derived>>::value,
+				decltype(std::forward<Derived>(ref).*pmd)
+			>
+		{
+			return std::forward<Derived>(ref).*pmd;
+		}
+
+		/// pointer to member field + std::reference_wrapper of object
+		template <class Base, class Type, class RefWrap>
+		auto INVOKE(Type Base::*pmd, RefWrap && ref)
+			noexcept(noexcept(ref.get().*pmd))
+			-> std::enable_if_t<
+				!std::is_function<Type>::value && is_reference_wrapper<std::decay_t<RefWrap>>::value,
+				decltype(ref.get().*pmd)
+			>
+		{
+			return ref.get().*pmd;
+		}
+
+		/// pointer to member field + object pointer
+		template <class Base, class Type, class Pointer>
+		auto INVOKE(Type Base::*pmd, Pointer && ptr)
+			noexcept(noexcept((*std::forward<Pointer>(ptr)).*pmd))
+			-> std::enable_if_t<
+				!std::is_function<Type>::value && 
+				!is_reference_wrapper<std::decay_t<Pointer>>::value &&
+				!std::is_base_of<Base, std::decay_t<Pointer>>::value,
+				decltype((*std::forward<Pointer>(ptr)).*pmd)>
+		{
+			return (*std::forward<Pointer>(ptr)).*pmd;
+		}
+
+		/// functor is not a pointer to member
+		template <class Functor, class ... Args>
+		auto INVOKE(Functor && f, Args && ... args)
+			noexcept(noexcept(std::forward<Functor>(f)(std::forward<Args>(args)...)))
+			-> std::enable_if_t<
+				!std::is_member_pointer<std::decay_t<Functor>>::value,
+				decltype(std::forward<Functor>(f)(std::forward<Args>(args)...))
+			>
+		{
+			return std::forward<Functor>(f)(std::forward<Args>(args)...);
+		}
+	}
+
+	template <class Functor, class ... Args>
+	auto invoke(Functor && f, Args && ... args)
+		noexcept(noexcept(detail::INVOKE(std::forward<Functor>(f), std::forward<Args>(args)...)))
+		-> decltype(detail::INVOKE(std::forward<Functor>(f), std::forward<Args>(args)...))
+	{
+		return detail::INVOKE(std::forward<Functor>(f), std::forward<Args>(args)...);
+	}
+
+
+	template <class Functor, class Tuple, std::size_t... I>
+	constexpr decltype(auto) apply_impl(Functor && f, Tuple && t, std::index_sequence<I...>)
+	{
+		return ext::invoke(std::forward<Functor>(f), std::get<I>(std::forward<Tuple>(t))...);
+	}
+
+	template <class Functor, class Tuple>
+	constexpr decltype(auto) apply(Functor && f, Tuple && t)
+	{
+		return apply_impl(std::forward<Functor>(f), std::forward<Tuple>(t),
+		                  std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
+	}
+
+
 	/// находит элемент в карте по ключу и возвращает ссылку на него,
 	/// если элемента нет - создает его с помощью параметров args
 	/// полезно когда карта использует типы не default constructible
