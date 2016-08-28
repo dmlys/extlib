@@ -595,12 +595,6 @@ namespace ext
 		g_pool->putback(wptr);
 	}
 
-
-	void init_future_library()
-	{
-		init_future_library(std::thread::hardware_concurrency() * 4);
-	}
-
 	void init_future_library(unsigned waiter_slots)
 	{
 		bool inited = g_pool != &g_delayed_pool or g_delayed_pool.inited();
