@@ -76,7 +76,7 @@ namespace ext
 	public:
 		future_error(const std::error_code & ec) noexcept;
 
-		const std::error_code & code() noexcept { return m_err; }
+		const std::error_code & code() const noexcept { return m_err; }
 		const char * what() const noexcept override;
 	};
 
@@ -99,16 +99,15 @@ namespace ext
 		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>
 	{
 		constexpr ext::launch pol = static_cast<ext::launch>(
-			static_cast<unsigned>(ext::launch::async) |
-			static_cast<unsigned>(ext::launch::deferred)
+			static_cast<int>(ext::launch::async) |
+			static_cast<int>(ext::launch::deferred)
 		);
 
 		return async(pol, std::forward<Function>(f), std::forward<Args>(args)...);
 	}
 
 
-	void init_future_library(); // std::thread::hardware_concurrency() * 4
-	void init_future_library(unsigned waiter_slots);
+	void init_future_library(unsigned waiter_slots = std::thread::hardware_concurrency() * 4);
 	void free_future_library();
 
 	/// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task.
@@ -165,9 +164,10 @@ namespace ext
 	template <class Type> class shared_state_unexceptional;
 
 	class continuation_waiter;
-	template <class> class packaged_task_impl;
-	template <class> class deffered_task_impl;
-	template <class> class continuation_task;
+	template <class>        class packaged_task_base;
+	template <class, class> class packaged_task_impl;
+	template <class, class> class deffered_task_impl;
+	template <class, class> class continuation_task;
 	
 	/// shared_state_basic type independent part, implementation of promise state, continuations
 	/// 
@@ -341,6 +341,7 @@ namespace ext
 		future_state status() const noexcept { return pstatus(m_promise_state.load(std::memory_order_relaxed)); }
 
 		/// status shortcuts
+		bool is_pending() const noexcept    { return status() == future_state::unsatisfied; }
 		bool is_ready() const noexcept      { return status() != future_state::unsatisfied; }
 		bool is_abandoned() const noexcept  { return status() == future_state::abandonned; }
 		bool is_cancelled() const noexcept  { return status() == future_state::cancellation; }
@@ -644,77 +645,6 @@ namespace ext
 	};
 
 
-	/// The packaged_task_impl is back-end class for packaged_task,
-	/// it wraps Callable target (function, lambda expression, bind expression, or another function object)
-	/// so that it can be invoked asynchronously.
-	/// 
-	/// Its return value or exception thrown is stored in a shared state
-	/// which can be accessed through ext::future objects.
-	template <class Ret, class ... Args>
-	class packaged_task_impl<Ret(Args...)> : public shared_state<Ret>
-	{
-		typedef packaged_task_impl           self_type;
-		typedef shared_state<Ret>            base_type;
-
-	public:
-		typedef std::function<Ret(Args...)>  function_type;
-
-	protected:
-		function_type m_function;
-
-	public:
-		bool valid() const noexcept { return static_cast<bool>(m_function); }
-		void execute(Args ... args) noexcept;
-		self_type * reset();
-
-	public:
-		packaged_task_impl() = default;
-		packaged_task_impl(function_type f)
-			: m_function(std::move(f)) {}
-	};
-
-	/// void specialization
-	template <class ... Args>
-	class packaged_task_impl<void(Args...)> : public shared_state<void>
-	{
-		typedef packaged_task_impl           self_type;
-		typedef shared_state<void>           base_type;
-
-	public:
-		typedef std::function<void(Args...)> function_type;
-
-	protected:
-		function_type m_function;
-
-	public:
-		bool valid() const noexcept { return static_cast<bool>(m_function); }
-		void execute(Args ... args) noexcept;
-		self_type * reset();
-
-	public:
-		packaged_task_impl() = default;
-		packaged_task_impl(function_type f)
-			: m_function(std::move(f)) {}
-	};
-
-
-	template <class Ret>
-	class deffered_task_impl<Ret()> : public packaged_task_impl<Ret()>
-	{
-		typedef deffered_task_impl           self_type;
-		typedef packaged_task_impl<Ret()>    base_type;
-
-	public:
-		void wait() const override;
-		future_status wait_for(std::chrono::steady_clock::duration timeout_duration) const override  { return future_status::deferred; }
-		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
-
-	public:
-		// inherit constructors
-		using base_type::base_type;
-	};
-
-
 	/// Implements continuation used for waiting by shared_state_basic.
 	/// Derived from shared_state_basic, sort of recursion
 	class continuation_waiter : public shared_state_unexceptional<void>
@@ -735,11 +665,69 @@ namespace ext
 		void continuate() noexcept override;
 	};
 
-	template <class Type>
-	class continuation_task : public packaged_task_impl<Type()>
+
+	template <class Ret, class ... Args>
+	class packaged_task_base<Ret(Args...)> : public shared_state<Ret>
 	{
-		typedef continuation_task           self_type;
-		typedef packaged_task_impl<Type()>  base_type;
+		typedef packaged_task_base           self_type;
+		typedef shared_state<Ret>            base_type;
+
+	public:
+		virtual bool valid() const noexcept = 0;
+		virtual void execute(Args ... args) noexcept = 0;
+		virtual self_type * reset() = 0;
+	};
+
+	/// The packaged_task_impl is back-end class for packaged_task,
+	/// it wraps Callable target (function, lambda expression, bind expression, or another function object)
+	/// so that it can be invoked asynchronously.
+	/// 
+	/// Its return value or exception thrown is stored in a shared state
+	/// which can be accessed through ext::future objects.
+	template <class Functor, class Ret, class ... Args>
+	class packaged_task_impl<Functor, Ret(Args...)> : public packaged_task_base<Ret(Args...)>
+	{
+		typedef packaged_task_impl                 self_type;
+		typedef packaged_task_base<Ret(Args...)>   base_type;
+
+	public:
+		typedef Functor functor_type;
+
+	protected:
+		functor_type m_functor;
+
+	public:
+		bool valid() const noexcept override { return true; /*static_cast<bool>(m_functor);*/ }
+		void execute(Args ... args) noexcept override;
+		self_type * reset() override;
+
+	public:
+		packaged_task_impl() = default;
+		packaged_task_impl(functor_type f)
+			: m_functor(std::move(f)) {}
+	};
+
+	template <class Functor, class Ret>
+	class deffered_task_impl<Functor, Ret()> : public packaged_task_impl<Functor, Ret()>
+	{
+		typedef deffered_task_impl                    self_type;
+		typedef packaged_task_impl<Functor, Ret()>    base_type;
+
+	public:
+		void wait() const override;
+		future_status wait_for(std::chrono::steady_clock::duration timeout_duration) const override  { return future_status::deferred; }
+		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
+
+	public:
+		// inherit constructors
+		using base_type::base_type;
+	};
+
+	template <class Functor, class Type>
+	class continuation_task : public packaged_task_impl<Functor, Type()>
+	{
+		typedef continuation_task                    self_type;
+		typedef packaged_task_impl<Functor, Type()>  base_type;
 
 	protected:
 		typedef shared_state_basic continuation_type;
@@ -750,7 +738,6 @@ namespace ext
 		using base_type::accquire_waiter;
 		using base_type::release_waiter;
 		using base_type::run_continuation;
-
 
 	protected:
 		/// like shared_state_basic::m_fsnext, see shared_state_basic class description.
@@ -829,17 +816,17 @@ namespace ext
 		ext::future<std::result_of_t<Functor(ext::future<Type>)>>
 	{
 		typedef std::result_of_t<Functor(ext::future<Type>)> return_type;
-		typedef continuation_task<return_type> ct_type;
 		
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
 		{
-			return continuation(std::move(self_ptr));
+			return continuation(ext::future<Type>(std::move(self_ptr)));
 		};
 		
+		typedef continuation_task<decltype(wrapped), return_type> ct_type;
 		intrusive_ptr<ct_type> ptr {new ct_type(std::move(wrapped)), ext::noaddref};
 		add_continuation(ptr.get());
-		return ptr;
+		return {ptr};
 	}
 
 	template <class Type>
@@ -848,17 +835,17 @@ namespace ext
 		ext::future<std::result_of_t<Functor(ext::shared_future<Type>)>>
 	{
 		typedef std::result_of_t<Functor(ext::future<Type>)> return_type;
-		typedef continuation_task<return_type> ct_type;
 		
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
 		{
-			return continuation(std::move(self_ptr));
+			return continuation(ext::shared_future<Type>(std::move(self_ptr)));
 		};
 		
+		typedef continuation_task<decltype(wrapped), return_type> ct_type;
 		intrusive_ptr<ct_type> ptr {new ct_type(std::move(wrapped)), ext::noaddref};
 		add_continuation(ptr.get());
-		return ptr;
+		return {ptr};
 	}
 
 	/************************************************************************/
@@ -1172,15 +1159,41 @@ namespace ext
 	/************************************************************************/
 	/*              tasks implementation                                    */
 	/************************************************************************/
-	template <class Ret, class ... Args>
-	void packaged_task_impl<Ret(Args...)>::execute(Args ... args) noexcept
+	template <class Functor, class Ret, class ... Args>
+	inline void shared_state_execute(shared_state<Ret> & sh, Functor & functor, Args && ... args)
+	{
+		sh.set_value(ext::invoke(functor, std::move(args)...));
+	}
+
+	template <class Functor, class ... Args>
+	inline void shared_state_execute(shared_state<void> & sh, Functor & functor, Args && ... args)
+	{
+		ext::invoke(functor, std::forward(args)...);
+		sh.set_value();
+	}
+
+	template <class Functor, class Ret, class ... Args>
+	inline void shared_state_execute(shared_state_unexceptional<Ret> & sh, Functor & functor, Args && ... args)
+	{
+		sh.set_value(ext::invoke(functor, std::move(args)...));
+	}
+
+	template <class Functor, class ... Args>
+	inline void shared_state_execute(shared_state_unexceptional<void> & sh, Functor & functor, Args && ... args)
+	{
+		ext::invoke(functor, std::forward(args)...);
+		sh.set_value();
+	}
+
+	template <class Functor, class Ret, class ... Args>
+	void packaged_task_impl<Functor, Ret(Args...)>::execute(Args ... args) noexcept
 	{
 		if (not this->mark_uncancellable())
 			return;
 
 		try
 		{
-			this->set_value(m_function(std::move(args)...));
+			shared_state_execute(*this, m_functor, std::move(args)...);
 		}
 		catch (...)
 		{
@@ -1188,46 +1201,22 @@ namespace ext
 		}
 	}
 
-	template <class ... Args>
-	void packaged_task_impl<void(Args...)>::execute(Args ... args) noexcept
-	{
-		if (not this->mark_uncancellable())
-			return;
-
-		try
-		{
-			m_function(std::move(args)...);
-			this->set_value();
-		}
-		catch (...)
-		{
-			this->set_exception(std::current_exception());
-		}
-	}
-
-	template <class Ret, class ... Args>
-	auto packaged_task_impl<Ret(Args...)>::reset() -> self_type *
+	template <class Functor, class Ret, class ... Args>
+	auto packaged_task_impl<Functor, Ret(Args...)>::reset() -> self_type *
 	{
 		this->release_promise();
-		return new self_type(std::move(m_function));
+		return new self_type(std::move(m_functor));
 	}
 
-	template <class ... Args>
-	auto packaged_task_impl<void(Args...)>::reset() -> self_type *
-	{
-		this->release_promise();
-		return new self_type(std::move(m_function));
-	}
-
-	template <class Ret>
-	void deffered_task_impl<Ret()>::wait() const
+	template <class Functor, class Ret>
+	void deffered_task_impl<Functor, Ret()>::wait() const
 	{
 		if (not ext::unconst(this)->mark_uncancellable())
 			return base_type::wait();
 
 		try
 		{
-			ext::unconst(this)->set_value(ext::unconst(this)->m_function());
+			shared_state_execute(*ext::unconst(this), ext::unconst(this)->m_functor);
 		}
 		catch (...)
 		{
@@ -1235,25 +1224,8 @@ namespace ext
 		}
 	}
 
-	template <>
-	inline void deffered_task_impl<void()>::wait() const
-	{
-		if (not ext::unconst(this)->mark_uncancellable())
-			return base_type::wait();
-
-		try
-		{
-			ext::unconst(this)->m_function();
-			ext::unconst(this)->set_value();
-		}
-		catch (...)
-		{
-			ext::unconst(this)->set_exception(std::current_exception());
-		}
-	}
-
-	template <class Type>
-	void continuation_task<Type>::set_feature_ready() noexcept
+	template <class Functor, class Type>
+	void continuation_task<Functor, Type>::set_feature_ready() noexcept
 	{
 		auto fstate = signal_future(m_task_next);
 		auto next = base_type::m_fstnext.load(std::memory_order_acquire);
@@ -1262,8 +1234,8 @@ namespace ext
 		run_continuation(fstate);
 	}
 
-	template <class Type>
-	void continuation_task<Type>::continuate() noexcept
+	template <class Functor, class Type>
+	void continuation_task<Functor, Type>::continuate() noexcept
 	{
 		this->execute();
 	}
@@ -1283,6 +1255,7 @@ namespace ext
 		intrusive_ptr m_ptr;
 
 	public:
+		bool is_pending()    const noexcept { return m_ptr ? m_ptr->is_pending()    : false; }
 		bool is_ready()      const noexcept { return m_ptr ? m_ptr->is_ready()      : false; }
 		bool is_abandoned()  const noexcept { return m_ptr ? m_ptr->is_abandoned()  : false; }
 		bool is_cancelled()  const noexcept { return m_ptr ? m_ptr->is_cancelled()  : false; }
@@ -1331,6 +1304,7 @@ namespace ext
 		intrusive_ptr m_ptr;
 
 	public:
+		bool is_pending()    const noexcept { return m_ptr ? m_ptr->is_pending()    : false; }
 		bool is_ready()      const noexcept { return m_ptr ? m_ptr->is_ready()      : false; }
 		bool is_abandoned()  const noexcept { return m_ptr ? m_ptr->is_abandoned()  : false; }
 		bool is_cancelled()  const noexcept { return m_ptr ? m_ptr->is_cancelled()  : false; }
@@ -1627,8 +1601,8 @@ namespace ext
 	template <class RetType, class ... Args>
 	class packaged_task<RetType(Args...)>
 	{
-		typedef packaged_task_impl<RetType(Args...)> impl_type;
-		typedef ext::intrusive_ptr<packaged_task_impl<RetType(Args...)>> intrusive_ptr;
+		typedef ext::intrusive_ptr<packaged_task_base<RetType(Args...)>> intrusive_ptr;
+		template <class Functor> using impl_type = packaged_task_impl<Functor, RetType(Args...)>;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -1644,13 +1618,13 @@ namespace ext
 		void operator()(Args ... args);
 
 	public:
-		packaged_task() : m_ptr(ext::make_intrusive<impl_type>()) {}
+		packaged_task() = default;
 		packaged_task(intrusive_ptr ptr) noexcept : m_ptr(std::move(ptr)) {};
 		~packaged_task() noexcept { if (m_ptr) m_ptr->release_promise(); }
 
 		template <class Functor>
 		packaged_task(Functor && functor) :
-			m_ptr(ext::make_intrusive<impl_type>(std::forward<Functor>(functor))) {}
+			m_ptr(ext::make_intrusive<impl_type<std::decay_t<Functor>>>(std::forward<Functor>(functor))) {}
 
 		packaged_task(packaged_task &&) = default;
 		packaged_task(const packaged_task &) = delete;
@@ -1711,11 +1685,16 @@ namespace ext
 		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>
 	{
 		typedef std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)> result_type;
-		std::function<result_type()> functor = std::bind(std::forward<Function>(func), std::forward<Args>(args)...);
+
+		auto closure = [func = std::forward<Function>(func),
+		                args_tuple = std::make_tuple(std::forward<Args>(args)...)]() mutable -> result_type
+		{
+			return ext::apply(func, std::move(args_tuple));
+		};
 
 		if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::async))
 		{
-			ext::packaged_task<result_type()> pt {std::move(functor)};
+			ext::packaged_task<result_type()> pt {std::move(closure)};
 			auto result = pt.get_future();
 
 			std::thread thx {std::move(pt)};
@@ -1725,7 +1704,7 @@ namespace ext
 		}
 		else //if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::deferred))
 		{
-			auto pt = ext::make_intrusive<deffered_task_impl<result_type()>>(std::move(func));
+			auto pt = ext::make_intrusive<deffered_task_impl<decltype(closure), result_type()>>(std::move(closure));
 			return ext::future<result_type>(std::move(pt));
 		}
 	}
