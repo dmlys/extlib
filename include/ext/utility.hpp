@@ -1,10 +1,30 @@
 #pragma once
+#include <cassert>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <tuple>
 #include <functional>
 //this utility.h acts as common header, so include integer_sequence
 #include <ext/integer_sequence.hpp>
+
+namespace ext_detail_adl_helper
+{
+	using std::get;
+
+	template <class Type, std::size_t Index>
+	struct adl_get_type
+	{
+		typedef decltype(get<Index>(std::declval<Type>())) type;
+	};
+
+	template <std::size_t Idx, class Type>
+	auto adl_get(Type && val) -> decltype( get<Idx>(std::forward<Type>(val)) )
+	{
+		return get<Idx>(std::forward<Type>(val));
+	}
+} // namespace ext_detail_adl_helper
+
 
 namespace ext
 {
@@ -21,6 +41,9 @@ namespace ext
 
 	namespace detail
 	{
+		/************************************************************************/
+		/*             INVOKE stuff                                             */
+		/************************************************************************/
 		template <class Type>
 		struct is_reference_wrapper : std::false_type {};
 
@@ -116,6 +139,61 @@ namespace ext
 		{
 			return std::forward<Functor>(f)(std::forward<Args>(args)...);
 		}
+
+
+		/************************************************************************/
+		/*               tuple visitation                                       */
+		/************************************************************************/
+		template <class Tuple, class Functor, class IndexSeq>
+		struct tuple_visitation_result_type_impl;
+
+		template <class Tuple, class Functor, std::size_t ... Is>
+		struct tuple_visitation_result_type_impl<Tuple, Functor, std::index_sequence<Is...>>
+		{
+			typedef typename std::common_type
+			<
+				typename std::result_of<
+					Functor(typename ext_detail_adl_helper::adl_get_type<Tuple, Is>::type)
+				>::type...
+			>::type type;
+		};
+
+		template <class Tuple, class Functor>
+		struct tuple_visitation_result_type
+		{
+			typedef typename tuple_visitation_result_type_impl<
+				Tuple, Functor, 
+				typename std::make_index_sequence<
+					std::tuple_size<std::decay_t<Tuple>>::value
+				>::type
+			>::type type;
+		};
+
+		template <
+			std::size_t I, class ReturnType,
+			class Tuple, class Functor
+		>
+		ReturnType tupple_applier(Tuple && tuple, Functor && func)
+		{
+			using std::get; using std::forward;
+			return forward<Functor>(func)(get<I>(forward<Tuple>(tuple)));
+		}
+
+		template <class Tuple, class Functor, std::size_t ... Is>
+		decltype(auto) visit_tuple_impl(Tuple && tuple, std::size_t idx, Functor && func, std::index_sequence<Is...>)
+		{
+			//assert(idx < sizeof...(Is));
+			if (idx >= sizeof...(Is)) throw std::out_of_range("out_of_range");
+
+			typedef typename tuple_visitation_result_type_impl<
+				Tuple &&, Functor &&,
+				std::index_sequence<Is...>
+			>::type common_return_type;
+
+			using applier = common_return_type(*)(Tuple &&, Functor &&);
+			static constexpr applier appliers[] = {&tupple_applier<Is, common_return_type, Tuple, Functor>...};
+			return appliers[idx](std::forward<Tuple>(tuple), std::forward<Functor>(func));
+		}
 	}
 
 	template <class Functor, class ... Args>
@@ -139,6 +217,51 @@ namespace ext
 		return apply_impl(std::forward<Functor>(f), std::forward<Tuple>(t),
 		                  std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
 	}
+
+	/// invokes func with element by runtime index idx from tuple ts
+	/// it's somewhat like func(std::get<idx>(ts)), except index can be not compile-time constant
+	template <class Functor, class ... Args>
+	decltype(auto) visit(const std::tuple<Args...> & ts, std::size_t idx, Functor && func)
+	{
+		return detail::visit_tuple_impl(ts, idx, std::forward<Functor>(func),
+		                                std::index_sequence_for<Args...> {});
+	}
+
+	/// invokes func with element by runtime index idx from tuple ts
+	/// it's somewhat like func(std::get<idx>(ts)), except index can be not compile-time constant
+	template <class Functor, class ... Args>
+	decltype(auto) visit(std::tuple<Args...> & ts, std::size_t idx, Functor && func)
+	{
+		return detail::visit_tuple_impl(ts, idx, std::forward<Functor>(func),
+		                                std::index_sequence_for<Args...> {});
+	}
+
+	/// invokes func with element by runtime index idx from tuple ts
+	/// it's somewhat like func(std::get<idx>(ts)), except index can be not compile-time constant
+	template <class Functor, class ... Args>
+	decltype(auto) visit(std::tuple<Args...> && ts, std::size_t idx, Functor && func)
+	{
+		return detail::visit_tuple_impl(std::move(ts), idx, std::forward<Functor>(func),
+		                                std::index_sequence_for<Args...> {});
+	}
+
+
+	/// extracts element from tuple by idx, like get function, 
+	/// except this is functor -> can be easier passed to functions.
+	/// for example: std::transform(vec.begin(), vec.end(), vecint.begin(), get_func<0>())
+	template <std::size_t Idx>
+	struct get_func
+	{
+		template <class Type>
+		auto operator()(Type && val) const -> decltype(ext_detail_adl_helper::get_impl<Idx>(std::forward<Type>(val)))
+		{
+			return ext_detail_adl_helper::get_impl<Idx>(std::forward<Type>(val));
+		}
+	};
+
+	// like std::pair: first/second
+	typedef get_func<0> first_el;
+	typedef get_func<1> second_el;
 
 
 	/// находит элемент в карте по ключу и возвращает ссылку на него,
