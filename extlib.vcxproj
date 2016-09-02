@@ -76,7 +76,6 @@
     <ClInclude Include="include\ext\FileSystemUtils.hpp" />
     <ClInclude Include="include\ext\functors.hpp" />
     <ClInclude Include="include\ext\functors\ctpred.hpp" />
-    <ClInclude Include="include\ext\functors\get_func.hpp" />
     <ClInclude Include="include\ext\functors\lcpred.hpp" />
     <ClInclude Include="include\ext\future.hpp" />
     <ClInclude Include="include\ext\integer_sequence.hpp" />

@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <functional>
-#include <ext/functors/get_func.hpp> //for ext::first_el для batch_lru_cache
+#include <ext/utility.hpp> //for ext::first_el для batch_lru_cache
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
