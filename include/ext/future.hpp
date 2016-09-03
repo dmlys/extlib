@@ -16,6 +16,9 @@
 #include <type_traits>
 #include <system_error>
 
+#include <vector>   // used in when_any_result
+#include <iterator> // iterator_traits
+
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -23,6 +26,7 @@
 #include <ext/config.hpp>
 #include <ext/utility.hpp>
 #include <ext/intrusive_ptr.hpp>
+#include <ext/try_reserve.hpp>
 
 namespace ext
 {
@@ -86,9 +90,39 @@ namespace ext
 	template <class Type> class promise;
 	template <class Type> class packaged_task;
 
+	// type_traits helpers
+	template <class Type> struct is_future_type : std::false_type {};
+	template <class Type> struct is_future_type<ext::future<Type>> : std::true_type {};
+	template <class Type> struct is_future_type<ext::shared_future<Type>> : std::true_type {};
+
+	template <class ... Types>
+	struct is_future_types;
+
+	template <class Type> struct is_future_types<Type> :
+		is_future_type<Type> {};
+	
+	template <class Head, class ... Tail>
+	struct is_future_types<Head, Tail...> :
+		std::integral_constant<bool, is_future_type<Head>::value && is_future_types<Tail...>::value> {};
+
+
+	/// result of whan_any call
+	template <class Sequence>
+	struct when_any_result
+	{
+		std::size_t index;
+		Sequence futures;
+	};
+
+
+	void init_future_library(unsigned waiter_slots = std::thread::hardware_concurrency() * 4);
+	void free_future_library();
+
+
 	/// returns satisfied future immediately holding val
 	template <class Type>
 	future<std::decay_t<Type>> make_ready_future(Type && val);
+
 
 	template<class Function, class ... Args>
 	auto async(ext::launch policy, Function && f, Args && ... args) ->
@@ -107,8 +141,33 @@ namespace ext
 	}
 
 
-	void init_future_library(unsigned waiter_slots = std::thread::hardware_concurrency() * 4);
-	void free_future_library();
+	template <class InputIterator>
+	auto when_any(InputIterator first, InputIterator last) ->
+		std::enable_if_t<
+			is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
+			ext::future<when_any_result<std::vector<typename std::iterator_traits<InputIterator>::value_type>>>
+		>;
+
+	template <class ... Futures>
+	auto when_any(Futures && ... futures) ->
+		std::enable_if_t<
+			is_future_types<std::decay_t<Futures>...>::value,
+			ext::future<when_any_result<std::tuple<std::decay_t<Futures>...>>>
+		>;
+
+	template <class InputIterator>
+	auto when_all(InputIterator first, InputIterator last) ->
+		std::enable_if_t<
+			is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
+			ext::future<std::vector<typename std::iterator_traits<InputIterator>::value_type>>
+		>;
+
+	template <class ... Futures>
+	auto when_all(Futures && ... futures) ->
+		std::enable_if_t<
+			is_future_types<std::decay_t<Futures>...>::value,
+			ext::future<std::tuple<std::decay_t<Futures>...>>
+		>;
 
 	/// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task.
 	/// ext::future, ext::promise, ext::packaged_task would be front-end classes used by clients.
@@ -156,7 +215,7 @@ namespace ext
 	/// * continuation_task   - shared_state derived class used for continuations
 	/// * continuation_waiter - shared_state derived class used as continuations which implements wait functionality
 	/// * packaged_task_impl  - packaged_task implementation
-	/// 
+	/// * when_any/all_task*  - classes for implementing when_all/any functions
 
 	class shared_state_basic;
 	template <class Type> class shared_state_base;
@@ -168,6 +227,12 @@ namespace ext
 	template <class, class> class packaged_task_impl;
 	template <class, class> class deffered_task_impl;
 	template <class, class> class continuation_task;
+
+	class when_any_task_continuation;
+	class when_all_task_continuation;
+
+	template <class> class when_any_task;
+	template <class> class when_all_task;
 	
 	/// shared_state_basic type independent part, implementation of promise state, continuations
 	/// 
@@ -286,7 +351,8 @@ namespace ext
 		static std::uintptr_t signal_future(std::atomic_uintptr_t & fstnext) noexcept;
 		/// attaches continuation to a continuation list with head, increments refcount.
 		/// after continuation fires - refcount decrement.
-		static void attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation) noexcept;
+		/// returns false if shared_state was ready and continuation fired immediately
+		static bool attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation) noexcept;
 		/// runs continuation stored by addr and decrements refcount, checks if addr is_continuation.
 		/// should be called after signal_future
 		static void run_continuation(std::uintptr_t addr) noexcept;
@@ -297,7 +363,7 @@ namespace ext
 		/// and release it to waiter objects pool. waiter must be acquired by accquire_waiter call.
 		static void release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter);
 
-	protected:
+	public:
 		/// changes this state from unsatisfied to satisfied with reason.
 		/// if state was already satisfied - throws promise_already_satisfied,
 		/// unless previous state was cancelled - in that case returns false.
@@ -306,11 +372,13 @@ namespace ext
 		/// if state was already satisfied - returns false, noexcept.
 		bool satisfy_promise(future_state reason) noexcept;
 
+	public:
 		/// set future status to ready and runs continuations
 		virtual void set_feature_ready() noexcept;
 		/// attaches continuation to the internal continuation, increments refcount.
 		/// after continuation fires - refcount decrement.
-		virtual void add_continuation(continuation_type * continuation) noexcept;
+		/// returns false if shared_state was ready and continuation fired immediately
+		virtual bool add_continuation(continuation_type * continuation) noexcept;
 		/// acquires waiter from internal continuation list, it it has it,
 		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
 		virtual auto accquire_waiter() -> continuation_waiter *;
@@ -318,11 +386,15 @@ namespace ext
 		/// and release it to waiter objects pool
 		virtual void release_waiter(continuation_waiter * waiter);
 
-	protected:
+	public:
 		/// continuation support, must be implemented only by classes used as continuations:
 		/// shared_state_basic only uses continuation_waiter and continuation_task.
 		/// Others - should ignore this method, default implementation calls std::terminate.
 		virtual void continuate() noexcept { std::terminate(); }
+
+		/// special method for when_all, when_any support
+		/// index - index of satisfied shared_state. Used only by when_any 
+		virtual void notify_satisfied(std::size_t index) noexcept { std::terminate(); }
 
 	public:
 		/// refcount part, use_count is for intrusive_ptr
@@ -334,7 +406,8 @@ namespace ext
 		void mark_retrived();
 		/// marks future cannot be cancelled(cancel call would return false),
 		/// but future is still not fulfilled.
-		/// returns true if successful. false if future already been cancelled.
+		/// returns true if successful. false if shared_state already holds some result(cancellation, value, ...)
+		/// or it was already marked uncancellable
 		bool mark_uncancellable() noexcept;
 
 		/// status of shared state
@@ -707,6 +780,8 @@ namespace ext
 			: m_functor(std::move(f)) {}
 	};
 
+	/// deffered_task_impl is packaged_task_impl.
+	/// It calls stored functor on first get/wait request, used in ext::async call.
 	template <class Functor, class Ret>
 	class deffered_task_impl<Functor, Ret()> : public packaged_task_impl<Functor, Ret()>
 	{
@@ -723,6 +798,7 @@ namespace ext
 		using base_type::base_type;
 	};
 
+	/// implements continuations(future::then, shread_future::then)
 	template <class Functor, class Type>
 	class continuation_task : public packaged_task_impl<Functor, Type()>
 	{
@@ -751,8 +827,9 @@ namespace ext
 		void set_feature_ready() noexcept override;
 		/// attaches continuation to the internal continuation, increments refcount.
 		/// after continuation fires - refcount decrement.
-		void add_continuation(continuation_type * continuation) noexcept override
-		{ attach_continuation(m_task_next, continuation); }
+		/// returns false if shared_state was ready and continuation fired immediately
+		bool add_continuation(continuation_type * continuation) noexcept override
+		{ return attach_continuation(m_task_next, continuation); }
 		/// acquires waiter from internal continuation list, it it has it,
 		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
 		auto accquire_waiter() -> continuation_waiter * override
@@ -769,7 +846,89 @@ namespace ext
 		// inherit constructors
 		using base_type::base_type;
 	};
+	
+	/// shared state returned by whan_any call.
+	/// Type is vector<future> for tuple<future...>
+	template <class Type>
+	class when_any_task : public shared_state_unexceptional<Type>
+	{
+		typedef shared_state_unexceptional<Type>  base_type;
+		typedef when_any_task                     self_type;
 
+	protected:
+		using typename base_type::value_type;
+		using base_type::m_val;
+		using base_type::m_promise_state;
+
+	protected:
+		//void set_value(value_type && val) override { std::terminate(); }
+		//void set_value(const value_type & val) override { std::terminate(); }
+		void notify_satisfied(std::size_t index) noexcept override;
+
+	public:
+		when_any_task(Type && val) { new (&m_val) Type(std::move(val)); }
+		~when_any_task() { m_promise_state.store(static_cast<unsigned>(future_state::value), std::memory_order_relaxed); }
+	};
+
+	template <class Type>
+	class when_all_task : public shared_state_unexceptional<Type>
+	{
+		typedef shared_state_unexceptional<Type>  base_type;
+		typedef when_all_task                     self_type;
+
+	protected:
+		using base_type::m_val;
+		using base_type::m_promise_state;
+
+	protected:
+		std::atomic_size_t m_count;
+
+	protected:
+		//void set_value(value_type && val) override { std::terminate(); }
+		//void set_value(const value_type & val) override { std::terminate(); }
+		void notify_satisfied(std::size_t index) noexcept override;
+
+	public:
+		when_all_task(Type && val, std::size_t count) : m_count(count) { new (&m_val) Type(std::move(val)); }
+		~when_all_task() { m_promise_state.store(static_cast<unsigned>(future_state::value), std::memory_order_relaxed); }
+	};
+
+	/// special continuation task.
+	/// Used as continuation into argument future, notifies parent when_any_task	
+	class when_any_task_continuation : public shared_state_unexceptional<void>
+	{
+		typedef shared_state_unexceptional<void>  base_type;
+		typedef when_any_task_continuation        self_type;
+		typedef shared_state_basic                parent_task_type;
+	
+	protected:
+		ext::intrusive_ptr<parent_task_type> m_parent;
+		std::size_t m_index;
+
+	public:
+		void continuate() noexcept override { m_parent->notify_satisfied(m_index); }
+
+	public:
+		when_any_task_continuation(ext::intrusive_ptr<parent_task_type> parent, std::size_t index)
+			: m_parent(std::move(parent)), m_index(index) {}
+	};
+
+	class when_all_task_continuation : public shared_state_unexceptional<void>
+	{
+		typedef shared_state_unexceptional<void>  base_type;
+		typedef when_all_task_continuation        self_type;
+		typedef shared_state_basic                parent_task_type;
+
+	protected:
+		ext::intrusive_ptr<parent_task_type> m_parent;
+
+	public:
+		void continuate() noexcept override { m_parent->notify_satisfied(0); }
+
+	public:
+		when_all_task_continuation(ext::intrusive_ptr<parent_task_type> parent)
+			: m_parent(std::move(parent)) {}
+	};
 
 	/************************************************************************/
 	/*            shared_state_basic lifetime                                */
@@ -1240,6 +1399,28 @@ namespace ext
 		this->execute();
 	}
 
+	template <class Type>
+	void when_all_task<Type>::notify_satisfied(std::size_t) noexcept
+	{
+		auto prev_count = m_count.fetch_sub(1, std::memory_order_relaxed);
+		if (prev_count == 1 && this->mark_uncancellable())
+		{
+			// m_val already set in constructor
+			this->satisfy_promise(future_state::value);
+			this->set_feature_ready();
+		}
+	}
+
+	template <class Type>
+	void when_any_task<Type>::notify_satisfied(std::size_t index) noexcept
+	{
+		if (this->mark_uncancellable())
+		{
+			this->m_val.index = index;
+			this->satisfy_promise(future_state::value);
+			this->set_feature_ready();
+		}
+	}
 
 	/************************************************************************/
 	/*                    front-end classes                                 */
@@ -1253,6 +1434,11 @@ namespace ext
 
 	private:
 		intrusive_ptr m_ptr;
+
+	public:
+		// low-level helpers
+		intrusive_ptr handle() const noexcept { return m_ptr; }
+		intrusive_ptr release() const noexcept { return std::move(m_ptr); }
 
 	public:
 		bool is_pending()    const noexcept { return m_ptr ? m_ptr->is_pending()    : false; }
@@ -1302,6 +1488,11 @@ namespace ext
 
 	private:
 		intrusive_ptr m_ptr;
+
+	public:
+		// low-level helpers
+		intrusive_ptr handle() const noexcept { return m_ptr; }
+		intrusive_ptr release() const noexcept { return std::move(m_ptr); }
 
 	public:
 		bool is_pending()    const noexcept { return m_ptr ? m_ptr->is_pending()    : false; }
@@ -1708,6 +1899,129 @@ namespace ext
 			return ext::future<result_type>(std::move(pt));
 		}
 	}
+
+
+	template <class InputIterator>
+	auto when_any(InputIterator first, InputIterator last) ->
+		std::enable_if_t<
+			is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
+			ext::future<when_any_result<std::vector<typename std::iterator_traits<InputIterator>::value_type>>>
+		>
+	{
+		typedef typename std::iterator_traits<InputIterator>::value_type value_type;
+		typedef when_any_result<std::vector<value_type>> result_type;
+		typedef when_any_task<result_type> state_type;
+		typedef std::vector<shared_state_basic *> handle_vector;
+
+		handle_vector handles;
+		result_type result;
+		result.index = SIZE_MAX;
+		auto & futures = result.futures;
+		ext::try_reserve(futures, first, last);
+
+		for (; first != last; ++first)
+			futures.push_back(*first);
+
+		if (futures.empty())
+			return make_ready_future<result_type>(std::move(result));
+
+		handles.resize(futures.size());
+		std::transform(futures.begin(), futures.end(), handles.begin(), [](auto & v) { return v.handle().get(); });
+
+		auto state = ext::make_intrusive<state_type>(std::move(result));
+		for (auto * handle : handles)
+		{
+			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+			if (not handle->add_continuation(cont.get())) 
+				break; // executed immediately, no sense to continue
+		}
+
+		return {state};
+	}
+
+	template <class ... Futures>
+	auto when_any(Futures && ... futures) ->
+		std::enable_if_t<
+			is_future_types<std::decay_t<Futures>...>::value,
+			ext::future<when_any_result<std::tuple<std::decay_t<Futures>...>>>
+		>
+	{
+		typedef when_any_result<std::tuple<std::decay_t<Futures>...>> result_type;
+		typedef when_any_task<result_type> state_type;
+
+		auto handles = {futures.handle().get()...};
+		result_type result = {SIZE_MAX, {std::forward<Futures>(futures)...}};
+
+		auto state = ext::make_intrusive<state_type>(std::move(result));
+		for (auto * handle : handles)
+		{
+			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+			if (not handle->add_continuation(cont.get()))
+				break; // executed immediately, no sense to continue
+		}
+
+		return {state};
+	}
+
+
+	template <class InputIterator>
+	auto when_all(InputIterator first, InputIterator last) ->
+		std::enable_if_t<
+			is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
+			ext::future<std::vector<typename std::iterator_traits<InputIterator>::value_type>>
+		>
+	{
+		typedef typename std::iterator_traits<InputIterator>::value_type value_type;
+		typedef std::vector<value_type> result_type;
+		typedef when_all_task<result_type> state_type;
+		typedef std::vector<shared_state_basic *> handle_vector;
+
+		result_type futures;
+		handle_vector handles;
+		ext::try_reserve(futures, first, last);
+
+		for (; first != last; ++first)
+			futures.push_back(*first);
+
+		if (futures.empty())
+			return make_ready_future<result_type>(std::move(futures));
+
+		handles.resize(futures.size());
+		std::transform(futures.begin(), futures.end(), handles.begin(), [](auto & v) { return v.handle().get(); });
+
+		auto state = ext::make_intrusive<state_type>(std::move(futures), futures.size());
+		for (auto & handle : handles)
+		{
+			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+			handle->add_continuation(cont.get());
+		}
+
+		return {state};
+	}
+
+	template <class ... Futures>
+	auto when_all(Futures && ... futures) ->
+		std::enable_if_t<
+			is_future_types<std::decay_t<Futures>...>::value,
+			ext::future<std::tuple<std::decay_t<Futures>...>>
+		>
+	{
+		typedef std::tuple<std::decay_t<Futures>...> result_type;
+		typedef when_all_task<result_type> state_type;
+
+		auto handles = {futures.handle().get()...};
+		result_type ftuple = {std::forward<Futures>(futures)...};
+
+		auto state = ext::make_intrusive<state_type>(std::move(ftuple), sizeof...(futures));
+		for (auto * handle : handles)
+		{
+			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+			handle->add_continuation(cont.get());
+		}
+
+		return {state};
+	}
+
 
 	/************************************************************************/
 	/*                   swap non member functions                          */

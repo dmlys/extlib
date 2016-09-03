@@ -130,7 +130,7 @@ namespace ext
 		return fstate;
 	}
 
-	void shared_state_basic::attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation) noexcept
+	bool shared_state_basic::attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation) noexcept
 	{
 		assert(not dynamic_cast<continuation_waiter *>(continuation));
 		assert(not is_continuation(continuation->m_fstnext.load(std::memory_order_relaxed)));
@@ -139,7 +139,7 @@ namespace ext
 		if (fstate == ready)
 		{   // state became ready. just execute continuation.
 			continuation->continuate(); // it's defined as noexcept
-			return;
+			return false;
 		}
 
 		auto * head_ptr = reinterpret_cast<continuation_type *>(fstate);
@@ -158,7 +158,7 @@ namespace ext
 		}
 
 		unlock_ptr(head, fstate);
-		return;
+		return true;
 	}
 
 	void shared_state_basic::run_continuation(std::uintptr_t addr) noexcept
@@ -248,7 +248,7 @@ namespace ext
 		run_continuation(chain);
 	}
 
-	void shared_state_basic::add_continuation(continuation_type * continuation) noexcept
+	bool shared_state_basic::add_continuation(continuation_type * continuation) noexcept
 	{
 		return attach_continuation(m_fstnext, continuation);
 	}
@@ -323,6 +323,9 @@ namespace ext
 		unsigned previous = m_promise_state.load(std::memory_order_relaxed);
 
 		do {
+			if (previous & future_uncancellable) 
+				return false;
+
 			switch (pstatus(previous))
 			{
 				default:

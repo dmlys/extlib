@@ -66,7 +66,6 @@ BOOST_AUTO_TEST_CASE(future_cancellation_tests)
 		BOOST_CHECK(res == 12);
 		BOOST_CHECK(uc1 == 0);
 		BOOST_CHECK(uc2 == 1);
-
 	}
 }
 
