@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <codecvt>
 #include <utility>
@@ -131,9 +132,9 @@ namespace ext
 
 	bool winsock2_streambuf::do_sockconnect(handle_type sock, const addrinfo_type * addr)
 	{
-		int wsaerr, res;
+		int wsaerr, res, solen;
 		StateType prevstate;
-		bool closesock; // в случае ошибки закрыть сокет
+		bool closesock, pubres; // в случае ошибки закрыть сокет
 		auto until = time_point::clock::now() + m_timeout;
 		
 		prevstate = Closed;
@@ -147,7 +148,7 @@ namespace ext
 			goto wsaerror;
 
 	again:
-		auto pubres = publish_connecting(sock);
+		pubres = publish_connecting(sock);
 		if (!pubres) goto intrreq;
 
 		timeval timeout;
@@ -170,7 +171,7 @@ namespace ext
 		if (res == SOCKET_ERROR) goto sockerror;
 		assert(res == 1);
 
-		int solen = sizeof(wsaerr);
+		solen = sizeof(wsaerr);
 		res = ::getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&wsaerr), &solen);
 		if (res != 0)    goto sockerror;
 		if (wsaerr != 0) goto wsaerror;
