@@ -12,8 +12,9 @@
 #include <atomic>
 #include <chrono>
 #include <utility>
-#include <functional>
 #include <type_traits>
+#include <functional>
+#include <algorithm>
 #include <system_error>
 
 #include <vector>   // used in when_any_result
@@ -1946,11 +1947,12 @@ namespace ext
 			ext::future<when_any_result<std::tuple<std::decay_t<Futures>...>>>
 		>
 	{
-		typedef when_any_result<std::tuple<std::decay_t<Futures>...>> result_type;
+		typedef std::tuple<std::decay_t<Futures>...> tuple_type;
+		typedef when_any_result<tuple_type> result_type;
 		typedef when_any_task<result_type> state_type;
 
 		auto handles = {futures.handle().get()...};
-		result_type result = {SIZE_MAX, {std::forward<Futures>(futures)...}};
+		result_type result = {SIZE_MAX, tuple_type {std::forward<Futures>(futures)...}};
 
 		auto state = ext::make_intrusive<state_type>(std::move(result));
 		for (auto * handle : handles)

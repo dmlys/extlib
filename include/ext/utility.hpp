@@ -253,9 +253,9 @@ namespace ext
 	struct get_func
 	{
 		template <class Type>
-		auto operator()(Type && val) const -> decltype(ext_detail_adl_helper::get_impl<Idx>(std::forward<Type>(val)))
+		auto operator()(Type && val) const -> decltype(ext_detail_adl_helper::adl_get<Idx>(std::forward<Type>(val)))
 		{
-			return ext_detail_adl_helper::get_impl<Idx>(std::forward<Type>(val));
+			return ext_detail_adl_helper::adl_get<Idx>(std::forward<Type>(val));
 		}
 	};
 
