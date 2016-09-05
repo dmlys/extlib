@@ -102,10 +102,10 @@ namespace ext
 		~intrusive_ptr() noexcept { intrusive_ptr_release(m_ptr); }
 
 		intrusive_ptr(const self_type & op) noexcept : m_ptr(op.m_ptr) { intrusive_ptr_add_ref(m_ptr); }
-		intrusive_ptr(self_type && op)      noexcept : m_ptr(std::exchange(op.m_ptr, nullptr)) {}
+		intrusive_ptr(self_type && op)      noexcept : m_ptr(op.release()) {}
 
-		intrusive_ptr & operator =(const self_type & op) noexcept { if (this != &op) reset(op.m_ptr);                           return *this; }
-		intrusive_ptr & operator =(self_type && op)      noexcept { if (this != &op) m_ptr = std::exchange(op.m_ptr, nullptr); return *this; }
+		intrusive_ptr & operator =(const self_type & op) noexcept { if (this != &op) reset(op.m_ptr);                return *this; }
+		intrusive_ptr & operator =(self_type && op)      noexcept { if (this != &op) reset(op.release(), noaddref);  return *this; }
 
 		friend void swap(intrusive_ptr & p1, intrusive_ptr & p2) noexcept { std::swap(p1.m_ptr, p2.m_ptr); }
 
@@ -303,10 +303,10 @@ namespace ext
 		~intrusive_cow_ptr() noexcept { intrusive_ptr_release(m_ptr); }
 
 		intrusive_cow_ptr(const self_type & op) noexcept : m_ptr(op.m_ptr) { intrusive_ptr_add_ref(m_ptr); }
-		intrusive_cow_ptr(self_type && op)      noexcept : m_ptr(std::exchange(op.m_ptr, defval())) {}
+		intrusive_cow_ptr(self_type && op)      noexcept : m_ptr(op.release()) {}
 
-		intrusive_cow_ptr & operator =(const self_type & op) noexcept { if (this != &op) reset(op.m_ptr);                           return *this; }
-		intrusive_cow_ptr & operator =(self_type && op)      noexcept { if (this != &op) m_ptr = std::exchange(op.m_ptr, defval()); return *this; }
+		intrusive_cow_ptr & operator =(const self_type & op) noexcept { if (this != &op) reset(op.m_ptr);                return *this; }
+		intrusive_cow_ptr & operator =(self_type && op)      noexcept { if (this != &op) reset(op.release(), noaddref);  return *this; }
 
 		friend void swap(intrusive_cow_ptr & p1, intrusive_cow_ptr & p2) noexcept { std::swap(p1.m_ptr, p2.m_ptr); }
 
