@@ -64,7 +64,11 @@
 
   <Type Name = "ext::shared_state_basic">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied">has result</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
     <Expand>
       <Item Name = "[future retrived]">(m_promise_state._My_val &amp; future_retrived) != 0</Item>
       <Item Name = "[future uncancellable]">(m_promise_state._My_val &amp; future_uncancellable) != 0</Item>
@@ -75,7 +79,11 @@
 
   <Type Name = "ext::shared_state&lt;*&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied">has result</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
     <Expand>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">m_val</Item>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
@@ -90,7 +98,11 @@
 
   <Type Name = "ext::shared_state&lt;void&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied">has result</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
     <Expand>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">"&lt;void&gt;"</Item>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
@@ -106,7 +118,11 @@
 
   <Type Name = "ext::shared_state_unexceptional&lt;*&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied">has result</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
     <Expand>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">m_val</Item>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
@@ -120,7 +136,11 @@
 
   <Type Name = "ext::shared_state_unexceptional&lt;void&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied">has result</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
     <Expand>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">"&lt;void&gt;"</Item>
       <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
