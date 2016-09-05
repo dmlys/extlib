@@ -283,6 +283,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
+				case future_state::deffered:
 					break;
 			}
 
@@ -309,6 +310,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
+				case future_state::deffered:
 					break;
 			}
 
@@ -338,6 +340,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
+				case future_state::deffered:
 					break;
 			}
 
@@ -365,6 +368,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
+				case future_state::deffered:
 					break;
 			}
 

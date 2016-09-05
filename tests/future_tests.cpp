@@ -20,9 +20,22 @@ BOOST_AUTO_TEST_CASE(future_simple_test)
 	auto fs = fi.then([&count](auto && f) { ++count; });
 	auto ff = fi.then([&count](auto && f) { ++count; });
 
+	BOOST_CHECK(fi.is_pending());
+	BOOST_CHECK(fs.is_pending());
+
 	pi.set_value();
 
+	BOOST_CHECK(fi.has_value());
+	BOOST_CHECK(fs.has_value());
+
 	BOOST_CHECK(count == 2);
+
+	pi = ext::promise<void>();	
+	pi.set_exception(std::make_exception_ptr(std::exception()));
+
+	fi = pi.get_future();
+
+	BOOST_CHECK(fi.has_exception());
 }
 
 BOOST_AUTO_TEST_CASE(future_cancellation_tests)
@@ -84,5 +97,60 @@ BOOST_AUTO_TEST_CASE(future_broken_tests)
 		[](auto & ex) { return ex.code() == ext::future_errc::broken_promise; }
 	);
 }
+
+BOOST_AUTO_TEST_CASE(future_when_all_tests)
+{
+	using namespace std;
+	{
+		auto f1 = ext::async(ext::launch::async, [] { return 12; });
+		auto f2 = ext::async(ext::launch::async, [] { return "12"s; });
+
+		auto fr = ext::when_all(std::move(f1), std::move(f2));
+
+		auto wait_res = fr.wait_for(5s);
+		BOOST_REQUIRE(wait_res == ext::future_status::ready);
+		
+		auto tf = fr.get();
+		auto i = std::get<0>(tf).get();
+		auto s = std::get<1>(tf).get();
+
+		BOOST_CHECK(i == 12);
+		BOOST_CHECK(s == "12");
+	}
+
+	{
+		auto f1 = ext::async(ext::launch::deferred, [] { return 12; });
+		auto f2 = ext::async(ext::launch::deferred, [] { return "12"s; });
+
+		auto fr = ext::when_all(std::move(f1), std::move(f2));
+		auto tf = fr.get();
+
+		auto i = std::get<0>(tf).get();
+		auto s = std::get<1>(tf).get();
+
+		BOOST_CHECK(i == 12);
+		BOOST_CHECK(s == "12");
+	}
+}
+
+BOOST_AUTO_TEST_CASE(future_whan_any_tests)
+{
+	using namespace std;
+
+	ext::promise<string> ps;
+
+	auto fi = ext::async(ext::launch::deferred, [] { return 12; });
+	auto fs = ps.get_future();
+
+	auto fres = ext::when_any(std::move(fi), std::move(fs));
+	BOOST_REQUIRE(fres.is_ready());
+
+	auto res = fres.get();
+	BOOST_CHECK(res.index == 0);
+
+	auto ready = ext::visit(res.futures, res.index, [](auto && f) { return f.is_ready(); });
+	BOOST_CHECK(ready);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
