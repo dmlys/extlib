@@ -44,6 +44,7 @@ namespace ext
 	enum class future_state : unsigned
 	{
 		unsatisfied,  // is unsatisfied, waiting for value
+		deffered,     // future is deffered. It has no value yet, but will become value/exception on get call
 		value,        // holds a value
 		exception,    // holds an exception
 		cancellation, // promise was cancelled though an associated future
@@ -335,6 +336,12 @@ namespace ext
 		static bool is_continuation(std::uintptr_t fstate) noexcept { return fstate < ~lock_mask; }
 		static future_state pstatus(unsigned promise_state) noexcept { return static_cast<future_state>(promise_state & status_mask); }
 
+		/// re-inits this shared_state_basic as deffered, should be called from constructor of derived class.
+		/// NOTE: probably better shared_state_basic constructor initializing this class as deffered is better, 
+		///       but than it's must be forwarded by all derived classes...
+		void init_deffered() noexcept
+		{ this->m_promise_state.store(static_cast<unsigned>(future_state::deffered), std::memory_order_relaxed); }
+
 	public:
 		/// locks pointer by setting lowest bit in spin-lock loop.
 		/// returns value which pointer actually has.
@@ -365,11 +372,11 @@ namespace ext
 		static void release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter);
 
 	public:
-		/// changes this state from unsatisfied to satisfied with reason.
+		/// changes this state from unsatisfied/deffered to satisfied with reason.
 		/// if state was already satisfied - throws promise_already_satisfied,
 		/// unless previous state was cancelled - in that case returns false.
 		bool satisfy_check_promise(future_state reason);
-		/// changes this state from unsatisfied to satisfied with reason.
+		/// changes this state from unsatisfied/deffered to satisfied with reason.
 		/// if state was already satisfied - returns false, noexcept.
 		bool satisfy_promise(future_state reason) noexcept;
 
@@ -419,6 +426,7 @@ namespace ext
 		bool is_ready() const noexcept      { return status() != future_state::unsatisfied; }
 		bool is_abandoned() const noexcept  { return status() == future_state::abandonned; }
 		bool is_cancelled() const noexcept  { return status() == future_state::cancellation; }
+		bool is_deffered() const noexcept   { return status() == future_state::deffered; }
 		bool has_value() const noexcept     { return status() == future_state::value; }
 		bool has_exception() const noexcept { return status() == future_state::exception; }
 
@@ -776,8 +784,8 @@ namespace ext
 		self_type * reset() override;
 
 	public:
-		packaged_task_impl() = default;
-		packaged_task_impl(functor_type f)
+		packaged_task_impl() noexcept = default;
+		packaged_task_impl(functor_type f) noexcept
 			: m_functor(std::move(f)) {}
 	};
 
@@ -795,8 +803,8 @@ namespace ext
 		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
 
 	public:
-		// inherit constructors
-		using base_type::base_type;
+		deffered_task_impl() noexcept { this->init_deffered(); }
+		deffered_task_impl(Functor func) noexcept : base_type(std::move(func)) { this->init_deffered(); }
 	};
 
 	/// implements continuations(future::then, shread_future::then)
@@ -861,14 +869,14 @@ namespace ext
 		using base_type::m_val;
 		using base_type::m_promise_state;
 
-	protected:
+	public:
 		//void set_value(value_type && val) override { std::terminate(); }
 		//void set_value(const value_type & val) override { std::terminate(); }
 		void notify_satisfied(std::size_t index) noexcept override;
 
 	public:
 		when_any_task(Type && val) { new (&m_val) Type(std::move(val)); }
-		~when_any_task() { m_promise_state.store(static_cast<unsigned>(future_state::value), std::memory_order_relaxed); }
+		~when_any_task() noexcept { m_promise_state.store(static_cast<unsigned>(future_state::value), std::memory_order_relaxed); }
 	};
 
 	template <class Type>
@@ -884,14 +892,14 @@ namespace ext
 	protected:
 		std::atomic_size_t m_count;
 
-	protected:
+	public:
 		//void set_value(value_type && val) override { std::terminate(); }
 		//void set_value(const value_type & val) override { std::terminate(); }
 		void notify_satisfied(std::size_t index) noexcept override;
 
 	public:
 		when_all_task(Type && val, std::size_t count) : m_count(count) { new (&m_val) Type(std::move(val)); }
-		~when_all_task() { m_promise_state.store(static_cast<unsigned>(future_state::value), std::memory_order_relaxed); }
+		~when_all_task() noexcept { m_promise_state.store(static_cast<unsigned>(future_state::value), std::memory_order_relaxed); }
 	};
 
 	/// special continuation task.
@@ -907,7 +915,7 @@ namespace ext
 		std::size_t m_index;
 
 	public:
-		void continuate() noexcept override { m_parent->notify_satisfied(m_index); }
+		void continuate() noexcept override { m_parent->notify_satisfied(m_index); this->set_value(); }
 
 	public:
 		when_any_task_continuation(ext::intrusive_ptr<parent_task_type> parent, std::size_t index)
@@ -924,7 +932,7 @@ namespace ext
 		ext::intrusive_ptr<parent_task_type> m_parent;
 
 	public:
-		void continuate() noexcept override { m_parent->notify_satisfied(0); }
+		void continuate() noexcept override { m_parent->notify_satisfied(0); this->set_value(); }
 
 	public:
 		when_all_task_continuation(ext::intrusive_ptr<parent_task_type> parent)
@@ -1026,6 +1034,7 @@ namespace ext
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
 
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				EXT_UNREACHABLE();
 		}
@@ -1074,6 +1083,7 @@ namespace ext
 			case future_state::cancellation:
 			case future_state::abandonned:
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				break;
 		}
@@ -1097,6 +1107,7 @@ namespace ext
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
 
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				EXT_UNREACHABLE();
 		}
@@ -1135,6 +1146,7 @@ namespace ext
 			case future_state::cancellation:
 			case future_state::abandonned:
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				break;
 		}
@@ -1157,6 +1169,7 @@ namespace ext
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
 
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				EXT_UNREACHABLE();
 		}
@@ -1183,11 +1196,12 @@ namespace ext
 		switch (status())
 		{
 			case future_state::value:         break;
-			case future_state::exception:     m_exptr = nullptr; break;
+			case future_state::exception:     m_exptr.~exception_ptr(); break;
 
 			case future_state::cancellation:
 			case future_state::abandonned:
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				break;
 		}
@@ -1213,6 +1227,7 @@ namespace ext
 
 			case future_state::exception:
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				EXT_UNREACHABLE();
 		}
@@ -1251,6 +1266,7 @@ namespace ext
 			case future_state::cancellation:
 			case future_state::abandonned:
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				break;
 		}
@@ -1274,6 +1290,7 @@ namespace ext
 
 			case future_state::exception:
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				EXT_UNREACHABLE();
 		}
@@ -1305,6 +1322,7 @@ namespace ext
 
 			case future_state::exception:
 			case future_state::unsatisfied:
+			case future_state::deffered:
 			default:
 				EXT_UNREACHABLE();
 		}
@@ -1446,6 +1464,7 @@ namespace ext
 		bool is_ready()      const noexcept { return m_ptr ? m_ptr->is_ready()      : false; }
 		bool is_abandoned()  const noexcept { return m_ptr ? m_ptr->is_abandoned()  : false; }
 		bool is_cancelled()  const noexcept { return m_ptr ? m_ptr->is_cancelled()  : false; }
+		bool is_deffered()   const noexcept { return m_ptr ? m_ptr->is_deffered()   : false; }
 		bool has_value()     const noexcept { return m_ptr ? m_ptr->has_value()     : false; }
 		bool has_exception() const noexcept { return m_ptr ? m_ptr->has_exception() : false; }
 
@@ -1500,6 +1519,7 @@ namespace ext
 		bool is_ready()      const noexcept { return m_ptr ? m_ptr->is_ready()      : false; }
 		bool is_abandoned()  const noexcept { return m_ptr ? m_ptr->is_abandoned()  : false; }
 		bool is_cancelled()  const noexcept { return m_ptr ? m_ptr->is_cancelled()  : false; }
+		bool is_deffered()   const noexcept { return m_ptr ? m_ptr->is_deffered()   : false; }
 		bool has_value()     const noexcept { return m_ptr ? m_ptr->has_value()     : false; }
 		bool has_exception() const noexcept { return m_ptr ? m_ptr->has_exception() : false; }
 
@@ -1929,10 +1949,17 @@ namespace ext
 		handles.resize(futures.size());
 		std::transform(futures.begin(), futures.end(), handles.begin(), [](auto & v) { return v.handle().get(); });
 
+		std::size_t idx = 0;
 		auto state = ext::make_intrusive<state_type>(std::move(result));
 		for (auto * handle : handles)
 		{
-			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+			if (handle->is_deffered())
+			{
+				state->notify_satisfied(idx);
+				break;
+			}
+
+			auto cont = ext::make_intrusive<when_any_task_continuation>(state, idx++);
 			if (not handle->add_continuation(cont.get())) 
 				break; // executed immediately, no sense to continue
 		}
@@ -1951,13 +1978,20 @@ namespace ext
 		typedef when_any_result<tuple_type> result_type;
 		typedef when_any_task<result_type> state_type;
 
-		auto handles = {futures.handle().get()...};
+		ext::shared_state_basic * handles[] = {futures.handle().get()...};
 		result_type result = {SIZE_MAX, tuple_type {std::forward<Futures>(futures)...}};
 
+		std::size_t idx = 0;
 		auto state = ext::make_intrusive<state_type>(std::move(result));
 		for (auto * handle : handles)
 		{
-			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+			if (handle->is_deffered())
+			{
+				state->notify_satisfied(idx);
+				break;
+			}
+
+			auto cont = ext::make_intrusive<when_any_task_continuation>(state, idx++);
 			if (not handle->add_continuation(cont.get()))
 				break; // executed immediately, no sense to continue
 		}
@@ -1994,8 +2028,13 @@ namespace ext
 		auto state = ext::make_intrusive<state_type>(std::move(futures), futures.size());
 		for (auto & handle : handles)
 		{
-			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
-			handle->add_continuation(cont.get());
+			if (handle->is_deffered())
+				state->notify_satisfied(0);
+			else
+			{
+				auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+				handle->add_continuation(cont.get());
+			}
 		}
 
 		return {state};
@@ -2011,14 +2050,19 @@ namespace ext
 		typedef std::tuple<std::decay_t<Futures>...> result_type;
 		typedef when_all_task<result_type> state_type;
 
-		auto handles = {futures.handle().get()...};
+		ext::shared_state_basic * handles[] = {futures.handle().get()...};
 		result_type ftuple = {std::forward<Futures>(futures)...};
 
 		auto state = ext::make_intrusive<state_type>(std::move(ftuple), sizeof...(futures));
 		for (auto * handle : handles)
 		{
-			auto cont = ext::make_intrusive<when_all_task_continuation>(state);
-			handle->add_continuation(cont.get());
+			if (handle->is_deffered())
+				state->notify_satisfied(0);
+			else
+			{
+				auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+				handle->add_continuation(cont.get());
+			}
 		}
 
 		return {state};
