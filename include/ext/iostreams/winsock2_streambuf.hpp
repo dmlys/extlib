@@ -191,7 +191,7 @@ namespace ext
 		SSL * m_sslhandle = nullptr;
 #endif // EXT_ENABLE_OPENSSL
 
-		std::atomic<StateType> m_state = Closed;
+		std::atomic<StateType> m_state { Closed };
 
 		error_code_type m_lasterror;
 		duration_type m_timeout = std::chrono::seconds(10);
@@ -208,7 +208,7 @@ namespace ext
 		
 		/// выполняет resolve с помощью getaddrinfo
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
-		bool do_resolve(const wchar_t * host, const wchar_t * serviсe, addrinfo_type ** result);
+		bool do_resolve(const wchar_t * host, const wchar_t * service, addrinfo_type ** result);
 		/// устанавливает не блокирующий режим работы сокета.
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
 		bool do_setnonblocking(handle_type sock);

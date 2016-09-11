@@ -60,4 +60,131 @@
         
     </Type>
 
+  
+
+  <Type Name = "ext::shared_state_basic">
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
+    <Expand>
+      <Item Name = "[future retrived]">(m_promise_state._My_val &amp; future_retrived) != 0</Item>
+      <Item Name = "[future uncancellable]">(m_promise_state._My_val &amp; future_uncancellable) != 0</Item>
+      <Item Name = "[refs]">m_refs._My_val</Item>
+    </Expand>
+  </Type>
+
+
+  <Type Name = "ext::shared_state&lt;*&gt;">
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
+    <Expand>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">m_val</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::abandonned">"[broken]"</Item>
+
+      <Item Name = "[exception]" Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::exception">m_exptr</Item>
+      <Item Name = "[future retrived]">(m_promise_state._My_val &amp; future_retrived) != 0</Item>
+      <Item Name = "[future uncancellable]">(m_promise_state._My_val &amp; future_uncancellable) != 0</Item>
+      <Item Name = "[refs]">m_refs._My_val</Item>
+    </Expand>
+  </Type>
+
+  <Type Name = "ext::shared_state&lt;void&gt;">
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
+    <Expand>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">"&lt;void&gt;"</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::abandonned">"[broken]"</Item>
+      <Item Name = "[exception]" Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::exception">m_exptr</Item>
+
+      <Item Name = "[future retrived]">(m_promise_state._My_val &amp; future_retrived) != 0</Item>
+      <Item Name = "[future uncancellable]">(m_promise_state._My_val &amp; future_uncancellable) != 0</Item>
+      <Item Name = "[refs]">m_refs._My_val</Item>
+    </Expand>
+  </Type>
+
+
+  <Type Name = "ext::shared_state_unexceptional&lt;*&gt;">
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
+    <Expand>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">m_val</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::abandonned">"[broken]"</Item>
+
+      <Item Name = "[future retrived]">(m_promise_state._My_val &amp; future_retrived) != 0</Item>
+      <Item Name = "[future uncancellable]">(m_promise_state._My_val &amp; future_uncancellable) != 0</Item>
+      <Item Name = "[refs]">m_refs._My_val</Item>
+    </Expand>
+  </Type>
+
+  <Type Name = "ext::shared_state_unexceptional&lt;void&gt;">
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+      has result
+    </DisplayString>
+    <Expand>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::value">"&lt;void&gt;"</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::cancellation">"[cancelled]"</Item>
+      <Item Name = "[value]"     Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::abandonned">"[broken]"</Item>
+
+      <Item Name = "[future retrived]">(m_promise_state._My_val &amp; future_retrived) != 0</Item>
+      <Item Name = "[future uncancellable]">(m_promise_state._My_val &amp; future_uncancellable) != 0</Item>
+      <Item Name = "[refs]">m_refs._My_val</Item>
+    </Expand>
+  </Type>
+
+
+  <Type Name = "ext::promise&lt;*&gt;">
+    <DisplayString Condition="m_ptr.m_ptr == nullptr">empty</DisplayString>
+    <DisplayString Condition="m_ptr.m_ptr != nullptr">{*m_ptr.m_ptr}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition = "m_ptr.m_ptr != nullptr">m_ptr.m_ptr</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name = "ext::packaged_task&lt;*&gt;">
+    <DisplayString Condition="m_ptr.m_ptr == nullptr">empty</DisplayString>
+    <DisplayString Condition="m_ptr.m_ptr != nullptr">{*m_ptr.m_ptr}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition = "m_ptr.m_ptr != nullptr">m_ptr.m_ptr</ExpandedItem>
+    </Expand>
+  </Type>
+
+
+  <Type Name = "ext::future&lt;*&gt;">
+    <DisplayString Condition="m_ptr.m_ptr == nullptr">empty</DisplayString>
+    <DisplayString Condition="m_ptr.m_ptr != nullptr">{*m_ptr.m_ptr}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition = "m_ptr.m_ptr != nullptr">m_ptr.m_ptr</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name = "ext::shared_future&lt;*&gt;">
+    <DisplayString Condition="m_ptr.m_ptr == nullptr">empty</DisplayString>
+    <DisplayString Condition="m_ptr.m_ptr != nullptr">{*m_ptr.m_ptr}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition = "m_ptr.m_ptr != nullptr">m_ptr.m_ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  
+  
 </AutoVisualizer>
