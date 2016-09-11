@@ -1,4 +1,5 @@
 #include <ext/iostreams/socket_streambuf_base.hpp>
+#include <cassert>
 #include <climits> // for INT_MAX
 #include <utility> // for std::ecxhange
 #include <algorithm>

@@ -93,7 +93,7 @@ which did not change it before executing your program.
 */
 
 
-#if BOOST_OS_WINDOWS
+#if BOOST_OS_WINDOWS || BOOST_OS_CYGWIN
 #include <Windows.h>
 
 namespace ext
