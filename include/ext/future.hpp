@@ -1979,7 +1979,7 @@ namespace ext
 		typedef when_any_task<result_type> state_type;
 
 		ext::shared_state_basic * handles[] = {futures.handle().get()...};
-		result_type result = {SIZE_MAX, tuple_type {std::forward<Futures>(futures)...}};
+		result_type result {SIZE_MAX, tuple_type {std::forward<Futures>(futures)...}};
 
 		std::size_t idx = 0;
 		auto state = ext::make_intrusive<state_type>(std::move(result));
@@ -2051,7 +2051,7 @@ namespace ext
 		typedef when_all_task<result_type> state_type;
 
 		ext::shared_state_basic * handles[] = {futures.handle().get()...};
-		result_type ftuple = {std::forward<Futures>(futures)...};
+		result_type ftuple {std::forward<Futures>(futures)...};
 
 		auto state = ext::make_intrusive<state_type>(std::move(ftuple), sizeof...(futures));
 		for (auto * handle : handles)
