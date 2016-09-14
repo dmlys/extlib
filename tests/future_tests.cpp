@@ -106,7 +106,6 @@ BOOST_AUTO_TEST_CASE(future_when_all_tests)
 		auto f2 = ext::async(ext::launch::async, [] { return "12"s; });
 
 		auto fr = ext::when_all(std::move(f1), std::move(f2));
-
 		auto wait_res = fr.wait_for(5s);
 		BOOST_REQUIRE(wait_res == ext::future_status::ready);
 		
@@ -119,17 +118,21 @@ BOOST_AUTO_TEST_CASE(future_when_all_tests)
 	}
 
 	{
-		auto f1 = ext::async(ext::launch::deferred, [] { return 12; });
-		auto f2 = ext::async(ext::launch::deferred, [] { return "12"s; });
+		ext::shared_future<int> farr[] =
+		{
+			ext::async(ext::launch::deferred, [] { return 12; }),
+			ext::async(ext::launch::deferred, [] { return 24; }),
+		};
 
-		auto fr = ext::when_all(std::move(f1), std::move(f2));
-		auto tf = fr.get();
+		auto fres = ext::when_all(std::begin(farr), std::end(farr));
+		BOOST_REQUIRE(fres.is_ready());
+		
+		auto res = fres.get();
+		auto v1 = res[0].get();
+		auto v2 = res[1].get();
 
-		auto i = std::get<0>(tf).get();
-		auto s = std::get<1>(tf).get();
-
-		BOOST_CHECK(i == 12);
-		BOOST_CHECK(s == "12");
+		BOOST_CHECK(v1 == 12);
+		BOOST_CHECK(v2 == 24);
 	}
 }
 
@@ -137,19 +140,39 @@ BOOST_AUTO_TEST_CASE(future_whan_any_tests)
 {
 	using namespace std;
 
-	ext::promise<string> ps;
+	{
+		ext::promise<string> ps;
 
-	auto fi = ext::async(ext::launch::deferred, [] { return 12; });
-	auto fs = ps.get_future();
+		auto fi = ext::async(ext::launch::deferred, [] { return 12; });
+		auto fs = ps.get_future();
 
-	auto fres = ext::when_any(std::move(fi), std::move(fs));
-	BOOST_REQUIRE(fres.is_ready());
+		auto fres = ext::when_any(std::move(fi), std::move(fs));
+		BOOST_REQUIRE(fres.is_ready());
 
-	auto res = fres.get();
-	BOOST_CHECK(res.index == 0);
+		auto res = fres.get();
+		BOOST_CHECK(res.index == 0);
 
-	auto ready = ext::visit(res.futures, res.index, [](auto && f) { return f.is_ready(); });
-	BOOST_CHECK(ready);
+		auto ready = ext::visit(res.futures, res.index, [](auto && f) { return f.is_ready(); });
+		BOOST_CHECK(ready);
+	}
+
+	{
+		ext::promise<int> ps;
+		ext::shared_future<int> farr[] =
+		{
+			ext::async(ext::launch::deferred, [] { return 12; }),
+			ps.get_future()	
+		};
+
+		auto fres = ext::when_any(std::begin(farr), std::end(farr));
+		BOOST_REQUIRE(fres.is_ready());
+
+		auto res = fres.get();
+		BOOST_CHECK(res.index == 0);
+
+		auto ready = res.futures[res.index].is_ready();
+		BOOST_CHECK(ready);
+	}
 }
 
 
