@@ -10,22 +10,22 @@
 #include <cassert>
 
 #include <atomic>
-#include <chrono>
+#include <chrono>   // for wait_* operations
+#include <tuple>    // used by when_all/when_any
 #include <utility>
 #include <type_traits>
-#include <functional>
-#include <algorithm>
-#include <system_error>
+#include <system_error> // for std::error_code
+#include <exception>    // for std::exception_ptr and others
 
 #include <vector>   // used in when_any_result
 #include <iterator> // iterator_traits
 
-#include <thread>
-#include <mutex>
+#include <thread>   // for ext::async(ext::launch::async, ...)
+#include <mutex>    // for wait_* operations
 #include <condition_variable>
 
-#include <ext/config.hpp>
-#include <ext/utility.hpp>
+#include <ext/config.hpp>  // for EXT_UNREACHABLE
+#include <ext/utility.hpp> 
 #include <ext/intrusive_ptr.hpp>
 #include <ext/try_reserve.hpp>
 
@@ -861,6 +861,21 @@ namespace ext
 	template <class Type>
 	class when_any_task : public shared_state_unexceptional<Type>
 	{
+		template <class InputIterator>
+		friend auto when_any(InputIterator first, InputIterator last) ->
+			std::enable_if_t<
+				is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
+				ext::future<when_any_result<std::vector<typename std::iterator_traits<InputIterator>::value_type>>>
+			>;
+
+		template <class ... Futures>
+		friend auto when_any(Futures && ... futures) ->
+			std::enable_if_t<
+				is_future_types<std::decay_t<Futures>...>::value,
+				ext::future<when_any_result<std::tuple<std::decay_t<Futures>...>>>
+			>;
+
+	private:
 		typedef shared_state_unexceptional<Type>  base_type;
 		typedef when_any_task                     self_type;
 
@@ -882,6 +897,21 @@ namespace ext
 	template <class Type>
 	class when_all_task : public shared_state_unexceptional<Type>
 	{
+		template <class InputIterator>
+		friend auto when_all(InputIterator first, InputIterator last) ->
+			std::enable_if_t<
+				is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
+				ext::future<std::vector<typename std::iterator_traits<InputIterator>::value_type>>
+			>;
+
+		template <class ... Futures>
+		friend auto when_all(Futures && ... futures) ->
+			std::enable_if_t<
+				is_future_types<std::decay_t<Futures>...>::value,
+				ext::future<std::tuple<std::decay_t<Futures>...>>
+			>;
+
+	private:
 		typedef shared_state_unexceptional<Type>  base_type;
 		typedef when_all_task                     self_type;
 
@@ -1456,8 +1486,8 @@ namespace ext
 
 	public:
 		// low-level helpers
-		intrusive_ptr handle() const noexcept { return m_ptr; }
-		intrusive_ptr release() const noexcept { return std::move(m_ptr); }
+		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
+		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
 
 	public:
 		bool is_pending()    const noexcept { return m_ptr ? m_ptr->is_pending()    : false; }
@@ -1511,8 +1541,8 @@ namespace ext
 
 	public:
 		// low-level helpers
-		intrusive_ptr handle() const noexcept { return m_ptr; }
-		intrusive_ptr release() const noexcept { return std::move(m_ptr); }
+		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
+		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
 
 	public:
 		bool is_pending()    const noexcept { return m_ptr ? m_ptr->is_pending()    : false; }
@@ -1932,9 +1962,7 @@ namespace ext
 		typedef typename std::iterator_traits<InputIterator>::value_type value_type;
 		typedef when_any_result<std::vector<value_type>> result_type;
 		typedef when_any_task<result_type> state_type;
-		typedef std::vector<shared_state_basic *> handle_vector;
 
-		handle_vector handles;
 		result_type result;
 		result.index = SIZE_MAX;
 		auto & futures = result.futures;
@@ -1946,21 +1974,18 @@ namespace ext
 		if (futures.empty())
 			return make_ready_future<result_type>(std::move(result));
 
-		handles.resize(futures.size());
-		std::transform(futures.begin(), futures.end(), handles.begin(), [](auto & v) { return v.handle().get(); });
-
 		std::size_t idx = 0;
 		auto state = ext::make_intrusive<state_type>(std::move(result));
-		for (auto * handle : handles)
+		for (const auto & f : state->m_val.futures)
 		{
-			if (handle->is_deffered())
+			if (f.is_deffered())
 			{
 				state->notify_satisfied(idx);
 				break;
 			}
 
 			auto cont = ext::make_intrusive<when_any_task_continuation>(state, idx++);
-			if (not handle->add_continuation(cont.get())) 
+			if (not f.handle()->add_continuation(cont.get())) 
 				break; // executed immediately, no sense to continue
 		}
 
@@ -1978,7 +2003,7 @@ namespace ext
 		typedef when_any_result<tuple_type> result_type;
 		typedef when_any_task<result_type> state_type;
 
-		ext::shared_state_basic * handles[] = {futures.handle().get()...};
+		std::initializer_list<ext::shared_state_basic *> handles = {futures.handle().get()...};
 		result_type result {SIZE_MAX, tuple_type {std::forward<Futures>(futures)...}};
 
 		std::size_t idx = 0;
@@ -2010,10 +2035,8 @@ namespace ext
 		typedef typename std::iterator_traits<InputIterator>::value_type value_type;
 		typedef std::vector<value_type> result_type;
 		typedef when_all_task<result_type> state_type;
-		typedef std::vector<shared_state_basic *> handle_vector;
 
 		result_type futures;
-		handle_vector handles;
 		ext::try_reserve(futures, first, last);
 
 		for (; first != last; ++first)
@@ -2022,18 +2045,15 @@ namespace ext
 		if (futures.empty())
 			return make_ready_future<result_type>(std::move(futures));
 
-		handles.resize(futures.size());
-		std::transform(futures.begin(), futures.end(), handles.begin(), [](auto & v) { return v.handle().get(); });
-
 		auto state = ext::make_intrusive<state_type>(std::move(futures), futures.size());
-		for (auto & handle : handles)
+		for (const auto & f : state->m_val)
 		{
-			if (handle->is_deffered())
+			if (f.is_deffered())
 				state->notify_satisfied(0);
 			else
 			{
 				auto cont = ext::make_intrusive<when_all_task_continuation>(state);
-				handle->add_continuation(cont.get());
+				f.handle()->add_continuation(cont.get());
 			}
 		}
 
@@ -2050,7 +2070,7 @@ namespace ext
 		typedef std::tuple<std::decay_t<Futures>...> result_type;
 		typedef when_all_task<result_type> state_type;
 
-		ext::shared_state_basic * handles[] = {futures.handle().get()...};
+		std::initializer_list<ext::shared_state_basic *> handles = {futures.handle().get()...};
 		result_type ftuple {std::forward<Futures>(futures)...};
 
 		auto state = ext::make_intrusive<state_type>(std::move(ftuple), sizeof...(futures));
