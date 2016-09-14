@@ -24,6 +24,13 @@
 	typedef unsigned int socklen_t;
 	typedef socklen_t    sockoptlen_t;
 
+#elif BOOST_OS_CYGWIN
+
+	struct addrinfo;
+	struct sockaddr;
+	typedef int          socklen_t;
+	typedef socklen_t    sockoptlen_t;
+	
 #elif BOOST_OS_HPUX
 
 	// hp-ux have 2 net libraries, standard libc and libxnet

@@ -9,9 +9,9 @@ import feature ;
 import testing ;
 
 local usage-requirements = <include>include ;
-local requirements = $(usage-requirements) <link>static ;
+local requirements = $(usage-requirements) ;
 
-project
+project extlib
 	# attributes
 	: usage-requirements $(usage-requirements)
 	: requirements       $(requirements)
@@ -22,7 +22,7 @@ local zlib_src =    [ glob src/*zlib* ] ;
 local openssl_src = [ glob src/*openssl* ] ;
 local tests_src =   [ glob tests/*cpp ] ;
 
-if [ os.on-windows ]
+if [ os.name ] = 'NT'
 {
 	src += [ glob src/*winsock* ] ;
 }
@@ -52,14 +52,15 @@ lib extlib    # target name
 	  # but boost.build supports those depends and can automatically add them to dll/exe.
 	  # consider adding reqired boost libs
 	  
-	  # requirements
-	: [ conditional <extlib-wzlib>on    : <define>EXT_ENABLE_CPPZLIB <source>$(zlib_src) ]
+	: # requirements
+	  [ conditional <extlib-wzlib>on    : <define>EXT_ENABLE_CPPZLIB <source>$(zlib_src) ]
 	  [ conditional <extlib-wopenssl>on : <define>EXT_ENABLE_OPENSSL <source>$(openssl_src) ]	  
+	  <link>static
 	: # defaults
 	: # usage-requirements
 	  <extlib-wzlib>on:<define>EXT_ENABLE_CPPZLIB
 	  <extlib-wopenssl>on:<define>EXT_ENABLE_OPENSSL
-	;	
+	;
 
 	
 
