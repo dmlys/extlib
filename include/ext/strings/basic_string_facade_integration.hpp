@@ -256,6 +256,36 @@ namespace ext
 		return boost::hash_range(first, last);
 	}
 
+
+	template <class storage, class char_traits>
+	inline auto data(const basic_string_facade<storage, char_traits> & str)
+	{
+		return str.data();
+	}
+
+	template <class storage, class char_traits>
+	inline auto data(basic_string_facade<storage, char_traits> & str)
+	{
+		return str.data();
+	}
+
+	template <class storage, class char_traits, class iterator>
+	inline void assign(basic_string_facade<storage, char_traits> & str, iterator first, iterator last)
+	{
+		str.assign(first, last);
+	}
+
+	template <class storage, class char_traits, class iterator>
+	inline void append(basic_string_facade<storage, char_traits> & str, iterator first, iterator last)
+	{
+		str.append(first, last);
+	}
+
+	template <class storage, class char_traits>
+	inline void clear(basic_string_facade<storage, char_traits> & str)
+	{
+		str.clear();
+	}
 } // namespace ext
 
 namespace std
