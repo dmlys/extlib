@@ -60,7 +60,22 @@
         
     </Type>
 
-  
+
+  <Type Name="ext::cow_string_body">
+    <DisplayString>{m_body.m_ptr->buffer, s}</DisplayString>
+    <StringView>m_body.m_ptr->buffer, s</StringView>
+
+    <Expand>
+      <Item Name="refs">m_body.m_ptr->refs</Item>
+      <Item Name="length">m_body.m_ptr->size</Item>
+      <Item Name="capacity">m_body.m_ptr->capacity</Item>
+      <Item Name="buffer">m_body.m_ptr->buffer, s</Item>
+    </Expand>
+  </Type>
+
+
+
+
 
   <Type Name = "ext::shared_state_basic">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>

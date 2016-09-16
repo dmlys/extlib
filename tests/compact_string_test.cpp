@@ -7,11 +7,12 @@ typedef ext::basic_string_facade<
 	std::char_traits<char>
 > double_compact_string;
 
-typedef string_test_case<ext::compact_string> compact_test;
-typedef string_test_case<double_compact_string> dcompact_test;
 
-BOOST_AUTO_TEST_CASE(compact_string_test)
+BOOST_AUTO_TEST_CASE(compact_string_tests)
 {
+	typedef string_test_case<ext::compact_string> compact_test;
+	typedef string_test_case<double_compact_string> dcompact_test;
+
 	compact_test::run_all_test();
 	dcompact_test::run_all_test();
 }

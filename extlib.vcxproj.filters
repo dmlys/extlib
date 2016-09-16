@@ -84,6 +84,9 @@
     <ClCompile Include="src\future.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\cow_string_body.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ext\FileSystemUtils.hpp">
@@ -445,6 +448,12 @@
     </ClInclude>
     <ClInclude Include="include\ext\future.hpp">
       <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\cow_string_body.hpp">
+      <Filter>include\strings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\strings\cow_string.hpp">
+      <Filter>include\strings</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
