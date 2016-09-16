@@ -43,6 +43,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\cow_string_body.cpp" />
     <ClCompile Include="src\cppzlib.cpp" />
     <ClCompile Include="src\Errors.cpp" />
     <ClCompile Include="src\FileSystemGetExePath.cpp" />
@@ -120,6 +121,8 @@
     <ClInclude Include="include\ext\strings\basic_string_facade_integration.hpp" />
     <ClInclude Include="include\ext\strings\compact_string.hpp" />
     <ClInclude Include="include\ext\strings\compact_string_body.hpp" />
+    <ClInclude Include="include\ext\strings\cow_string.hpp" />
+    <ClInclude Include="include\ext\strings\cow_string_body.hpp" />
     <ClInclude Include="include\ext\string_interpolation.hpp" />
     <ClInclude Include="include\ext\threaded_scheduler.hpp" />
     <ClInclude Include="include\ext\scheduler.hpp" />
