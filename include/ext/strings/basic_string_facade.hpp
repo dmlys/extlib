@@ -719,8 +719,9 @@ namespace ext
 	typename basic_string_facade<storage, char_traits>::iterator
 		basic_string_facade<storage, char_traits>::insert(const_iterator pos, size_type count, value_type ch)
 	{
-		auto * ptr = cbegin();
-		return insert(pos - ptr, count, ch);
+		auto idx = pos - cbegin();
+		insert(idx, count, ch);
+		return begin() + idx;
 	}
 
 	template <class storage, class char_traits>
@@ -736,7 +737,7 @@ namespace ext
 	{
 		size_type idx = pos - cbegin();
 		insert(idx, first, last - first);
-		return cbegin() + idx;
+		return begin() + idx;
 	}
 
 	template <class storage, class char_traits>
@@ -747,12 +748,13 @@ namespace ext
 		typedef typename std::iterator_traits<InputIterator>::iterator_category cat;
 		if (!std::is_convertible<cat, std::random_access_iterator_tag>::value)
 		{
-			insert(pos, self_type(first, last));
-			return cbegin() + pos;
+			size_type idx = pos - cbegin();
+			insert(idx, self_type(first, last));
+			return begin() + idx;
 		}
 		else
 		{
-			auto index = pos - cbegin();
+			size_type index = pos - cbegin();
 			size_type count = std::distance(first, last);
 
 			size_type oldsize = size();
@@ -1091,7 +1093,7 @@ namespace ext
 		}
 
 		// we handle overlapping only for overloads tacking value_type * and iterators
-		// (currently out iterators adre value_type *)
+		// (currently out iterators are value_type *)
 		// for other kind of iterators it's we do not handle overloads, even if they are random_access.
 		
 		// o_ - our, r_ - remote
