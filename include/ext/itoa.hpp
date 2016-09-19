@@ -5,8 +5,8 @@ namespace ext
 {
 	namespace iota_detail
 	{
-		template <class Arithmetic>
-		char * unsigned_itoa(Arithmetic val, char * buffer_end, unsigned radix)
+		template <class Arithmetic, class CharType>
+		CharType * unsigned_itoa(Arithmetic val, CharType * buffer_end, unsigned radix)
 		{
 			static_assert(std::is_unsigned<Arithmetic>::value, "");
 			// 2 < radix < 36: 10 + 26
@@ -20,8 +20,8 @@ namespace ext
 			return buffer_end;
 		}
 
-		template <class Arithmetic>
-		char * signed_itoa(Arithmetic val, char * buffer_end)
+		template <class Arithmetic, class CharType>
+		CharType * signed_itoa(Arithmetic val, CharType * buffer_end)
 		{
 			typedef typename std::make_unsigned<Arithmetic>::type UnsignedType;
 
@@ -46,8 +46,8 @@ namespace ext
 	/// so buffer + buffer_size - 1 == 0, buffer + buffer_size - 2 == last digit, and so on
 	/// returns pointer to the beginning of result
 	/// radix can be [2..36), if not - radix = 10
-	template <class Arithmetic>
-	inline char * unsafe_itoa(Arithmetic val, char * buffer, std::size_t buffer_size, unsigned radix)
+	template <class Arithmetic, class CharType>
+	inline CharType * unsafe_itoa(Arithmetic val, CharType * buffer, std::size_t buffer_size, unsigned radix)
 	{
 		static_assert(std::is_arithmetic<Arithmetic>::value, "not a arithmetic type");
 		typedef typename std::make_unsigned<Arithmetic>::type unsgined_type;
@@ -62,8 +62,8 @@ namespace ext
 	}
 
 	/// same as unsafe_itoa(val, buffer, BufferSize, 10), but checks that buffer is long enough
-	template <class Arithmetic, std::size_t BufferSize>
-	inline char * itoa(Arithmetic val, char (& buffer)[BufferSize])
+	template <class Arithmetic, class CharType, std::size_t BufferSize>
+	inline CharType * itoa(Arithmetic val, CharType (& buffer)[BufferSize])
 	{
 		static_assert(std::is_arithmetic<Arithmetic>::value, "not a arithmetic type");
 		// 1 - for null terminator, 1 - for last not fully representable group, see digits10 description
