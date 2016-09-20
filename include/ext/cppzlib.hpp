@@ -208,7 +208,7 @@ namespace zlib
 
 		inflate_stream & operator =(inflate_stream && op) BOOST_NOEXCEPT
 		{
-			handle = ext::exchange(handle, nullptr);
+			handle = std::exchange(handle, nullptr);
 			return *this;
 		}
 		
@@ -313,7 +313,7 @@ namespace zlib
 
 		deflate_stream & operator =(deflate_stream && op) BOOST_NOEXCEPT
 		{
-			handle = ext::exchange(handle, nullptr);
+			handle = std::exchange(handle, nullptr);
 			return *this;
 		}
 
