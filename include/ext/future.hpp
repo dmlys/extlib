@@ -314,8 +314,8 @@ namespace ext
 	protected:
 		typedef shared_state_basic continuation_type;
 
-		static constexpr unsigned future_retrived = 1 << (sizeof(unsigned) * CHAR_BIT - 1);
-		static constexpr unsigned future_uncancellable = future_retrived >> 1;
+		static constexpr unsigned future_retrived = 1u << (sizeof(unsigned) * CHAR_BIT - 1);
+		static constexpr unsigned future_uncancellable = future_retrived >> 1u;
 		static constexpr unsigned status_mask = ~(future_retrived | future_uncancellable);
 
 		// future state, see description above.

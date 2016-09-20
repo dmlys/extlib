@@ -80,7 +80,7 @@ namespace ext
 		typedef char_traits traits_type;
 
 	public:
-		static const size_type npos = -1;
+		static const size_type npos = size_type(-1);
 
 	private:
 		const self_type * as_const() { return this; }
@@ -229,7 +229,7 @@ namespace ext
 		template <class InputIterator>
 		self_type & replace(const_iterator first, const_iterator last, InputIterator r_first, InputIterator r_last);
 
-	public: // search methods [TODO]
+	public: // search methods [done]
 		size_type find(const self_type & str, size_type pos = 0) const BOOST_NOEXCEPT;
 		size_type find(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT;
 		size_type find(const value_type * str, size_type pos = 0) const BOOST_NOEXCEPT;

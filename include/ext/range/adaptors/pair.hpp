@@ -1,7 +1,7 @@
 #pragma once
-#include <ext/functors/get_func.hpp>
-#include <boost/iterator/transform_iterator.hpp>
 #include <boost/range.hpp>
+#include <boost/iterator/transform_iterator.hpp>
+#include <ext/utility.hpp>
 
 namespace ext
 {
