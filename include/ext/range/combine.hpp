@@ -1,5 +1,5 @@
 #pragma once
-#include <ext/zip_iterator.hpp>
+#include <ext/iterator/zip_iterator.hpp>
 #include <boost/range.hpp>
 
 namespace ext

@@ -37,6 +37,9 @@
     <Filter Include="include\strings">
       <UniqueIdentifier>{d8f0d895-26c1-44ce-a4fb-cf8cc12c0469}</UniqueIdentifier>
     </Filter>
+    <Filter Include="include\iterator">
+      <UniqueIdentifier>{cdc90686-156a-4b9f-b227-67970d6dcafb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\FileSystemUtils.cpp">
@@ -99,9 +102,6 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\codecvt_conv.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\append_iterator.hpp">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\functors.hpp">
@@ -353,9 +353,6 @@
     <ClInclude Include="include\ext\integer_sequence.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\zip_iterator.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\range\combine.hpp">
       <Filter>include\range</Filter>
     </ClInclude>
@@ -454,6 +451,18 @@
     </ClInclude>
     <ClInclude Include="include\ext\strings\cow_string.hpp">
       <Filter>include\strings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\iterator\outdirect_iterator.hpp">
+      <Filter>include\iterator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\iterator\zip_iterator.hpp">
+      <Filter>include\iterator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\iterator\append_iterator.hpp">
+      <Filter>include\iterator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\range\adaptors\outdirected.hpp">
+      <Filter>include\range\adaptors</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

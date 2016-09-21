@@ -6,6 +6,8 @@ namespace ext
 {
 	namespace detail
 	{
+		struct moved_t {};
+
 		template <class InputRange>
 		struct moved_range :
 			boost::iterator_range<
@@ -15,15 +17,14 @@ namespace ext
 		private:
 			typedef boost::iterator_range<
 				std::move_iterator<typename boost::range_iterator<InputRange>::type>
-			> base;
+			> base_type;
+
 		public:
-			typedef typename base::iterator iterator;
+			typedef typename base_type::iterator iterator;
 
 			moved_range(InputRange & rng)
-				: base(iterator(boost::begin(rng)), iterator(boost::end(rng))) {}
+				: base_type(iterator(boost::begin(rng)), iterator(boost::end(rng))) {}
 		};
-
-		struct moved_t {};
 
 		template <class InputRange>
 		moved_range<InputRange> operator | (InputRange & rng, moved_t)
