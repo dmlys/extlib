@@ -130,6 +130,7 @@
     <ClInclude Include="include\ext\scheduler.hpp" />
     <ClInclude Include="include\ext\time_fmt.hpp" />
     <ClInclude Include="include\ext\try_reserve.hpp" />
+    <ClInclude Include="include\ext\enum_bitset.hpp" />
     <ClInclude Include="include\ext\utf8utils.hpp" />
     <ClInclude Include="include\ext\utility.hpp" />
     <ClInclude Include="include\ext\varalgo.hpp" />

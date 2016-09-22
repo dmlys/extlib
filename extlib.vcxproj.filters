@@ -464,6 +464,9 @@
     <ClInclude Include="include\ext\range\adaptors\outdirected.hpp">
       <Filter>include\range\adaptors</Filter>
     </ClInclude>
+    <ClInclude Include="include\ext\enum_bitset.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE_1_0.txt" />
