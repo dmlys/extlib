@@ -423,7 +423,6 @@ namespace ext
 		return res;
 	}
 
-
 	void continuation_waiter::continuate() noexcept
 	{
 		m_mutex.lock();
@@ -450,6 +449,13 @@ namespace ext
 	{
 		std::unique_lock<std::mutex> lk(m_mutex);
 		return m_var.wait_for(lk, timeout_duration, [this] {return m_ready; });
+	}
+
+	void continuation_waiter::reset() noexcept
+	{
+		m_ready = false;
+		m_fstnext.store(~lock_mask, std::memory_order_relaxed);
+		m_promise_state.store(static_cast<unsigned>(future_state::unsatisfied), std::memory_order_relaxed);
 	}
 
 
@@ -599,6 +605,7 @@ namespace ext
 	{
 		assert(ptr->use_count() == 1);
 		continuation_waiters_pool::waiter_ptr wptr {ptr, ext::noaddref};
+		wptr->reset();
 		g_pool->putback(wptr);
 	}
 

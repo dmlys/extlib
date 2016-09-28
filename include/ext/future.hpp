@@ -337,7 +337,7 @@ namespace ext
 		static future_state pstatus(unsigned promise_state) noexcept { return static_cast<future_state>(promise_state & status_mask); }
 
 		/// re-inits this shared_state_basic as deffered, should be called from constructor of derived class.
-		/// NOTE: probably better shared_state_basic constructor initializing this class as deffered is better, 
+		/// NOTE: probably shared_state_basic constructor initializing this class as deffered is better, 
 		///       but than it's must be forwarded by all derived classes...
 		void init_deffered() noexcept
 		{ this->m_promise_state.store(static_cast<unsigned>(future_state::deffered), std::memory_order_relaxed); }
@@ -495,7 +495,7 @@ namespace ext
 		/// Continuation is executed in the context of this future, immediately after result becomes available
 		template <class Functor>
 		auto then(Functor && continuation) ->
-			ext::future<std::result_of_t<Functor(ext::future<Type>)>>;
+			ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>;
 
 		/// Continuation support, when future becomes fulfilled,
 		/// either by result(normal or exception) becoming available,
@@ -504,7 +504,7 @@ namespace ext
 		/// Continuation is executed in the context of this future, immediately after result becomes available
 		template <class Functor>
 		auto shared_then(Functor && continuation) ->
-			ext::future<std::result_of_t<Functor(ext::shared_future<Type>)>>;
+			ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>;
 	};
 
 
@@ -745,6 +745,8 @@ namespace ext
 	public:
 		/// fires condition_variable, waking any waiting thread
 		void continuate() noexcept override;
+		/// reset waiter, after that it can be used again
+		void reset() noexcept;
 	};
 
 
@@ -948,7 +950,7 @@ namespace ext
 		void continuate() noexcept override { m_parent->notify_satisfied(m_index); this->set_value(); }
 
 	public:
-		when_any_task_continuation(ext::intrusive_ptr<parent_task_type> parent, std::size_t index)
+		when_any_task_continuation(ext::intrusive_ptr<parent_task_type> parent, std::size_t index) noexcept
 			: m_parent(std::move(parent)), m_index(index) {}
 	};
 
@@ -965,7 +967,7 @@ namespace ext
 		void continuate() noexcept override { m_parent->notify_satisfied(0); this->set_value(); }
 
 	public:
-		when_all_task_continuation(ext::intrusive_ptr<parent_task_type> parent)
+		when_all_task_continuation(ext::intrusive_ptr<parent_task_type> parent) noexcept
 			: m_parent(std::move(parent)) {}
 	};
 
@@ -1011,9 +1013,9 @@ namespace ext
 	template <class Type>
 	template <class Functor>
 	auto shared_state_base<Type>::then(Functor && continuation) ->
-		ext::future<std::result_of_t<Functor(ext::future<Type>)>>
+		ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>
 	{
-		typedef std::result_of_t<Functor(ext::future<Type>)> return_type;
+		typedef std::result_of_t<std::decay_t<Functor>(ext::future<Type>)> return_type;
 		
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
@@ -1030,9 +1032,9 @@ namespace ext
 	template <class Type>
 	template <class Functor>
 	auto shared_state_base<Type>::shared_then(Functor && continuation) ->
-		ext::future<std::result_of_t<Functor(ext::shared_future<Type>)>>
+		ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>
 	{
-		typedef std::result_of_t<Functor(ext::future<Type>)> return_type;
+		typedef std::result_of_t<std::decay_t<Functor>(ext::future<Type>)> return_type;
 		
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
@@ -1510,7 +1512,7 @@ namespace ext
 
 		template <class Functor>
 		auto then(Functor && continuation) ->
-			ext::future<std::result_of_t<Functor(ext::future<value_type>)>>
+			ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<value_type>)>>
 		{
 			assert(valid());
 			auto self = std::move(*this);
@@ -1519,7 +1521,7 @@ namespace ext
 
 	public:
 		future() = default;
-		future(intrusive_ptr ptr) : m_ptr(std::move(ptr)) {}
+		future(intrusive_ptr ptr) noexcept : m_ptr(std::move(ptr)) {}
 
 		future(future &&) = default;
 		future(const future &) = delete;
@@ -1563,7 +1565,7 @@ namespace ext
 
 		template <class Functor>
 		auto then(Functor && continuation) ->
-			ext::future<std::result_of_t<Functor(ext::shared_future<value_type>)>>
+			ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<value_type>)>>
 		{
 			assert(valid());
 			return m_ptr->shared_then(continuation);
@@ -1574,7 +1576,7 @@ namespace ext
 		// shared_future can only be constructed by moving future
 		shared_future(const future<Type> & f) = delete;
 		shared_future(future<Type> && f) : shared_future(f.share()) {}
-		shared_future(intrusive_ptr ptr) : m_ptr(std::move(ptr)) {}
+		shared_future(intrusive_ptr ptr) noexcept : m_ptr(std::move(ptr)) {}
 
 		shared_future(shared_future &&) = default;
 		shared_future(const shared_future &) = default;
@@ -1642,7 +1644,7 @@ namespace ext
 		void set_exception(std::exception_ptr ex);
 
 	public:
-		promise() : m_ptr(ext::make_intrusive<ext::shared_state<value_type>>()) {}
+		promise() noexcept : m_ptr(ext::make_intrusive<ext::shared_state<value_type>>()) {}
 		promise(intrusive_ptr ptr) noexcept : m_ptr(std::move(ptr)) {}
 		~promise() noexcept { if (m_ptr) m_ptr->release_promise(); }
 
@@ -1793,7 +1795,7 @@ namespace ext
 		void set_exception(std::exception_ptr ex);
 
 	public:
-		promise() : m_ptr(ext::make_intrusive<ext::shared_state<value_type>>()) {}
+		promise() noexcept : m_ptr(ext::make_intrusive<ext::shared_state<value_type>>()) {}
 		promise(intrusive_ptr ptr) noexcept : m_ptr(std::move(ptr)) {}
 		~promise() noexcept { if (m_ptr) m_ptr->release_promise(); }
 
