@@ -60,7 +60,7 @@ namespace ext
 		std::size_t count() const noexcept { return m_bitset.count(); }
 
 	public:
-		self_type   operator ~ () noexcept { ~m_bitset return *this; }
+		self_type   operator ~ () noexcept { return ~m_bitset; }
 		self_type & operator &= (const self_type & other) noexcept { m_bitset &= other.m_bitset; return *this; }
 		self_type & operator |= (const self_type & other) noexcept { m_bitset |= other.m_bitset; return *this; }
 		self_type & operator ^= (const self_type & other) noexcept { m_bitset ^= other.m_bitset; return *this; }
@@ -70,17 +70,18 @@ namespace ext
 	public:
 		template <class Char = char, class CharTraits = std::char_traits<Char>, class Alloc = std::allocator<Char>>
 		std::basic_string<Char, CharTraits, Alloc> to_string() const
-		{ return m_bitset.to_string<Char, CharTraits, Alloc>>(); }
+		{ return m_bitset.template to_string<Char, CharTraits, Alloc>(); }
 
 		template <class Char = char, class CharTraits = std::char_traits<Char>, class Alloc = std::allocator<Char>>
 		std::basic_string<Char, CharTraits, Alloc> to_string(Char zero = Char('0'), Char one = Char('1')) const
-		{ return m_bitset.to_string<Char, CharTraits, Alloc >>(zero, one); }
+		{ return m_bitset.template to_string<Char, CharTraits, Alloc>(zero, one); }
 
 		unsigned long to_ulong()  const { return m_bitset.to_ulong(); }
 		unsigned long to_ullong() const { return m_bitset.to_ullong(); }
 
 	public:
 		constexpr enum_bitset() = default;
+		constexpr enum_bitset(bitset_type bitset) : m_bitset(bitset) {}
 		constexpr enum_bitset(unsigned long long val) : m_bitset(val) {}
 
 
@@ -99,7 +100,7 @@ namespace ext
             typename std::basic_string<Char>::size_type n = std::basic_string<Char>::npos,
             Char zero = Char('0'),
             Char one = Char('1')
-		) : m_bitset(str, npos, zero, one) {}
+		) : m_bitset(str, n, zero, one) {}
 	};
 
 	template <class Enum, std::size_t Size>
