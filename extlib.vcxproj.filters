@@ -90,6 +90,9 @@
     <ClCompile Include="src\cow_string_body.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\thread_pool.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ext\FileSystemUtils.hpp">
@@ -434,9 +437,6 @@
     <ClInclude Include="include\ext\threaded_scheduler.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\scheduler.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\iostreams\socket_types.hpp">
       <Filter>include</Filter>
     </ClInclude>
@@ -465,6 +465,9 @@
       <Filter>include\range\adaptors</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\enum_bitset.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\thread_pool.hpp">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
