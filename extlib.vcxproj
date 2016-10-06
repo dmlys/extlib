@@ -55,6 +55,7 @@
     <ClCompile Include="src\socket_streambuf_base.cpp" />
     <ClCompile Include="src\string_interpolation.cpp" />
     <ClCompile Include="src\threaded_scheduler.cpp" />
+    <ClCompile Include="src\thread_pool.cpp" />
     <ClCompile Include="src\time_fmt.cpp" />
     <ClCompile Include="src\winsock2.cpp" />
     <ClCompile Include="src\winsock2_stream.cpp" />
@@ -127,7 +128,7 @@
     <ClInclude Include="include\ext\strings\cow_string_body.hpp" />
     <ClInclude Include="include\ext\string_interpolation.hpp" />
     <ClInclude Include="include\ext\threaded_scheduler.hpp" />
-    <ClInclude Include="include\ext\scheduler.hpp" />
+    <ClInclude Include="include\ext\thread_pool.hpp" />
     <ClInclude Include="include\ext\time_fmt.hpp" />
     <ClInclude Include="include\ext\try_reserve.hpp" />
     <ClInclude Include="include\ext\enum_bitset.hpp" />

@@ -3,10 +3,10 @@
 
 namespace ext
 {
-	inline bool threaded_scheduler::entry_comparer::operator()(const entry_ptr & e1, const entry_ptr & e2) const noexcept
+	bool threaded_scheduler::entry_comparer::operator()(const task_ptr & t1, const task_ptr & t2) const noexcept
 	{
 		// priority_queue with std::less provides constant lookup for greathest element, we need smallest
-		return e1->point > e2->point;
+		return t1->point > t2->point;
 	}
 
 	template <class Lock>
@@ -18,7 +18,7 @@ namespace ext
 	void threaded_scheduler::run_passed_events()
 	{
 		auto now = time_point::clock::now();
-		entry_ptr item;
+		task_ptr item;
 
 		for (;;)
 		{
@@ -33,7 +33,7 @@ namespace ext
 				m_queue.pop();
 			}
 		
-			ext::shared_state_execute(*item, item->functor);
+			item->execute();
 		}
 	}
 
@@ -51,16 +51,6 @@ namespace ext
 		}
 	}
 
-	void threaded_scheduler::add_entry(entry_ptr e)
-	{
-		{
-			std::lock_guard<std::mutex> lk(m_mutex);
-			m_queue.push(std::move(e));
-		}
-
-		m_newdata.notify_one();
-	}
-
 	void threaded_scheduler::clear()
 	{
 		queue_type queue;
@@ -71,33 +61,11 @@ namespace ext
 
 		while (!queue.empty())
 		{
-			queue.top()->release_promise();
+			queue.top()->abandone();
 			queue.pop();
 		}
 
 		m_newdata.notify_one();
-	}
-
-	auto threaded_scheduler::add(time_point tp, function_type func) -> handle
-	{
-		auto e = ext::make_intrusive<entry>();
-		e->functor = std::move(func);
-		e->point = tp;
-
-		handle h {e};
-		add_entry(std::move(e));
-		return h;
-	}
-
-	auto threaded_scheduler::add(duration rel, function_type func) -> handle
-	{
-		auto e = ext::make_intrusive<entry>();
-		e->functor = std::move(func);
-		e->point = time_point::clock::now() + rel;
-
-		handle h {e};
-		add_entry(std::move(e));
-		return h;
 	}
 
 	threaded_scheduler::threaded_scheduler()
@@ -105,7 +73,7 @@ namespace ext
 		m_thread = std::thread(&threaded_scheduler::thread_func, this);
 	}
 
-	threaded_scheduler::~threaded_scheduler()
+	threaded_scheduler::~threaded_scheduler() noexcept
 	{
 		{
 			std::lock_guard<std::mutex> lk(m_mutex);
@@ -113,7 +81,7 @@ namespace ext
 			
 			while (!m_queue.empty())
 			{
-				m_queue.top()->release_promise();
+				m_queue.top()->abandone();
 				m_queue.pop();
 			}
 		}

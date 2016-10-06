@@ -5,66 +5,112 @@
 #include <thread>
 #include <condition_variable>
 #include <ext/intrusive_ptr.hpp>
-#include <ext/scheduler.hpp>
+#include <ext/future.hpp>
 
 namespace ext
 {
-	/// scheduler implementation via background thread with priority_queue
-	class threaded_scheduler : public scheduler
+	/// scheduler implementation via background thread with priority_queue.
+	/// Task can be submitted via submit method.
+	/// For every task result of execution can be retrieved via associated future.
+	/// 
+	/// All methods are thread-safe
+	class threaded_scheduler
 	{
+	public:
+		typedef std::chrono::steady_clock::time_point time_point;
+		typedef std::chrono::steady_clock::duration   duration;
+
 	private:
-		class entry;
-		typedef ext::intrusive_ptr<entry> entry_ptr;
-
-		class entry : public ext::shared_state_unexceptional<void>
+		class task_base
 		{
-			typedef ext::shared_state_unexceptional<void> base_type;
-			typedef entry self_type;
-
 		public:
 			time_point point;
-			function_type functor;
-			// bring constructors
-			using base_type::base_type;
+
+		public:
+			virtual ~task_base() = default;
+
+			virtual void addref()   noexcept = 0;
+			virtual void release()  noexcept = 0;
+			virtual void abandone() noexcept = 0;
+			virtual void execute() = 0;
+
+		public:
+			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { if (ptr) ptr->addref(); }
+			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { if (ptr) ptr->release(); }
+			friend inline void intrusive_ptr_use_count(const task_base * ptr) noexcept {}
+		};
+
+		template <class Functor, class ResultType>
+		class task_impl :
+			public task_base,
+			public ext::shared_state_unexceptional<ResultType>
+		{
+			typedef ext::shared_state_unexceptional<ResultType> base_type;
+
+		private:
+			Functor m_functor;
+
+		public:
+			void addref()   noexcept override { base_type::addref(); }
+			void release()  noexcept override { base_type::release(); }
+			void abandone() noexcept override { base_type::release_promise(); }
+			void execute()           override { ext::shared_state_execute(*this, m_functor); }
+
+		public:
+			task_impl(time_point tp, Functor func)
+				: m_functor(std::move(func)) { task_base::point = tp; }
+
+		public:
+			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { if (ptr) ptr->addref(); }
+			friend inline void intrusive_ptr_release(task_impl * ptr) noexcept { if (ptr) ptr->release(); }
+			friend inline void intrusive_ptr_use_count(const task_impl * ptr) noexcept {}
 		};
 		
+		typedef ext::intrusive_ptr<task_base> task_ptr;
+
 		class entry_comparer
 		{
 		public:
 			typedef bool result_type;
-			bool operator()(const entry_ptr & e1, const entry_ptr & e2) const noexcept;
+			bool operator()(const task_ptr & t1, const task_ptr & t2) const noexcept;
 		};
 
 	private:
 		typedef std::priority_queue<
-			entry_ptr,
-			std::deque<entry_ptr>,
+			task_ptr,
+			std::deque<task_ptr>,
 			entry_comparer
 		> queue_type;
 
 	private:
 		queue_type m_queue;
-		std::mutex m_mutex;
-		std::condition_variable m_newdata;
 		std::thread m_thread;
 		bool m_stopped = false;
+
+		mutable std::mutex m_mutex;
+		mutable std::condition_variable m_newdata;
 
 	private:
 		void thread_func();
 		void run_passed_events();
-		void add_entry(entry_ptr e);
 
 		template <class Lock>
 		time_point next_in(Lock & lk) const;
 
 	public:
-		virtual handle add(time_point tp, function_type func) override;
-		virtual handle add(duration  rel, function_type func) override;
-		virtual void clear() override;
+		template <class Functor>
+		auto submit(time_point tp, Functor && func) -> 
+			ext::future<std::result_of_t<std::decay_t<Functor>()>>;
+
+		template <class Functor>
+		auto submit(duration  rel, Functor && func) ->
+			ext::future<std::result_of_t<std::decay_t<Functor>()>>;
+		
+		void clear();
 
 	public:
 		threaded_scheduler();
-		~threaded_scheduler();
+		~threaded_scheduler() noexcept;
 
 		threaded_scheduler(threaded_scheduler &&) = delete;
 		threaded_scheduler & operator =(threaded_scheduler &&) = delete;
@@ -72,4 +118,31 @@ namespace ext
 		threaded_scheduler(const threaded_scheduler & ) = delete;
 		threaded_scheduler & operator =(const threaded_scheduler &) = delete;		
 	};
+
+	template <class Functor>
+	auto threaded_scheduler::submit(time_point tp, Functor && func) ->
+		ext::future<std::result_of_t<std::decay_t<Functor>()>>
+	{
+		typedef std::result_of_t<std::decay_t<Functor>()> result_type;
+		typedef task_impl<std::decay_t<Functor>, result_type> task_type;
+		typedef ext::future<result_type> future_type;
+
+		auto task = ext::make_intrusive<task_type>(tp, std::forward<Functor>(func));
+		future_type fut {task};
+
+		{
+			std::lock_guard<std::mutex> lk(m_mutex);
+			m_queue.push(std::move(task));
+		}
+		
+		m_newdata.notify_one();
+		return fut;
+	}
+
+	template <class Functor>
+	inline auto threaded_scheduler::submit(duration rel, Functor && func) ->
+		ext::future<std::result_of_t<std::decay_t<Functor>()>>
+	{
+		return submit(rel + time_point::clock::now(), std::forward<Functor>(func));
+	}
 }
