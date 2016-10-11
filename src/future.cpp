@@ -496,6 +496,12 @@ namespace ext
 	
 	void lockfree_continuation_pool::init(std::size_t num)
 	{
+		if (num == 0)
+		{
+			num = std::thread::hardware_concurrency() * 4;
+			if (num == 0) num = 4 * 4;
+		}
+
 		m_objects.resize(num);
 		for (auto & val : m_objects)
 			val = ext::make_intrusive<ext::continuation_waiter>();
@@ -574,13 +580,13 @@ namespace ext
 	
 	bool delayed_lockfree_continuation_pool::take(waiter_ptr & ptr) noexcept
 	{
-		std::call_once(m_once, [this] { init(std::thread::hardware_concurrency() * 4); m_inited = true; });
+		std::call_once(m_once, [this] { init(0); m_inited = true; });
 		return base_type::take(ptr);
 	}
 	
 	bool delayed_lockfree_continuation_pool::putback(waiter_ptr & ptr) noexcept
 	{
-		std::call_once(m_once, [this] { init(std::thread::hardware_concurrency() * 4); m_inited = true; });
+		std::call_once(m_once, [this] { init(0); m_inited = true; });
 		return base_type::putback(ptr);
 	}
 
