@@ -227,8 +227,9 @@ namespace ext
 	class continuation_waiter;
 	template <class>        class packaged_task_base;
 	template <class, class> class packaged_task_impl;
-	template <class, class> class deffered_task_impl;
+	template <class, class> class deferred_task_impl;
 	template <class, class> class continuation_task;
+	template <class, class> class deferred_continuation_task;
 
 	class when_any_task_continuation;
 	class when_all_task_continuation;
@@ -354,7 +355,7 @@ namespace ext
 		/// has std::memory_order_release semantics.
 		static void unlock_ptr(std::atomic_uintptr_t & ptr, std::uintptr_t newval) noexcept;
 
-		/// set fstnext status of to ready and returns continuation chain.
+		/// set fstnext status to ready and returns continuation chain.
 		/// has std::memory_order_acq_rel semantics.
 		static std::uintptr_t signal_future(std::atomic_uintptr_t & fstnext) noexcept;
 		/// attaches continuation to a continuation list with head, increments refcount.
@@ -791,12 +792,12 @@ namespace ext
 			: m_functor(std::move(f)) {}
 	};
 
-	/// deffered_task_impl is packaged_task_impl.
+	/// deferred_task_impl is packaged_task_impl.
 	/// It calls stored functor on first get/wait request, used in ext::async call.
 	template <class Functor, class Ret>
-	class deffered_task_impl<Functor, Ret()> : public packaged_task_impl<Functor, Ret()>
+	class deferred_task_impl<Functor, Ret()> : public packaged_task_impl<Functor, Ret()>
 	{
-		typedef deffered_task_impl                    self_type;
+		typedef deferred_task_impl                    self_type;
 		typedef packaged_task_impl<Functor, Ret()>    base_type;
 
 	public:
@@ -805,8 +806,8 @@ namespace ext
 		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
 
 	public:
-		deffered_task_impl() noexcept { this->init_deffered(); }
-		deffered_task_impl(Functor func) noexcept : base_type(std::move(func)) { this->init_deffered(); }
+		deferred_task_impl() noexcept { this->init_deffered(); }
+		deferred_task_impl(Functor func) noexcept : base_type(std::move(func)) { this->init_deffered(); }
 	};
 
 	/// implements continuations(future::then, shread_future::then)
@@ -856,6 +857,23 @@ namespace ext
 	public:
 		// inherit constructors
 		using base_type::base_type;
+	};
+
+	/// implements continuations(future::then, shread_future::then) for deferred futures
+	template <class Functor, class Type>
+	class deferred_continuation_task : public continuation_task<Functor, Type>
+	{
+		typedef deferred_continuation_task         self_type;
+		typedef continuation_task<Functor, Type>   base_type;
+
+	public:
+		void wait() const override;
+		future_status wait_for(std::chrono::steady_clock::duration timeout_duration) const override { return future_status::deferred; }
+		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
+
+	public:
+		deferred_continuation_task() noexcept { this->init_deffered(); }
+		deferred_continuation_task(Functor func) noexcept : base_type(std::move(func)) { this->init_deffered(); }
 	};
 	
 	/// shared state returned by whan_any call.
@@ -1016,17 +1034,28 @@ namespace ext
 		ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>
 	{
 		typedef std::result_of_t<std::decay_t<Functor>(ext::future<Type>)> return_type;
-		
+		typedef shared_state_base<return_type> state_type;
+		ext::intrusive_ptr<state_type> state;
+
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
 		{
 			return continuation(ext::future<Type>(std::move(self_ptr)));
 		};
-		
-		typedef continuation_task<decltype(wrapped), return_type> ct_type;
-		intrusive_ptr<ct_type> ptr {new ct_type(std::move(wrapped)), ext::noaddref};
-		add_continuation(ptr.get());
-		return {ptr};
+
+		if (is_deffered())
+		{
+			typedef deferred_continuation_task<decltype(wrapped), return_type> ct_type;
+			state = make_intrusive<ct_type>(std::move(wrapped));
+		}
+		else
+		{
+			typedef continuation_task<decltype(wrapped), return_type> ct_type;
+			state = make_intrusive<ct_type>(std::move(wrapped));
+		}
+
+		add_continuation(state.get());
+		return {state};
 	}
 
 	template <class Type>
@@ -1034,18 +1063,29 @@ namespace ext
 	auto shared_state_base<Type>::shared_then(Functor && continuation) ->
 		ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>
 	{
-		typedef std::result_of_t<std::decay_t<Functor>(ext::future<Type>)> return_type;
-		
+		typedef std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)> return_type;
+		typedef shared_state_base<return_type> state_type;
+		ext::intrusive_ptr<state_type> state;
+
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
 		{
 			return continuation(ext::shared_future<Type>(std::move(self_ptr)));
 		};
-		
-		typedef continuation_task<decltype(wrapped), return_type> ct_type;
-		intrusive_ptr<ct_type> ptr {new ct_type(std::move(wrapped)), ext::noaddref};
-		add_continuation(ptr.get());
-		return {ptr};
+
+		if (is_deffered())
+		{
+			typedef deferred_continuation_task<decltype(wrapped), return_type> ct_type;
+			state = make_intrusive<ct_type>(std::move(wrapped));
+		}
+		else
+		{
+			typedef continuation_task<decltype(wrapped), return_type> ct_type;
+			state = make_intrusive<ct_type>(std::move(wrapped));
+		}
+
+		add_continuation(state.get());
+		return {state};
 	}
 
 	/************************************************************************/
@@ -1419,7 +1459,7 @@ namespace ext
 	}
 
 	template <class Functor, class Ret>
-	void deffered_task_impl<Functor, Ret()>::wait() const
+	void deferred_task_impl<Functor, Ret()>::wait() const
 	{
 		if (not ext::unconst(this)->mark_uncancellable())
 			return base_type::wait();
@@ -1448,6 +1488,22 @@ namespace ext
 	void continuation_task<Functor, Type>::continuate() noexcept
 	{
 		this->execute();
+	}
+
+	template <class Functor, class Type>
+	void deferred_continuation_task<Functor, Type>::wait() const
+	{
+		if (not ext::unconst(this)->mark_uncancellable())
+			return base_type::wait();
+
+		try
+		{
+			shared_state_execute(*ext::unconst(this), ext::unconst(this)->m_functor);
+		}
+		catch (...)
+		{
+			ext::unconst(this)->set_exception(std::current_exception());
+		}
 	}
 
 	template <class Type>
@@ -1948,7 +2004,7 @@ namespace ext
 		}
 		else //if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::deferred))
 		{
-			auto pt = ext::make_intrusive<deffered_task_impl<decltype(closure), result_type()>>(std::move(closure));
+			auto pt = ext::make_intrusive<deferred_task_impl<decltype(closure), result_type()>>(std::move(closure));
 			return ext::future<result_type>(std::move(pt));
 		}
 	}
