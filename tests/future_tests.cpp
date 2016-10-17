@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(future_when_all_tests)
 	}
 }
 
-BOOST_AUTO_TEST_CASE(future_whan_any_tests)
+BOOST_AUTO_TEST_CASE(future_when_any_tests)
 {
 	using namespace std;
 
@@ -175,5 +175,24 @@ BOOST_AUTO_TEST_CASE(future_whan_any_tests)
 	}
 }
 
+BOOST_AUTO_TEST_CASE(future_deferred_tests)
+{
+	auto f = ext::async(ext::launch::deferred, [] { return 12u; });
+	auto fc = f.then([](auto f) { return f.get() + 12u; });
+
+	BOOST_CHECK(fc.is_deffered());
+	fc.wait();
+	BOOST_CHECK(fc.is_ready());
+	BOOST_CHECK(fc.get() == 24);
+	BOOST_CHECK(not fc.valid());
+
+	auto f1 = ext::async(ext::launch::deferred, [] { return 12u; });
+	auto f2 = ext::async(ext::launch::deferred, [] { return 12u; });
+	auto fall = ext::when_all(std::move(f1), std::move(f2));
+
+	BOOST_CHECK(fall.is_ready());
+	std::tie(f1, f2) = fall.get();
+	BOOST_CHECK(f1.get() + f2.get() == 24);
+}
 
 BOOST_AUTO_TEST_SUITE_END()
