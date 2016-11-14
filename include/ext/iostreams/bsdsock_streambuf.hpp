@@ -200,11 +200,12 @@ namespace ext
 		
 #ifdef EXT_ENABLE_OPENSSL
 		error_code_type ssl_error(SSL * ssl, int error);
-		/// анализирует ошибку ssl read/wrtie операции.
-		/// res - результат операции(возращаяемое значение ::SSL_read, ::SSL_write).
+		/// анализирует ошибку ssl read/write операции.
+		/// res[in] - результат операции(возращаяемое значение ::SSL_read, ::SSL_write).
+		/// res[out] - результат ::SSL_get_error(ctx, res);
 		/// В err_code записывает итоговую ошибку.
 		/// возвращает была ли действительно ошибка, или нужно повторить операцию(реакция на EINTR).
-		bool ssl_rw_error(int res, error_code_type & err_code);		
+		bool ssl_rw_error(int & res, error_code_type & err_code);
 		/// создает ssl объект, ассоциирует его с дескриптором сокета и настраивает его.
 		/// в случае ошибок возвращает false, ssl == nullptr, m_lasterror содержит ошибку
 		bool do_createssl(SSL *& ssl, SSL_CTX * sslctx);
