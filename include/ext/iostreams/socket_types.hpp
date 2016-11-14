@@ -13,9 +13,10 @@ namespace ext
 	enum class sock_errc
 	{
 		eof      = 1,   /// socket eof, for example recv return 0, or OpenSSL returned SSL_ERR_ZERO_RETURN
+		timeout  = 2,   /// operation(connect, read, write, shutdown) timeout
 		
-		regular  = 2,   /// no a error, code == 0 or some error which is not critical, like eof(currently only eof)		
-		error    = 3,   /// opposite of regular, some bad unexpected error, which breaks normal flow, timeout, system error, etc
+		regular  = 3,   /// no a error, code == 0 or some error which is not critical, like eof(currently only eof)		
+		error    = 4,   /// opposite of regular, some bad unexpected error, which breaks normal flow, timeout, system error, etc
 	};
 
 	const std::error_category & socket_condition_category() noexcept;

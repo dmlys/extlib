@@ -343,8 +343,10 @@ namespace ext
 		if (pubres)
 		{
 			if (err == EINTR) goto again;
-			m_lasterror.assign(err, std::generic_category());
+			
 			closepipe = true;
+			if (err == ETIMEDOUT) m_lasterror = make_error_code(sock_errc::timeout);
+			else                  m_lasterror.assign(err, std::generic_category());
 		}
 		else intrreq:
 		{
@@ -608,7 +610,7 @@ namespace ext
 		int res = ::select(m_sockhandle + 1, pread_set, pwrite_set, nullptr, &timeout);
 		if (res == 0) // timeout
 		{
-			m_lasterror.assign(ETIMEDOUT, std::generic_category());
+			m_lasterror = make_error_code(sock_errc::timeout);
 			return false;
 		}
 
@@ -782,7 +784,7 @@ namespace ext
 	/*                     ssl stuff                                        */
 	/************************************************************************/
 #ifdef EXT_ENABLE_OPENSSL
-	bool bsdsock_streambuf::ssl_rw_error(int res, error_code_type & err_code)
+	bool bsdsock_streambuf::ssl_rw_error(int & res, error_code_type & err_code)
 	{
 		int err;
 
@@ -891,41 +893,67 @@ namespace ext
 	{
 		// смотри описание 2х фазного SSL_shutdown в описании функции SSL_shutdown:
 		// https://www.openssl.org/docs/manmaster/ssl/SSL_shutdown.html
-		int res = ::SSL_shutdown(ssl);
-		if (res < 0) goto error;
-		if (res == 0)
+
+		int res, fstate;
+		auto until = time_point::clock::now() + m_timeout;
+		// first shutdown
+		for (;;)
 		{
 			res = ::SSL_shutdown(ssl);
-			if (res <= 0)
-			{
-				m_lasterror = ssl_error(ssl, res);
-				// второй shutdown не получился, это может быть как ошибка,
-				// так и нам просто закрыли канал по shutdown на другой стороне. проверяем
+			if (res > 0) goto success;
 
-				handle_type sock = ::SSL_get_fd(ssl);
-				fd_set rdset;
-				FD_ZERO(&rdset);
-				FD_SET(sock, &rdset);
+			// should attempt second shutdown
+			if (res == 0) break;
 
-				struct timeval tv = {0, 0};
-				auto selres = select(0, &rdset, nullptr, nullptr, &tv);
-				if (selres <= 0) return false;
-				
-				char c;
-				auto rc = recv(sock, &c, 1, MSG_PEEK);
-				if (rc != 0) return false; // socket closed
+			if (ssl_rw_error(res, m_lasterror)) return false;
 
-				// да мы действительно получили FD_CLOSE
-				m_lasterror.clear();
-			}
+			if (res == SSL_ERROR_WANT_READ)  fstate = freadable;
+			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
+			else        /* ??? */                 fstate = freadable | fwritable;
+
+			wait_state(until, fstate);
+			continue;
 		}
 
+		// second shutdown
+		for (;;)
+		{
+			res = ::SSL_shutdown(ssl);
+			assert(res != 0);
+			if (res > 0) goto success;
+
+			if (ssl_rw_error(res, m_lasterror)) break;
+
+			if (res == SSL_ERROR_WANT_READ)  fstate = freadable;
+			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
+			else        /* ??? */                 fstate = freadable | fwritable;
+
+			wait_state(until, fstate);
+			continue;
+		}
+
+		// второй shutdown не получился, это может быть как ошибка,
+		// так и нам просто закрыли канал по shutdown на другой стороне. проверяем
+		handle_type sock = ::SSL_get_fd(ssl);
+		fd_set rdset;
+		FD_ZERO(&rdset);
+		FD_SET(sock, &rdset);
+
+		TIMEVAL tv = {0, 0};
+		auto selres = select(0, &rdset, nullptr, nullptr, &tv);
+		if (selres <= 0) return false;
+
+		char c;
+		auto rc = recv(sock, &c, 1, MSG_PEEK);
+		if (rc != 0) return false; // socket closed
+
+		// да мы действительно получили FD_CLOSE
+		m_lasterror.clear();
+
+	success:
 		res = ::SSL_clear(ssl);
-		if (res <= 0) goto error;
+		if (res > 0) return true;
 
-		return true;
-
-	error:
 		// -1 - error or nonblocking, we are always blocking
 		m_lasterror = ssl_error(ssl, res);
 		return false;

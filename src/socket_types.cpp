@@ -18,6 +18,7 @@ namespace ext
 		switch (static_cast<sock_errc>(val))
 		{
 			case sock_errc::eof:       return "end of stream";
+			case sock_errc::timeout:   return "timeout";
 			case sock_errc::regular:   return "regular, not a error";
 			case sock_errc::error:     return "socket error";
 			
