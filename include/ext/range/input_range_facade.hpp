@@ -4,7 +4,7 @@
 /// NOTE: не плохо бы иметь аналог iterator_facade,
 /// но для этого нужно определить категории ranges и их семантику
 
-/// данный класс был вдохновлен (и вообщем-то сперт :) ) следующей статьей и комментариями к ней:
+/// данный класс был вдохновлен следующей статьей и комментариями к ней:
 /// http://ericniebler.com/2013/11/07/input-iterators-vs-input-ranges/
 
 namespace ext
@@ -12,7 +12,7 @@ namespace ext
 	/// input_range_facade аналог boost::iterator_facade но только для intput range(в будущем нужно будет попробовать обобщить)
 	/// интерфейс наследуемого класса следующий:
 	/// - bool empty() - true if range is empty
-	/// - reference front() - returns reference to last readed value
+	/// - reference front() - returns reference to last read value
 	/// - void pop_front() - drops last value, and reads new one
 	///
 	/// наследуемый класс должен сделать pop_front в конструкторе
