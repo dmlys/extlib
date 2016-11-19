@@ -27,7 +27,9 @@
 #ifdef _MSC_VER
 // warning C4244: '=' : conversion from '__int64' to 'long', possible loss of data
 // warning C4244: 'initializing' : conversion from '__int64' to 'long', possible loss of data
-#pragma warning(disable : 4267 4244)
+// warning C4706: assignment within conditional expression
+// warning C4533: initialization of '<variable' is skipped by 'goto <label>'
+#pragma warning(disable : 4267 4244 4706 4533)
 #endif // _MSC_VER
 
 namespace ext
@@ -798,7 +800,7 @@ namespace ext
 			wait_state(until, fstate);
 			continue;
 		}
-
+		
 		// второй shutdown не получился, это может быть как ошибка,
 		// так и нам просто закрыли канал по shutdown на другой стороне. проверяем
 		handle_type sock = ::SSL_get_fd(ssl);

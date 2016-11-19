@@ -132,7 +132,7 @@ namespace ext
 				case codecvt::ok:
 					break;
 				case codecvt::partial:
-					// we readed some characters, convert them, got partial and converted nothing
+					// we read some characters, convert them, got partial and converted nothing
 					// we definitely stopped at some partial input
 					if (ctx.is_partial_input && ctx.from_beg == ctx.from_stopped)
 						throw conversion_failure("partial input");
@@ -146,12 +146,12 @@ namespace ext
 			}
 
 			/// tries to read more characters from wrapped streambuf and convert them to intern_type
-			/// returns true if readed some
+			/// returns true if read some
 			bool readsome(input_buffer_ctx_type & ctx)
 			{
 				move_unconverted(ctx);
-				auto readed = wrapped->sgetn(ext::unconst(ctx.from_stopped), ctx.from_end - ctx.from_stopped);
-				ctx.from_end = ctx.from_stopped + readed;
+				auto read = wrapped->sgetn(ext::unconst(ctx.from_stopped), ctx.from_end - ctx.from_stopped);
+				ctx.from_end = ctx.from_stopped + read;
 				if (ctx.from_beg == ctx.from_end) //nothing to convert after read, we are finished
 					return false;
 
@@ -205,8 +205,8 @@ namespace ext
 				initialize(*input_bufctx);
 			}
 
-			auto readed = readsome(*input_bufctx);
-			if (!readed)
+			auto read = readsome(*input_bufctx);
+			if (!read)
 				return traits_type::eof();
 
 			setg(input_bufctx->to_beg, input_bufctx->to_beg, input_bufctx->to_stopped);

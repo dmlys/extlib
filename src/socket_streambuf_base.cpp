@@ -55,18 +55,18 @@ namespace ext
 
 	std::size_t socket_streambuf_base::read_all(char_type * data, std::size_t count)
 	{
-		std::size_t readed = 0;
+		std::size_t read = 0;
 		while (count)
 		{
 			auto res = read_some(data, count);
-			if (res <= 0) return readed;
+			if (res <= 0) return read;
 
 			count -= res;
-			readed += res;
+			read += res;
 			data += res;
 		}
 
-		return readed;
+		return read;
 	}
 
 	std::streamsize socket_streambuf_base::xsgetn(char_type * ptr, std::streamsize n)
@@ -103,20 +103,20 @@ namespace ext
 			// заполняем внутренний буфер, но только до тех пор,
 			// пока не наберем нужно кол-во символов, набрали больше - ок
 			auto buf = m_input_buffer;
-			std::size_t readed = 0;
-			while (count > readed)
+			std::size_t read = 0;
+			while (count > read)
 			{
-				auto res = read_some(buf, m_buffer_size - readed);
+				auto res = read_some(buf, m_buffer_size - read);
 				if (res <= 0) break;
 
 				buf += res;
-				readed += res;
+				read += res;
 			}
 
 			// мы могли прочитать меньше чем count, если произошла ошибка, или дошли до eof
-			count = std::min(count, readed);
+			count = std::min(count, read);
 			std::copy_n(m_input_buffer, count, ptr);
-			setg(m_input_buffer, m_input_buffer + count, m_input_buffer + readed);
+			setg(m_input_buffer, m_input_buffer + count, m_input_buffer + read);
 			return count + buffer_avail;
 		}
 	}
@@ -126,10 +126,10 @@ namespace ext
 		if (m_tie_io && sync() == -1)
 			return traits_type::eof();
 
-		auto readed = read_some(m_input_buffer, m_buffer_size);
-		if (readed <= 0) return traits_type::eof();
+		auto read = read_some(m_input_buffer, m_buffer_size);
+		if (read <= 0) return traits_type::eof();
 
-		setg(m_input_buffer, m_input_buffer, m_input_buffer + readed);
+		setg(m_input_buffer, m_input_buffer, m_input_buffer + read);
 		return traits_type::to_int_type(*m_input_buffer);
 	}
 
