@@ -64,10 +64,7 @@ namespace ext
 				return end;
 
 			auto cur = end;
-			--cur;
-			
-			while (cur != beg && !is_seqbeg(*cur))
-				--cur;
+			while (--cur != beg && !is_seqbeg(*cur));
 
 			// нарушение этого assert'а возможно при некорректном utf-8, иначе же по *beg всегда должен быть seqbeg
 			assert(is_seqbeg(*cur));
