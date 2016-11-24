@@ -209,7 +209,6 @@ namespace ext
 
 	/// Shared state implementation is divided between several classes:
 	/// * shared_state_basic - type independent part, implementation of promise state, continuations
-	/// * shared_state_base  - type dependent part, interface for future, and continuations
 	/// * shared_state - type dependent part, have space for object, exception pointer
 	/// * shared_state_unexceptional - same as shared_state, but does not allow set_exception and thus not storing std::exception_ptr,
 	///                                can be used by asynchronous task not throwing exceptions
@@ -220,7 +219,6 @@ namespace ext
 	/// * when_any/all_task*  - classes for implementing when_all/any functions
 
 	class shared_state_basic;
-	template <class Type> class shared_state_base;
 	template <class Type> class shared_state;
 	template <class Type> class shared_state_unexceptional;
 
@@ -455,7 +453,33 @@ namespace ext
 		/// The behavior is undefined if valid() == false before the call to this function.
 		virtual future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const;
 
-		// get, set_value, set_exception are implemented in shared_state
+		// set_value, set_exception are implemented in shared_state
+		
+		/// type-erased get method, returns pointer to a stored value, for void future returns nullptr
+		/// for reference specializations returns stored pointer.
+		virtual void * get_ptr() = 0;
+
+	public:
+		/// typed return, type is specified explicitly, it uses get_ptr internally and necessary casts
+		template <class Type> Type get();
+
+		/// Continuation support, when future becomes fulfilled,
+		/// either by result(normal or exception) becoming available,
+		/// or cancellation request was made on this future.
+		///
+		/// Continuation is executed in the context of this future, immediately after result becomes available
+		template <class Type, class Functor>
+		auto add_unique_continuation(Functor && continuation) ->
+			ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>;
+
+		/// Continuation support, when future becomes fulfilled,
+		/// either by result(normal or exception) becoming available,
+		/// or cancellation request was made on this future.
+		///
+		/// Continuation is executed in the context of this future, immediately after result becomes available
+		template <class Type, class Functor>
+		auto add_shared_continuation(Functor && continuation) ->
+			ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>;
 
 	public:
 		shared_state_basic() = default;
@@ -469,54 +493,16 @@ namespace ext
 	inline void intrusive_ptr_add_ref(shared_state_basic * ptr) { if (ptr) ptr->addref(); }
 	inline void intrusive_ptr_release(shared_state_basic * ptr) { if (ptr) ptr->release(); }
 	inline unsigned intrusive_ptr_use_count(shared_state_basic * ptr) { return ptr ? ptr->use_count() : 0; }
-
-	/// shared_state_base - type dependent part, interface for future/shared_future,
-	/// implements continuations support, heavily based on shared_state_basic.
-	/// @Param Type - type of channel
-	template <class Type>
-	class shared_state_base : public shared_state_basic
-	{
-		typedef shared_state_basic  base_type;
-		typedef shared_state_base   self_type;
-
-	protected:
-		typedef typename std::conditional<
-			std::is_reference<Type>::value || std::is_void<Type>::value,
-			Type,
-			typename std::add_lvalue_reference<Type>::type
-		>::type return_type;
-
-	public:
-		virtual return_type get() = 0;
-
-		/// Continuation support, when future becomes fulfilled,
-		/// either by result(normal or exception) becoming available,
-		/// or cancellation request was made on this future.
-		///
-		/// Continuation is executed in the context of this future, immediately after result becomes available
-		template <class Functor>
-		auto then(Functor && continuation) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>;
-
-		/// Continuation support, when future becomes fulfilled,
-		/// either by result(normal or exception) becoming available,
-		/// or cancellation request was made on this future.
-		///
-		/// Continuation is executed in the context of this future, immediately after result becomes available
-		template <class Functor>
-		auto shared_then(Functor && continuation) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>;
-	};
-
+	
 
 	/// shared_state - type dependent part, have space for object, exception pointer.
 	/// implements get, set_value, set_exception methods, heavily based on shared_state_basic
 	/// @Param Type - type of channel, this shared state will hold value of this type
 	template <class Type>
-	class shared_state : public shared_state_base<Type>
+	class shared_state : public shared_state_basic
 	{
-		typedef shared_state_base<Type>   base_type;
-		typedef shared_state<Type>        self_type;
+		typedef shared_state_basic   base_type;
+		typedef shared_state<Type>   self_type;
 
 	public:
 		typedef Type value_type;
@@ -536,7 +522,7 @@ namespace ext
 		};
 
 	public:
-		value_type & get() override;
+		void * get_ptr() override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
 		void set_value(value_type && val);
@@ -553,10 +539,10 @@ namespace ext
 
 	/// shared_state reference specialization
 	template <class Type>
-	class shared_state<Type &> : public shared_state_base<Type &>
+	class shared_state<Type &> : public shared_state_basic
 	{
-		typedef shared_state_base<Type &>  base_type;
-		typedef shared_state<Type &>       self_type;
+		typedef shared_state_basic   base_type;
+		typedef shared_state<Type &> self_type;
 
 	public:
 		typedef Type value_type;
@@ -576,7 +562,7 @@ namespace ext
 		};
 
 	public:
-		value_type & get() override;
+		void * get_ptr() override;
 		/// fulfills promise and sets shared result val
 		void set_value(value_type & val);
 		/// fulfills promise and sets exception result ex
@@ -592,10 +578,10 @@ namespace ext
 
 	/// shared_state void specialization
 	template <>
-	class shared_state<void> : public shared_state_base<void>
+	class shared_state<void> : public shared_state_basic
 	{
-		typedef shared_state_base<void> base_type;
-		typedef shared_state<void>      self_type;
+		typedef shared_state_basic   base_type;
+		typedef shared_state<void>   self_type;
 
 	public:
 		typedef void value_type;
@@ -611,7 +597,7 @@ namespace ext
 		std::exception_ptr m_exptr;
 
 	public:
-		void get() override;
+		void * get_ptr() override;
 		/// fulfills promise and sets shared result val
 		void set_value(void);
 		/// fulfills promise and sets exception result ex
@@ -630,9 +616,9 @@ namespace ext
 	/// implements get, set_value methods, heavily based on shared_state_basic
 	/// @Param Type - type of channel, this shared state will hold value of this type
 	template <class Type>
-	class shared_state_unexceptional : public shared_state_base<Type>
+	class shared_state_unexceptional : public shared_state_basic
 	{
-		typedef shared_state_base<Type>            base_type;
+		typedef shared_state_basic                 base_type;
 		typedef shared_state_unexceptional<Type>   self_type;
 
 	public:
@@ -652,7 +638,7 @@ namespace ext
 		};
 
 	public:
-		value_type & get() override;
+		void * get_ptr() override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
 		void set_value(value_type && val);
@@ -668,9 +654,9 @@ namespace ext
 
 	/// shared_state_unexceptional reference specialization
 	template <class Type>
-	class shared_state_unexceptional<Type &> : public shared_state_base<Type &>
+	class shared_state_unexceptional<Type &> : public shared_state_basic
 	{
-		typedef shared_state_base<Type &>           base_type;
+		typedef shared_state_basic                  base_type;
 		typedef shared_state_unexceptional<Type &>  self_type;
 
 	public:
@@ -687,7 +673,7 @@ namespace ext
 		value_type * m_val;
 
 	public:
-		value_type & get() override;
+		void * get_ptr() override;
 		/// fulfills promise and sets shared result val
 		void set_value(value_type & val);
 
@@ -701,9 +687,9 @@ namespace ext
 
 	/// shared_state_unexceptional void specialization
 	template <>
-	class shared_state_unexceptional<void> : public shared_state_base<void>
+	class shared_state_unexceptional<void> : public shared_state_basic
 	{
-		typedef shared_state_base<void>           base_type;
+		typedef shared_state_basic                base_type;
 		typedef shared_state_unexceptional<void>  self_type;
 
 	public:
@@ -715,7 +701,7 @@ namespace ext
 		using base_type::set_feature_ready;
 		
 	public:
-		void get() override;
+		void * get_ptr() override;
 		/// fulfills promise and sets shared result val
 		void set_value(void);
 
@@ -1027,15 +1013,35 @@ namespace ext
 			throw future_error(make_error_code(future_errc::future_already_retrieved));
 	}
 
-
 	template <class Type>
-	template <class Functor>
-	auto shared_state_base<Type>::then(Functor && continuation) ->
+	inline Type shared_state_basic::get()
+	{
+		typedef std::conditional_t<
+			std::is_reference<Type>::value,
+			Type &,     // if reference return as from reference
+			Type &&     // if val, cast to rvalue, so we can move
+		> cast_type;
+
+		typedef std::add_pointer_t<
+			std::remove_reference_t<Type>
+		> pointer_type;
+
+		auto * val_ptr = reinterpret_cast<pointer_type>(get_ptr());
+		return static_cast<cast_type>(*val_ptr);
+	}
+
+	template <>
+	inline void shared_state_basic::get()
+	{
+		get_ptr();
+	}
+
+	template <class Type, class Functor>
+	auto shared_state_basic::add_unique_continuation(Functor && continuation) ->
 		ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>
 	{
 		typedef std::result_of_t<std::decay_t<Functor>(ext::future<Type>)> return_type;
-		typedef shared_state_base<return_type> state_type;
-		ext::intrusive_ptr<state_type> state;
+		ext::intrusive_ptr<shared_state_basic> state;
 
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
@@ -1058,14 +1064,12 @@ namespace ext
 		return {state};
 	}
 
-	template <class Type>
-	template <class Functor>
-	auto shared_state_base<Type>::shared_then(Functor && continuation) ->
+	template <class Type, class Functor>
+	auto shared_state_basic::add_shared_continuation(Functor && continuation) ->
 		ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>
 	{
 		typedef std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)> return_type;
-		typedef shared_state_base<return_type> state_type;
-		ext::intrusive_ptr<state_type> state;
+		ext::intrusive_ptr<shared_state_basic> state;
 
 		auto wrapped = [continuation = std::forward<Functor>(continuation),
 		                self_ptr = ext::intrusive_ptr<self_type>(this)]() -> return_type
@@ -1092,7 +1096,7 @@ namespace ext
 	/*          shared_state<Type>      method implementation               */
 	/************************************************************************/
 	template <class Type>
-	auto shared_state<Type>::get() -> value_type &
+	void * shared_state<Type>::get_ptr()
 	{
 		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
@@ -1100,7 +1104,7 @@ namespace ext
 		std::atomic_thread_fence(std::memory_order_acquire);
 		switch (status())
 		{
-			case future_state::value:         return m_val;
+			case future_state::value:         return &m_val;
 			case future_state::exception:     std::rethrow_exception(m_exptr);
 			case future_state::cancellation:  throw future_error(make_error_code(future_errc::cancelled));
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
@@ -1165,7 +1169,7 @@ namespace ext
 	/*          shared_state<Type &>      method implementation             */
 	/************************************************************************/
 	template <class Type>
-	auto shared_state<Type &>::get() -> value_type &
+	void * shared_state<Type &>::get_ptr()
 	{
 		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
@@ -1173,7 +1177,7 @@ namespace ext
 		std::atomic_thread_fence(std::memory_order_acquire);
 		switch (status())
 		{
-			case future_state::value:         return *m_val;
+			case future_state::value:         return ext::unconst(m_val);
 			case future_state::exception:     std::rethrow_exception(m_exptr);
 			case future_state::cancellation:  throw future_error(make_error_code(future_errc::cancelled));
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
@@ -1227,7 +1231,7 @@ namespace ext
 	/************************************************************************/
 	/*          shared_state<void>      method implementation               */
 	/************************************************************************/
-	inline void shared_state<void>::get()
+	inline void * shared_state<void>::get_ptr()
 	{
 		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
@@ -1235,7 +1239,7 @@ namespace ext
 		std::atomic_thread_fence(std::memory_order_acquire);
 		switch (status())
 		{
-			case future_state::value:         return;
+			case future_state::value:         return nullptr;
 			case future_state::exception:     std::rethrow_exception(m_exptr);
 			case future_state::cancellation:  throw future_error(make_error_code(future_errc::cancelled));
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
@@ -1285,7 +1289,7 @@ namespace ext
 	/*      shared_state_unexceptional<Type>      method implementation     */
 	/************************************************************************/
 	template <class Type>
-	auto shared_state_unexceptional<Type>::get() -> value_type &
+	void * shared_state_unexceptional<Type>::get_ptr()
 	{
 		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
@@ -1293,7 +1297,7 @@ namespace ext
 		std::atomic_thread_fence(std::memory_order_acquire);
 		switch (status())
 		{
-			case future_state::value:         return m_val;
+			case future_state::value:         return &m_val;
 			case future_state::cancellation:  throw future_error(make_error_code(future_errc::cancelled));
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
 
@@ -1348,7 +1352,7 @@ namespace ext
 	/*      shared_state_unexceptional<Type &>    method implementation     */
 	/************************************************************************/
 	template <class Type>
-	auto shared_state_unexceptional<Type &>::get() -> value_type &
+	void * shared_state_unexceptional<Type &>::get_ptr()
 	{
 		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
@@ -1356,7 +1360,7 @@ namespace ext
 		std::atomic_thread_fence(std::memory_order_acquire);
 		switch (status())
 		{
-			case future_state::value:         return *m_val;
+			case future_state::value:         return ext::unconst(m_val);
 			case future_state::cancellation:  throw future_error(make_error_code(future_errc::cancelled));
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
 
@@ -1380,7 +1384,7 @@ namespace ext
 	/************************************************************************/
 	/*        shared_state_unexceptional<void>    method implementation     */
 	/************************************************************************/
-	inline void shared_state_unexceptional<void>::get()
+	inline void * shared_state_unexceptional<void>::get_ptr()
 	{
 		this->wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
@@ -1388,7 +1392,7 @@ namespace ext
 		std::atomic_thread_fence(std::memory_order_acquire);
 		switch (status())
 		{
-			case future_state::value:         return;
+			case future_state::value:         return nullptr;
 			case future_state::cancellation:  throw future_error(make_error_code(future_errc::cancelled));
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
 
@@ -1537,7 +1541,7 @@ namespace ext
 	{
 	public:
 		typedef Type value_type;
-		typedef ext::intrusive_ptr<shared_state_base<value_type>> intrusive_ptr;
+		typedef ext::intrusive_ptr<shared_state_basic> intrusive_ptr;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -1558,13 +1562,14 @@ namespace ext
 
 		bool valid() const { return static_cast<bool>(m_ptr); }
 		bool cancel() { assert(valid()); return m_ptr->cancel(); }
-		value_type get();
+		value_type get() { assert(valid()); auto ptr = std::move(m_ptr); return ptr->template get<value_type>(); }
+
 
 		ext::shared_future<Type> share() { assert(valid()); return std::move(m_ptr); }
 
 		void wait() const { assert(valid()); return m_ptr->wait(); }
 		future_status wait_for(std::chrono::steady_clock::duration timeout_duration)  const { assert(valid()); return m_ptr->wait_for(timeout_duration); }
-		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const { assert(valid()); return m_ptr->wait_for(timeout_point); }
+		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const { assert(valid()); return m_ptr->wait_until(timeout_point); }
 
 		template <class Functor>
 		auto then(Functor && continuation) ->
@@ -1572,7 +1577,7 @@ namespace ext
 		{
 			assert(valid());
 			auto self = std::move(*this);
-			return self.m_ptr->then(continuation);
+			return self.m_ptr->template add_unique_continuation<value_type>(std::forward<Functor>(continuation));
 		}
 
 	public:
@@ -1592,7 +1597,7 @@ namespace ext
 	{
 	public:
 		typedef Type value_type;
-		typedef ext::intrusive_ptr<shared_state_base<value_type>> intrusive_ptr;
+		typedef ext::intrusive_ptr<shared_state_basic> intrusive_ptr;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -1613,18 +1618,18 @@ namespace ext
 
 		bool valid() const { return static_cast<bool>(m_ptr); }
 		bool cancel() { assert(valid()); return m_ptr->cancel(); }
-		value_type get();
+		value_type get() { assert(valid()); return m_ptr->template get<value_type>(); }
 
 		void wait() const { assert(valid()); return m_ptr->wait(); }
 		future_status wait_for(std::chrono::steady_clock::duration timeout_duration)  const { assert(valid()); return m_ptr->wait_for(timeout_duration); }
-		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const { assert(valid()); return m_ptr->wait_for(timeout_point); }
+		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const { assert(valid()); return m_ptr->wait_until(timeout_point); }
 
 		template <class Functor>
 		auto then(Functor && continuation) ->
 			ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<value_type>)>>
 		{
 			assert(valid());
-			return m_ptr->shared_then(continuation);
+			return m_ptr->template add_shared_continuation<value_type>(std::forward<Functor>(continuation));
 		}
 
 	public:
@@ -1640,40 +1645,6 @@ namespace ext
 		shared_future & operator =(shared_future &&) = default;
 		shared_future & operator =(const shared_future &) = default;
 	};
-
-
-	/************************************************************************/
-	/*               future<Type>, shared_future<Type>                      */
-	/************************************************************************/
-	template <class Type>
-	inline Type future<Type>::get()
-	{
-		typedef std::conditional_t<
-			std::is_reference<Type>::value,
-			Type &,     // if reference return as from reference
-			Type &&     // if val, cast to rvalue, so we can move
-		> cast_type;
-
-		assert(valid());
-		auto ptr = std::move(m_ptr);
-		
-		return static_cast<cast_type>(ptr->get());
-	}
-
-	template <>
-	inline void future<void>::get()
-	{
-		assert(valid());
-		m_ptr->get();
-		m_ptr.reset();
-	}
-
-	template <class Type>
-	inline Type shared_future<Type>::get()
-	{
-		assert(valid());
-		return m_ptr->get();
-	}
 
 	/************************************************************************/
 	/*                   promise<Type>                                      */
