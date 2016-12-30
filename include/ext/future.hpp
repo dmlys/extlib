@@ -216,7 +216,7 @@ namespace ext
 	/// * continuation_task   - shared_state derived class used for continuations
 	/// * continuation_waiter - shared_state derived class used as continuations which implements wait functionality
 	/// * packaged_task_impl  - packaged_task implementation
-	/// * when_any/all_task*  - classes for implementing when_all/any functions
+	/// * when_any/all_task   - classes for implementing when_all/any functions
 
 	class shared_state_basic;
 	template <class Type> class shared_state;
@@ -265,8 +265,8 @@ namespace ext
 	/// This allows easy sharing on continuation_waiter and removing it, when not needed.
 	/// 
 	///
-	/// While atomic pointers are used, slist in NOT lock-free.
-	/// Lock-free Implementation would be very hard, if possible.
+	/// While atomic pointers are used, slist is NOT lock-free.
+	/// Lock-free implementation would be very hard, if possible.
 	/// 
 	/// Instead we use pointer locking:
 	/// locking pointer - is a spin-lock loop trying to set low bit to 1, while expecting it to be 0.
@@ -360,9 +360,11 @@ namespace ext
 		/// after continuation fires - refcount decrement.
 		/// returns false if shared_state was ready and continuation fired immediately
 		static bool attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation) noexcept;
-		/// runs continuation stored by addr and decrements refcount, checks if addr is_continuation.
-		/// should be called after signal_future
-		static void run_continuation(std::uintptr_t addr) noexcept;
+		/// runs continuations slist pointed by addr, checks if addr is_continuation.
+		/// typically should be called after signal_future.
+		/// for each item in list continuate and release are called, than next item is taken from m_fstnext.
+		/// if continuate some how affects item pointed by m_fstnext it probably should set it to ready or not_a_continuation.
+		static void run_continuations(std::uintptr_t addr) noexcept;
 		/// acquires waiter from continuation list, it it has it,
 		/// or acquires it from waiter objects pool and attaches it to continuation list.
 		static auto accquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *;
@@ -381,7 +383,7 @@ namespace ext
 
 	public:
 		/// set future status to ready and runs continuations
-		virtual void set_feature_ready() noexcept;
+		virtual void set_future_ready() noexcept;
 		/// attaches continuation to the internal continuation, increments refcount.
 		/// after continuation fires - refcount decrement.
 		/// returns false if shared_state was ready and continuation fired immediately
@@ -405,10 +407,10 @@ namespace ext
 
 	public:
 		/// refcount part, use_count is for intrusive_ptr
-		unsigned addref(unsigned n = 1);
-		unsigned release();
-		unsigned use_count() const;
-
+		/* virutal */ unsigned addref(unsigned n = 1);
+		/* virutal */ unsigned release();
+		/* virutal */ unsigned use_count() const;
+		
 		/// marks future retrieval from shared state
 		void mark_retrived();
 		/// marks future cannot be cancelled(cancel call would return false),
@@ -495,6 +497,18 @@ namespace ext
 	inline unsigned intrusive_ptr_use_count(shared_state_basic * ptr) { return ptr ? ptr->use_count() : 0; }
 	
 
+	/// base class for service continuations, 
+	/// classes inheriting this class are service continuations and should not be seen to user.
+	/// they do not have result, and implement some logic on continuate method.
+	/// also they do not affect m_fstnext member leaving it as is for run_continuations method.
+	class continuation_base : public shared_state_basic
+	{
+	public:
+		void * get_ptr() override { throw std::logic_error("continuation_base::get_ptr unexpected"); };
+		void set_future_ready() noexcept override {};
+		void continuate() noexcept override = 0;
+	};
+
 	/// shared_state - type dependent part, have space for object, exception pointer.
 	/// implements get, set_value, set_exception methods, heavily based on shared_state_basic
 	/// @Param Type - type of channel, this shared state will hold value of this type
@@ -510,7 +524,7 @@ namespace ext
 	public:
 		using base_type::status;
 		using base_type::satisfy_check_promise;
-		using base_type::set_feature_ready;
+		using base_type::set_future_ready;
 		
 	protected:
 		/// shared data, type or exception
@@ -550,7 +564,7 @@ namespace ext
 	public:
 		using base_type::status;
 		using base_type::satisfy_check_promise;
-		using base_type::set_feature_ready;
+		using base_type::set_future_ready;
 		
 	protected:
 		/// shared data, type or exception
@@ -589,7 +603,7 @@ namespace ext
 	public:
 		using base_type::status;
 		using base_type::satisfy_check_promise;
-		using base_type::set_feature_ready;
+		using base_type::set_future_ready;
 		
 	protected:
 		/// shared data, type or exception
@@ -627,7 +641,7 @@ namespace ext
 	public:
 		using base_type::status;
 		using base_type::satisfy_check_promise;
-		using base_type::set_feature_ready;
+		using base_type::set_future_ready;
 		
 	protected:
 		/// shared data, type or exception
@@ -665,7 +679,7 @@ namespace ext
 	public:
 		using base_type::status;
 		using base_type::satisfy_check_promise;
-		using base_type::set_feature_ready;
+		using base_type::set_future_ready;
 		
 	protected:
 		/// shared data, type or exception
@@ -698,7 +712,7 @@ namespace ext
 	public:
 		using base_type::status;
 		using base_type::satisfy_check_promise;
-		using base_type::set_feature_ready;
+		using base_type::set_future_ready;
 		
 	public:
 		void * get_ptr() override;
@@ -716,7 +730,7 @@ namespace ext
 
 	/// Implements continuation used for waiting by shared_state_basic.
 	/// Derived from shared_state_basic, sort of recursion
-	class continuation_waiter : public shared_state_unexceptional<void>
+	class continuation_waiter : public continuation_base
 	{
 	private:
 		std::mutex m_mutex;
@@ -811,7 +825,7 @@ namespace ext
 		using base_type::attach_continuation;
 		using base_type::accquire_waiter;
 		using base_type::release_waiter;
-		using base_type::run_continuation;
+		using base_type::run_continuations;
 
 	protected:
 		/// like shared_state_basic::m_fsnext, see shared_state_basic class description.
@@ -822,7 +836,7 @@ namespace ext
 
 	protected:
 		/// set future status to ready and runs continuations
-		void set_feature_ready() noexcept override;
+		void set_future_ready() noexcept override;
 		/// attaches continuation to the internal continuation, increments refcount.
 		/// after continuation fires - refcount decrement.
 		/// returns false if shared_state was ready and continuation fired immediately
@@ -940,7 +954,7 @@ namespace ext
 
 	/// special continuation task.
 	/// Used as continuation into argument future, notifies parent when_any_task	
-	class when_any_task_continuation : public shared_state_unexceptional<void>
+	class when_any_task_continuation : public continuation_base
 	{
 		typedef shared_state_unexceptional<void>  base_type;
 		typedef when_any_task_continuation        self_type;
@@ -951,14 +965,14 @@ namespace ext
 		std::size_t m_index;
 
 	public:
-		void continuate() noexcept override { m_parent->notify_satisfied(m_index); this->set_value(); }
+		void continuate() noexcept override { m_parent->notify_satisfied(m_index); }
 
 	public:
 		when_any_task_continuation(ext::intrusive_ptr<parent_task_type> parent, std::size_t index) noexcept
 			: m_parent(std::move(parent)), m_index(index) {}
 	};
 
-	class when_all_task_continuation : public shared_state_unexceptional<void>
+	class when_all_task_continuation : public continuation_base
 	{
 		typedef shared_state_unexceptional<void>  base_type;
 		typedef when_all_task_continuation        self_type;
@@ -968,7 +982,7 @@ namespace ext
 		ext::intrusive_ptr<parent_task_type> m_parent;
 
 	public:
-		void continuate() noexcept override { m_parent->notify_satisfied(0); this->set_value(); }
+		void continuate() noexcept override { m_parent->notify_satisfied(0); }
 
 	public:
 		when_all_task_continuation(ext::intrusive_ptr<parent_task_type> parent) noexcept
@@ -1123,7 +1137,7 @@ namespace ext
 
 		// construct in uninitialized memory
 		new (&m_val) value_type(val);
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	template <class Type>
@@ -1133,7 +1147,7 @@ namespace ext
 
 		// construct in uninitialized memory
 		new (&m_val) value_type(std::move(val));
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	template <class Type>
@@ -1143,7 +1157,7 @@ namespace ext
 
 		// construct in uninitialized memory
 		new (&m_exptr) std::exception_ptr(std::move(ex));
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	template <class Type>
@@ -1195,7 +1209,7 @@ namespace ext
 		if (not satisfy_check_promise(future_state::value)) return;
 
 		m_val = &val;
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	template <class Type>
@@ -1205,7 +1219,7 @@ namespace ext
 
 		// construct in uninitialized memory
 		new (&m_exptr) std::exception_ptr(std::move(ex));
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	template <class Type>
@@ -1254,7 +1268,7 @@ namespace ext
 	inline void shared_state<void>::set_value(void)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	inline void shared_state<void>::set_exception(std::exception_ptr ex)
@@ -1262,7 +1276,7 @@ namespace ext
 		if (not satisfy_check_promise(future_state::exception)) return;
 
 		m_exptr = std::move(ex);
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	inline shared_state<void>::shared_state() noexcept {};
@@ -1316,7 +1330,7 @@ namespace ext
 
 		// construct in uninitialized memory
 		new (&m_val) value_type(val);
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	template <class Type>
@@ -1326,7 +1340,7 @@ namespace ext
 
 		// construct in uninitialized memory
 		new (&m_val) value_type(std::move(val));
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	template <class Type>
@@ -1378,7 +1392,7 @@ namespace ext
 		if (not satisfy_check_promise(future_state::value)) return;
 
 		m_val = &val;
-		set_feature_ready();
+		set_future_ready();
 	}
 
 	/************************************************************************/
@@ -1407,7 +1421,7 @@ namespace ext
 	inline void shared_state_unexceptional<void>::set_value(void)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
-		set_feature_ready();
+		set_future_ready();
 	}
 	
 	/************************************************************************/
@@ -1479,13 +1493,13 @@ namespace ext
 	}
 
 	template <class Functor, class Type>
-	void continuation_task<Functor, Type>::set_feature_ready() noexcept
+	void continuation_task<Functor, Type>::set_future_ready() noexcept
 	{
 		auto fstate = signal_future(m_task_next);
-		auto next = base_type::m_fstnext.load(std::memory_order_acquire);
-
-		run_continuation(next);
-		run_continuation(fstate);
+		run_continuations(fstate);
+		 
+		//auto next = base_type::m_fstnext.load(std::memory_order_acquire);
+		//run_continuations(next);
 	}
 
 	template <class Functor, class Type>
@@ -1518,7 +1532,7 @@ namespace ext
 		{
 			// m_val already set in constructor
 			this->satisfy_promise(future_state::value);
-			this->set_feature_ready();
+			this->set_future_ready();
 		}
 	}
 
@@ -1529,7 +1543,7 @@ namespace ext
 		{
 			this->m_val.index = index;
 			this->satisfy_promise(future_state::value);
-			this->set_feature_ready();
+			this->set_future_ready();
 		}
 	}
 
