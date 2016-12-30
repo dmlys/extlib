@@ -161,26 +161,36 @@ namespace ext
 		return true;
 	}
 
-	void shared_state_basic::run_continuation(std::uintptr_t addr) noexcept
+	void shared_state_basic::run_continuations(std::uintptr_t addr) noexcept
 	{
 		if (not is_continuation(addr)) return;
 
 		auto * ptr = reinterpret_cast<continuation_type *>(addr);
-		if (not is_waiter(ptr))
-		{
-			ptr->continuate();
-			ptr->continuation_type::release();
-		}
-		else
+		if (is_waiter(ptr))
 		{
 			auto * waiter = static_cast<continuation_waiter *>(ptr);
 			waiter->continuate();
+
+			addr = waiter->m_fstnext.load(std::memory_order_acquire);
+
 			if (waiter->release() == 1)
 			{
 				waiter->m_fstnext.store(~lock_mask, std::memory_order_relaxed);
 				ext::release_waiter(waiter);
 			}
+
+			goto loop;
 		}
+
+		do
+		{
+			ptr->continuate();
+			addr = ptr->m_fstnext.load(std::memory_order_acquire);
+			ptr->release();
+
+		loop:
+			ptr = reinterpret_cast<continuation_type *>(addr);
+		} while (is_continuation(addr));
 	}
 
 	auto shared_state_basic::accquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *
@@ -242,10 +252,10 @@ namespace ext
 		return;
 	}
 
-	void shared_state_basic::set_feature_ready() noexcept
+	void shared_state_basic::set_future_ready() noexcept
 	{
 		auto chain = signal_future(m_fstnext);
-		run_continuation(chain);
+		run_continuations(chain);
 	}
 
 	bool shared_state_basic::add_continuation(continuation_type * continuation) noexcept
@@ -376,7 +386,7 @@ namespace ext
 
 		} while (not m_promise_state.compare_exchange_weak(previous, newval, std::memory_order_relaxed));
 
-		set_feature_ready();
+		set_future_ready();
 		return true;
 	}
 
@@ -384,7 +394,7 @@ namespace ext
 	{
 		if (not satisfy_promise(future_state::abandonned)) return;
 
-		set_feature_ready();
+		set_future_ready();
 		return;
 	}
 
@@ -430,7 +440,6 @@ namespace ext
 		m_mutex.unlock();
 
 		m_var.notify_all();
-		set_value();
 	}
 
 	void continuation_waiter::wait_ready() noexcept
