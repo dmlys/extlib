@@ -26,14 +26,14 @@ namespace ext
 	unsigned thread_pool::get_nworkers() const
 	{
 		std::lock_guard<std::mutex> lk(m_mutex);
-		return static_cast<unsigned>(m_workers.size());
+		return static_cast<unsigned>(m_pending);
 	}
 
 	ext::future<void> thread_pool::set_nworkers(unsigned n)
 	{
 		std::unique_lock<std::mutex> lk(m_mutex);
+		if (n == m_pending) return ext::make_ready_future();
 		unsigned old_size = static_cast<unsigned>(m_workers.size());
-		if (n == old_size) return ext::make_ready_future();
 
 		auto first = m_workers.begin();
 		auto last = m_workers.end();
@@ -124,7 +124,7 @@ namespace ext
 
 			lk.unlock();
 
-			task_ptr->execute();
+			task_ptr->task_execute();
 		}
 	}
 
@@ -138,8 +138,8 @@ namespace ext
 		
 		actions.clear_and_dispose([](task_base * task)
 		{
-			task->abandone();
-			task->release();
+			task->task_abandone();
+			task->task_release();
 		});
 	}
 
@@ -168,8 +168,8 @@ namespace ext
 
 		tasks.clear_and_dispose([](task_base * task)
 		{
-			task->abandone();
-			task->release();
+			task->task_abandone();
+			task->task_release();
 		});
 
 		for (auto it = first; it != last; ++it)
