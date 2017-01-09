@@ -32,14 +32,17 @@ namespace ext
 		public:
 			virtual ~task_base() = default;
 
-			virtual void addref()  noexcept = 0;
-			virtual void release() noexcept = 0;
-			virtual void abandone() noexcept = 0;
-			virtual void execute() noexcept = 0;
+			// note: addref, release are present in ext::packaged_task_impl, that can issue a conflict,
+			// if signature same, but return value different - it's a error.
+			// just name them differently, it's internal private class.
+			virtual void task_addref()  noexcept = 0;
+			virtual void task_release() noexcept = 0;
+			virtual void task_abandone() noexcept = 0;
+			virtual void task_execute() noexcept = 0;
 
 		public:
-			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { if (ptr) ptr->addref(); }
-			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { if (ptr) ptr->release(); }
+			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { if (ptr) ptr->task_addref(); }
+			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { if (ptr) ptr->task_release(); }
 			friend inline void intrusive_ptr_use_count(const task_base * ptr) noexcept {}
 		};
 
@@ -52,18 +55,18 @@ namespace ext
 			typedef ext::packaged_task_impl<Functor, ResultType()> base_type;
 
 		public:
-			void addref()  noexcept override { base_type::addref(); }
-			void release() noexcept override { base_type::release(); }
-			void abandone() noexcept override { base_type::release_promise(); }
-			void execute() noexcept override { base_type::execute(); }
+			void task_addref()  noexcept override { base_type::addref(); }
+			void task_release() noexcept override { base_type::release(); }
+			void task_abandone() noexcept override { base_type::release_promise(); }
+			void task_execute() noexcept override { base_type::execute(); }
 
 		public:
 			// inherit constructors
 			using base_type::base_type;
 
 		public:
-			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { if (ptr) ptr->addref(); }
-			friend inline void intrusive_ptr_release(task_impl * ptr) noexcept { if (ptr) ptr->release(); }
+			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { if (ptr) ptr->task_addref(); }
+			friend inline void intrusive_ptr_release(task_impl * ptr) noexcept { if (ptr) ptr->task_release(); }
 			friend inline void intrusive_ptr_use_count(const task_impl * ptr) noexcept {}
 		};
 		
@@ -100,7 +103,7 @@ namespace ext
 		task_list_type m_tasks;
 
 		/// vector of worker objects, it also holds workers that are stopping.
-		/// vector is partioned by working/stopping: 
+		/// vector is always partitioned by working/stopping: 
 		///   [0, m_pending)    - working threads
 		///   [m_pending, last) - stopping threads
 		std::vector<worker_ptr> m_workers;
