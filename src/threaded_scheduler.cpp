@@ -33,7 +33,7 @@ namespace ext
 				m_queue.pop();
 			}
 		
-			item->execute();
+			item->task_execute();
 		}
 	}
 
@@ -61,7 +61,7 @@ namespace ext
 
 		while (!queue.empty())
 		{
-			queue.top()->abandone();
+			queue.top()->task_abandone();
 			queue.pop();
 		}
 
@@ -81,7 +81,7 @@ namespace ext
 			
 			while (!m_queue.empty())
 			{
-				m_queue.top()->abandone();
+				m_queue.top()->task_abandone();
 				m_queue.pop();
 			}
 		}
