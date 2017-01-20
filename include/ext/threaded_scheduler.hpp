@@ -29,14 +29,17 @@ namespace ext
 		public:
 			virtual ~task_base() = default;
 
-			virtual void addref()   noexcept = 0;
-			virtual void release()  noexcept = 0;
-			virtual void abandone() noexcept = 0;
-			virtual void execute() = 0;
+			// note: addref, release are present in ext::packaged_task_impl, that can issue a conflict,
+			// if signature same, but return value different - it's a error.
+			// just name them differently, it's internal private class.
+			virtual void task_addref()   noexcept = 0;
+			virtual void task_release()  noexcept = 0;
+			virtual void task_abandone() noexcept = 0;
+			virtual void task_execute() = 0;
 
 		public:
-			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { if (ptr) ptr->addref(); }
-			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { if (ptr) ptr->release(); }
+			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { if (ptr) ptr->task_addref(); }
+			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { if (ptr) ptr->task_release(); }
 			friend inline void intrusive_ptr_use_count(const task_base * ptr) noexcept {}
 		};
 
@@ -51,10 +54,10 @@ namespace ext
 			Functor m_functor;
 
 		public:
-			void addref()   noexcept override { base_type::addref(); }
-			void release()  noexcept override { base_type::release(); }
-			void abandone() noexcept override { base_type::release_promise(); }
-			void execute()           override { ext::shared_state_execute(*this, m_functor); }
+			void task_addref()   noexcept override { base_type::addref(); }
+			void task_release()  noexcept override { base_type::release(); }
+			void task_abandone() noexcept override { base_type::release_promise(); }
+			void task_execute()           override { ext::shared_state_execute(*this, m_functor); }
 
 		public:
 			task_impl(time_point tp, Functor func)
