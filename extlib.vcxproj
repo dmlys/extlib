@@ -69,6 +69,7 @@
     <ClInclude Include="include\ext\algorithm\binary_find.hpp" />
     <ClInclude Include="include\ext\algorithm\slide.hpp" />
     <ClInclude Include="include\ext\algorithm\tribool_compare.hpp" />
+    <ClInclude Include="include\ext\is_string.hpp" />
     <ClInclude Include="include\ext\iterator\append_iterator.hpp" />
     <ClInclude Include="include\ext\codecvt_conv.hpp" />
     <ClInclude Include="include\ext\codecvt_conv\base.hpp" />

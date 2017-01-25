@@ -470,6 +470,7 @@
     <ClInclude Include="include\ext\thread_pool.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\ext\is_string.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE_1_0.txt" />
