@@ -32,6 +32,12 @@ namespace ext
 		struct is_string<Range, true> :
 			ext::is_char_type<typename boost::range_value<Range>::type>
 		{ };
+
+		// range detection is done via boost::begin, boost::end, 
+		// and those work with std::pair, pair of anything is not a string.
+		// sort of protection from std::pair<char *, char *>, etc
+		template <class Type>
+		struct is_string<std::pair<Type, Type>, true> : std::false_type {};
 	}
 
 	template <class Type>
