@@ -10,7 +10,7 @@
 /// can have some compile problems on some platforms
 namespace ext
 {
-	namespace zip_iterator_detail
+	namespace zip_iterator_utils
 	{
 		template <class... Iterators>
 		struct deduce_common_category;
@@ -87,7 +87,7 @@ namespace ext
 			typedef typename deduce_common_category<Iterators...>::type iterator_category;
 			typedef typename std::iterator_traits<typename std::tuple_element<0, iterator_tuple>::type>::difference_type difference_type;
 		};
-	} //namespace zip_iterator_detail
+	} //namespace zip_iterator_utils
 
 	/// zip_iterator, supports reposition algorithms such as sort, partition
 	/// at least n msvc 2013, gcc 4.8 ... 4.9+ , and probably others
@@ -99,20 +99,20 @@ namespace ext
 	class zip_iterator :
 		public boost::iterator_facade<
 			zip_iterator<Iterators...>,
-			typename zip_iterator_detail::types<Iterators...>::value_type,
-			typename zip_iterator_detail::types<Iterators...>::iterator_category,
-			typename zip_iterator_detail::types<Iterators...>::reference_type,
-			typename zip_iterator_detail::types<Iterators...>::difference_type
+			typename zip_iterator_utils::types<Iterators...>::value_type,
+			typename zip_iterator_utils::types<Iterators...>::iterator_category,
+			typename zip_iterator_utils::types<Iterators...>::reference_type,
+			typename zip_iterator_utils::types<Iterators...>::difference_type
 		>
 	{
 		friend boost::iterator_core_access;
 
 		typedef boost::iterator_facade <
 			zip_iterator<Iterators...>,
-			typename zip_iterator_detail::types<Iterators...>::value_type,
-			typename zip_iterator_detail::types<Iterators...>::iterator_category,
-			typename zip_iterator_detail::types<Iterators...>::reference_type,
-			typename zip_iterator_detail::types<Iterators...>::difference_type
+			typename zip_iterator_utils::types<Iterators...>::value_type,
+			typename zip_iterator_utils::types<Iterators...>::iterator_category,
+			typename zip_iterator_utils::types<Iterators...>::reference_type,
+			typename zip_iterator_utils::types<Iterators...>::difference_type
 		> base_type;
 
 	public:
@@ -191,6 +191,9 @@ namespace ext
 
 		explicit zip_iterator(Iterators... args)
 			: m_iterators(args...) {}
+
+		explicit zip_iterator(const iterator_tuple_type & iterators)
+			: m_iterators(iterators) {}
 
 		const iterator_tuple_type & get_iterator_tuple() const { return m_iterators; }
 	};

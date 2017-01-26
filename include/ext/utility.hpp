@@ -6,6 +6,7 @@
 #include <tuple>
 #include <functional>
 //this utility.h acts as common header, so include integer_sequence
+#include <ext/type_traits.hpp>
 #include <ext/integer_sequence.hpp>
 
 namespace ext_detail_adl_helper
@@ -37,6 +38,62 @@ namespace ext
 
 	template <class Type> constexpr inline std::remove_const_t<Type> & unconst(const Type & ref) noexcept { return const_cast<std::remove_const_t<Type> &>(ref); }
 	template <class Type> constexpr inline std::remove_const_t<Type> * unconst(const Type * ptr) noexcept { return const_cast<std::remove_const_t<Type> *>(ptr); }
+
+
+	namespace detail
+	{
+		template <class Type, std::size_t>
+		using indexed_type = Type;
+	}
+
+	/// creates type by repeating Type into Template N times,
+	/// for example: repeat_type<std::tuple, int, 3>::type is std::tuple<int, int, int>
+	template <template <class...> class Template, class Type, std::size_t N, class Indices = std::make_index_sequence<N>>
+	struct repeat_type;
+
+	template <template <class...> class Template, class Type, std::size_t N, std::size_t... Indices>
+	struct repeat_type<Template, Type, N, std::index_sequence<Indices...>>
+	{
+		using type = Template<detail::indexed_type<Type, Indices>...>;
+	};
+
+	template <template <class ...> class Template, class Type, std::size_t N>
+	using repeat_type_t = typename repeat_type<Template, Type, N>::type;
+
+	template <class Type, std::size_t N>
+	using make_nth_tuple_t = repeat_type_t<std::tuple, Type, N>;
+
+
+	/// test if type is a tuple like with size N, test is done via get function.
+	/// if get<N - 1>(val) valid - it's a tuple.
+	/// for testing use is_type trait, this trait is for extension/specialization.
+	/// 
+	/// for std::tuple, boost::tuple - it's actually will not work,
+	/// because of how get function is defined for them - it's gives compilation error.
+	/// for those you can specialize this class.
+	template <class type, unsigned N>
+	struct is_decayed_type_tuplelike
+	{
+		template <class C>
+		static constexpr auto Test(int) -> decltype(ext_detail_adl_helper::adl_get<N - 1>(std::declval<C>()), ext::detail::Yes());
+
+		template <class C>
+		static constexpr auto Test(...) -> ext::detail::No;
+		
+		static constexpr bool value = (sizeof(Test<type>(0)) == sizeof(ext::detail::Yes));
+	};
+
+	template <class ... types, unsigned N>
+	struct is_decayed_type_tuplelike<std::tuple<types...>, N>
+	{
+		static constexpr bool value = sizeof...(types) >= N;
+	};
+
+
+	/// test if type is a tuple like with size N
+	template <class Type, unsigned N>
+	struct is_tuple : std::integral_constant<bool, is_decayed_type_tuplelike<std::decay_t<Type>, N>::value> {};
+
 
 
 	namespace detail
@@ -244,7 +301,6 @@ namespace ext
 		return detail::visit_tuple_impl(std::move(ts), idx, std::forward<Functor>(func),
 		                                std::index_sequence_for<Args...> {});
 	}
-
 
 	/// extracts element from tuple by idx, like get function, 
 	/// except this is functor -> can be easier passed to functions.
