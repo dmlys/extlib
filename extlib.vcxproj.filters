@@ -377,9 +377,6 @@
     <ClInclude Include="include\ext\iostreams\transform_width_decoder.hpp">
       <Filter>include\iostreams</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\iostreams\blocking_write.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\type_traits.hpp">
       <Filter>include</Filter>
     </ClInclude>
@@ -472,6 +469,12 @@
     </ClInclude>
     <ClInclude Include="include\ext\is_string.hpp">
       <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\base64.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\iostreams\write_all.hpp">
+      <Filter>include\iostreams</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
