@@ -16,6 +16,12 @@ namespace ext
 
 		template <class Type>
 		struct is_iterator<const Type *> : std::true_type {};
+
+		template <class Type>
+		struct is_iterator<Type[]> : std::true_type {};
+
+		template <class Type, std::size_t N>
+		struct is_iterator<Type[N]> : std::true_type {};
 	}
 
 	template <class Type>
