@@ -4,7 +4,7 @@
 #include <boost/numeric/conversion/cast.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/pipeline.hpp>
-#include <ext/iostreams/blocking_write.hpp>
+#include <ext/iostreams/write_all.hpp>
 
 namespace ext {
 namespace iostreams
@@ -84,7 +84,7 @@ namespace iostreams
 			// we can't return proper written count to caller.
 			// If we wrote not full group to sink, than how much data we wrote from original request?
 			// instead we better do blocking write
-			blocking_write(sink, first, last - first);
+			write_all(sink, first, last - first);
 		}
 
 		/// manages trailing groups

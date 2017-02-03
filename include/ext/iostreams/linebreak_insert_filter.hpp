@@ -5,7 +5,7 @@
 #include <boost/numeric/conversion/cast.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/pipeline.hpp>
-#include <ext/iostreams/blocking_write.hpp>
+#include <ext/iostreams/write_all.hpp>
 
 namespace ext {
 namespace iostreams
@@ -25,7 +25,7 @@ namespace iostreams
 		template <class Sink>
 		static void do_sinkwrite(Sink & sink, const char * data, std::streamsize count)
 		{
-			blocking_write(sink, data, count);
+			write_all(sink, data, count);
 		}
 
 		template <class Sink>

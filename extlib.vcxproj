@@ -62,6 +62,7 @@
     <ClCompile Include="src\winsock2_streambuf.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\ext\base64.hpp" />
     <ClInclude Include="include\ext\config.hpp" />
     <ClInclude Include="include\ext\cppzlib.hpp" />
     <ClInclude Include="include\ext\functors\indirect_functor.hpp" />
@@ -90,7 +91,7 @@
     <ClInclude Include="include\ext\iostreams\winsock2_stream.hpp" />
     <ClInclude Include="include\ext\iostreams\winsock2_streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\socket_stream.hpp" />
-    <ClInclude Include="include\ext\iostreams\blocking_write.hpp" />
+    <ClInclude Include="include\ext\iostreams\write_all.hpp" />
     <ClInclude Include="include\ext\iostreams\basic_base_encoder.hpp" />
     <ClInclude Include="include\ext\iostreams\transform_width_decoder.hpp" />
     <ClInclude Include="include\ext\iostreams\transform_width_encoder.hpp" />
