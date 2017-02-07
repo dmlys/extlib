@@ -473,7 +473,10 @@
     <ClInclude Include="include\ext\base64.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\iostreams\write_all.hpp">
+    <ClInclude Include="include\ext\range\as_literal.hpp">
+      <Filter>include\range</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\iostreams\write.hpp">
       <Filter>include\iostreams</Filter>
     </ClInclude>
   </ItemGroup>

@@ -2,10 +2,9 @@
 #include <ciso646>
 #include <algorithm>
 #include <ext/is_iterator.hpp>
-#include <ext/range/range_traits.hpp>
-#include <ext/iostreams/write_all.hpp>
+#include <ext/range.hpp>
+#include <ext/iostreams/write.hpp>
 
-#include <boost/range/as_literal.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/binary_from_base64.hpp>
@@ -61,16 +60,16 @@ namespace ext
 	encode_base64(const InputRange & input, OutputContainer & out)
 	{
 		using namespace base64;
+		auto inplit = ext::as_literal(input);
 
-		typedef typename boost::range_iterator<const InputRange>::type input_iterator;
+		typedef typename boost::range_iterator<decltype(inplit)>::type input_iterator;
 		typedef encode_itearator<input_iterator> base64_itearator;
 
-		auto inp = boost::as_literal(input);
-		auto out_size = encode_estimation(boost::size(inp));
+		auto out_size = encode_estimation(boost::size(inplit));
 		out.resize(out_size);		
 
-		base64_itearator first = boost::begin(inp);
-		base64_itearator last = boost::end(inp);
+		base64_itearator first = boost::begin(inplit);
+		base64_itearator last = boost::end(inplit);
 		auto out_beg = boost::begin(out);
 		auto out_end = boost::end(out);
 
@@ -111,8 +110,8 @@ namespace ext
 	inline std::enable_if_t<not ext::is_range<Sink>::value>
 	encode_base64(const InputRange & input, Sink & out)
 	{
-		auto inp = boost::as_literal(input);
-		encode_base64(boost::begin(inp), boost::end(inp), out);
+		auto inplit = ext::as_literal(input);
+		encode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 
@@ -132,16 +131,16 @@ namespace ext
 	decode_base64(const InputRange & input, OutputContainer & out)
 	{
 		using namespace base64;
+		auto inplit = ext::as_literal(input);
 
-		typedef typename boost::range_iterator<const InputRange>::type input_iterator;
+		typedef typename boost::range_iterator<decltype(inplit)>::type input_iterator;
 		typedef decode_itearator<input_iterator> base64_itearator;
 
-		auto inp = boost::as_literal(input);
-		auto out_size = decode_estimation(boost::size(inp));
+		auto out_size = decode_estimation(boost::size(inplit));
 		out.resize(out_size);
 
-		base64_itearator first = boost::begin(inp);
-		base64_itearator last = boost::end(inp);
+		base64_itearator first = boost::begin(inplit);
+		base64_itearator last = boost::end(inplit);
 		auto out_beg = boost::begin(out);
 		auto out_end = boost::end(out);
 
@@ -179,7 +178,7 @@ namespace ext
 	inline std::enable_if_t<not ext::is_range<Sink>::value>
 	decode_base64(const InputRange & input, Sink & out)
 	{
-		auto inp = boost::as_literal(input);
-		decode_base64(boost::begin(inp), boost::end(inp), out);
+		auto inplit = ext::as_literal(input);
+		decode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 }

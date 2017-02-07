@@ -2,10 +2,8 @@
 #include <ext/type_traits.hpp>
 
 #include <boost/predef.h>
+#include <boost/range.hpp>
 #include <boost/utility/declval.hpp>
-#include <boost/range/metafunctions.hpp>
-#include <boost/range/functions.hpp>
-#include <boost/range/iterator_range.hpp>
 
 namespace ext
 {

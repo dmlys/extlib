@@ -91,7 +91,7 @@
     <ClInclude Include="include\ext\iostreams\winsock2_stream.hpp" />
     <ClInclude Include="include\ext\iostreams\winsock2_streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\socket_stream.hpp" />
-    <ClInclude Include="include\ext\iostreams\write_all.hpp" />
+    <ClInclude Include="include\ext\iostreams\write.hpp" />
     <ClInclude Include="include\ext\iostreams\basic_base_encoder.hpp" />
     <ClInclude Include="include\ext\iostreams\transform_width_decoder.hpp" />
     <ClInclude Include="include\ext\iostreams\transform_width_encoder.hpp" />
@@ -112,6 +112,7 @@
     <ClInclude Include="include\ext\range\adaptors\moved.hpp" />
     <ClInclude Include="include\ext\range\adaptors\pair.hpp" />
     <ClInclude Include="include\ext\range\array_wrapper.hpp" />
+    <ClInclude Include="include\ext\range\as_literal.hpp" />
     <ClInclude Include="include\ext\range\combine.hpp" />
     <ClInclude Include="include\ext\range\input_range_facade.hpp" />
     <ClInclude Include="include\ext\range\istream_range.hpp" />
