@@ -172,19 +172,6 @@ namespace ext
 			typedef typename std::remove_cv<typename std::remove_reference<Type>::type>::type DecayedType;
 			static const bool value = sizeof(Test<DecayedType>(0)) == sizeof(detail::Yes);
 		};
-
-
-		template <class Type, typename Range, class = typename boost::has_range_iterator<Range>::type>
-		struct is_range_of_test
-		{
-			static const bool value = false;
-		};
-
-		template <class Type, typename Range>
-		struct is_range_of_test<Type, Range, boost::mpl::true_>
-		{
-			static const bool value = std::is_same<Type, typename boost::range_value<Range>::type>::value;
-		};
 	}
 
 	/// checks is there is resize method on type Type
@@ -227,11 +214,24 @@ namespace ext
 		>
 	{};
 
+
+	template <typename Range, typename Default = void, bool = ext::is_range<Range>::value>
+	struct range_value
+	{
+		typedef Default type;
+	};
+
+	template <typename Range, typename Default>
+	struct range_value<Range, Default, true>
+	{
+		typedef typename boost::range_value<Range>::type type;
+	};
+
+	template <typename Range, typename Default = void>
+	using range_value_t = typename range_value<Range, Default>::type;
+
+
 	template <typename Range, typename Type>
 	struct is_range_of :
-		std::integral_constant<bool,
-			is_range<Range>::value &&
-			detail::is_range_of_test<Type, Range>::value
-		>
-	{};
+		std::is_same<range_value_t<Range>, Type> {};
 }
