@@ -43,6 +43,14 @@ namespace ext
 	template <class Type>
 	struct is_string : detail::is_string<Type> {};
 
+	template <class CharType>
+	struct is_string<CharType *> : is_char_type<CharType> {};
+
+	template <class CharType>
+	struct is_string<CharType[]> : is_char_type<CharType> {};
+
+	template <class CharType, std::size_t N>
+	struct is_string<CharType[N]> : is_char_type<CharType> {};
 
 
 	namespace detail
