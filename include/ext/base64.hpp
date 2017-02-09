@@ -66,11 +66,12 @@ namespace ext
 		typedef encode_itearator<input_iterator> base64_itearator;
 
 		auto out_size = encode_estimation(boost::size(inplit));
-		out.resize(out_size);		
+		auto old_size = out.size();
+		out.resize(old_size + out_size);
 
 		base64_itearator first = boost::begin(inplit);
 		base64_itearator last = boost::end(inplit);
-		auto out_beg = boost::begin(out);
+		auto out_beg = boost::begin(out) + old_size;
 		auto out_end = boost::end(out);
 
 		auto stopped = std::copy(first, last, out_beg);
@@ -136,13 +137,14 @@ namespace ext
 		typedef typename boost::range_iterator<decltype(inplit)>::type input_iterator;
 		typedef decode_itearator<input_iterator> base64_itearator;
 
+		// we are appending
 		auto out_size = decode_estimation(boost::size(inplit));
-		out.resize(out_size);
+		auto old_size = out.size();
+		out.resize(old_size + out_size);
 
 		base64_itearator first = boost::begin(inplit);
 		base64_itearator last = boost::end(inplit);
-		auto out_beg = boost::begin(out);
-		auto out_end = boost::end(out);
+		auto out_beg = boost::begin(out) + old_size;
 
 		std::copy(first, last, out_beg);		
 	}

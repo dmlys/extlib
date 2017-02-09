@@ -11,7 +11,6 @@
 #include <ext/range/range_traits.hpp>
 #include <boost/range/as_literal.hpp> // needed for some boost::range char * integration
 
-
 namespace ext
 {	
 	/// same as boost::as_literal, but always returns iterator_range of pointers(boost::iterator_range<Type *>),
@@ -21,7 +20,6 @@ namespace ext
 	inline auto as_literal(String & str) ->
 		boost::iterator_range<typename boost::range_value<String>::type *>
 	{
-		BOOST_STATIC_ASSERT((ext::is_contiguous_container<String>::value));
 		auto * ptr = ext::data(str);
 		return {ptr, ptr + boost::size(str)};
 	}
@@ -30,7 +28,6 @@ namespace ext
 	inline auto as_literal(const String & str) ->
 		boost::iterator_range<typename boost::range_value<String>::type const *>
 	{
-		BOOST_STATIC_ASSERT((ext::is_contiguous_container<String>::value));
 		auto * ptr = ext::data(str);
 		return {ptr, ptr + boost::size(str)};
 	}
