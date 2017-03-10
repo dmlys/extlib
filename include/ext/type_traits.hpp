@@ -21,4 +21,52 @@ namespace ext
 		struct No { char unused[2]; };
 		static_assert(sizeof(Yes) != sizeof(No), "");
 	}
+
+
+	namespace detail
+	{
+		template <class Type, class = void>
+		struct is_iterator : std::false_type {};
+
+		template <class Type>
+		struct is_iterator<Type, void_t<typename Type::iterator_category>> : std::true_type {};
+
+		template <class Type>
+		struct is_iterator<Type *> : std::true_type {};
+
+		template <class Type>
+		struct is_iterator<const Type *> : std::true_type {};
+
+		template <class Type>
+		struct is_iterator<Type[]> : std::true_type {};
+
+		template <class Type, std::size_t N>
+		struct is_iterator<Type[N]> : std::true_type {};
+	}
+
+	template <class Type>
+	struct is_iterator : detail::is_iterator<Type> {};
+
+
+
+	template <class Target, class Type, class = void>
+	struct static_castable : std::false_type {};
+
+	template <class Target, class Type>
+	struct static_castable<Target, Type, ext::void_t<decltype(static_cast<Target>(std::declval<Type>()))>>
+		: std::true_type {};
+
+	template <class Target, class Type, class = void>
+	struct dynamic_castable : std::false_type {};
+
+	template <class Target, class Type>
+	struct dynamic_castable<Target, Type, ext::void_t<decltype(dynamic_cast<Target>(std::declval<Type>()))>>
+		: std::true_type {};
+
+	template <class Target, class Type, class = void>
+	struct reinterpret_castable : std::false_type {};
+
+	template <class Target, class Type>
+	struct reinterpret_castable<Target, Type, ext::void_t<decltype(reinterpret_cast<Target>(std::declval<Type>()))>>
+		: std::true_type {};
 }

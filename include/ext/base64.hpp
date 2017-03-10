@@ -1,8 +1,8 @@
 #pragma once
 #include <ciso646>
 #include <algorithm>
-#include <ext/is_iterator.hpp>
 #include <ext/range.hpp>
+#include <ext/type_traits.hpp>
 #include <ext/iostreams/write.hpp>
 
 #include <boost/archive/iterators/transform_width.hpp>

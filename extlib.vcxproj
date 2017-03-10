@@ -188,7 +188,6 @@
     <ClInclude Include="include\ext\varalgo\unique_copy.hpp" />
     <ClInclude Include="include\ext\varalgo\upper_bound.hpp" />
     <ClInclude Include="include\ext\iterator\zip_iterator.hpp" />
-    <ClInclude Include="include\ext\is_iterator.hpp" />
     <ClInclude Include="include\ext\type_traits.hpp" />
   </ItemGroup>
   <ItemGroup>
