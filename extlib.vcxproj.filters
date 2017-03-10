@@ -380,9 +380,6 @@
     <ClInclude Include="include\ext\type_traits.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\is_iterator.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\iostreams\socket_streambuf_base.hpp">
       <Filter>include\iostreams</Filter>
     </ClInclude>

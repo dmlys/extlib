@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <utility>   // for std::declval
 
-#include <ext/is_iterator.hpp>
+#include <ext/type_traits.hpp>
 #include <boost/config.hpp>
 
 namespace ext
