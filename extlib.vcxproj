@@ -191,7 +191,7 @@
     <ClInclude Include="include\ext\type_traits.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="LICENSE_1_0.txt" />
+    <Text Include="LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="vsnatvis\ext.natvis" />
