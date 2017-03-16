@@ -14,7 +14,7 @@ namespace ext
 
 		struct heap_body
 		{
-			unsigned refs = 0;
+			unsigned refs = 1;
 			std::size_t size;
 			std::size_t capacity;
 			char buffer[1];

@@ -395,7 +395,7 @@ namespace ext
 	class intrusive_atomic_counter
 	{
 	protected:
-		std::atomic<unsigned> m_refs = {0};
+		std::atomic<unsigned> m_refs = {1};
 
 	public:
 		intrusive_atomic_counter() = default;
@@ -459,7 +459,7 @@ namespace ext
 	class intrusive_plain_counter
 	{
 	protected:
-		unsigned m_refs = 0;
+		unsigned m_refs = 1;
 
 	public:
 		intrusive_plain_counter() = default;
