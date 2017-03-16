@@ -13,7 +13,6 @@ namespace ext
 		body.size = 0;
 		body.buffer[0] = 0;
 		
-		intrusive_ptr_add_ref(&body);
 		return body;
 	}
 
@@ -70,9 +69,7 @@ namespace ext
 		new (body) cow_string_body::heap_body;
 
 		body->capacity = body->size = ptr->size;
-		std::memcpy(body->buffer, ptr->buffer, ptr->size);
-
-		intrusive_ptr_add_ref(body);
+		std::memcpy(body->buffer, ptr->buffer, ptr->size);		
 	}
 
 	auto cow_string_body::alloc_body_adjusted(const heap_body & body, size_type newcap) -> heap_body *
