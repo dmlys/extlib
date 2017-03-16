@@ -1,8 +1,7 @@
 #pragma once
+#include <cassert>
 #include <ostream>
-#include <boost/config.hpp>
-#include <boost/assert.hpp>
-#include <ext/utility.hpp>
+#include <utility>
 
 namespace ext { namespace library_logger
 {
@@ -106,9 +105,9 @@ namespace ext { namespace library_logger
 
 	public:
 		record() = default;
-		record(record && rec) BOOST_NOEXCEPT : rctx(rec.rctx), owner(rec.owner)  { rec.rctx = nullptr; rec.owner = nullptr; }
-		record & operator =(record && rec) BOOST_NOEXCEPT                        { rctx = exchange(rec.rctx, nullptr); owner = exchange(rec.owner, nullptr); return *this; }
-		~record() BOOST_NOEXCEPT                                                 { if (owner) owner->discard_record(*this); }
+		record(record && rec) noexcept : rctx(rec.rctx), owner(rec.owner)  { rec.rctx = nullptr; rec.owner = nullptr; }
+		record & operator =(record && rec) noexcept                        { rctx = std::exchange(rec.rctx, nullptr); owner = std::exchange(rec.owner, nullptr); return *this; }
+		~record() noexcept                                                 { if (owner) owner->discard_record(*this); }
 
 		//noncopyable
 		record(record const & rec) = delete;
@@ -125,7 +124,7 @@ namespace ext { namespace library_logger
 
 	inline std::ostream & logger::record::get_ostream()
 	{
-		BOOST_ASSERT(rctx);
+		assert(rctx);
 		return *rctx->os;
 	}
 
@@ -140,13 +139,13 @@ namespace ext { namespace library_logger
 
 	inline void logger::push_record(record & rec)
 	{
-		auto rctx = exchange(rec.rctx, nullptr);
+		auto rctx = std::exchange(rec.rctx, nullptr);
 		if (rctx) do_push_record(rctx);
 	}
 
 	inline void logger::discard_record(record & rec)
 	{
-		auto rctx = exchange(rec.rctx, nullptr);
+		auto rctx = std::exchange(rec.rctx, nullptr);
 		if (rctx) do_discard_record(rec.rctx);
 	}
 
