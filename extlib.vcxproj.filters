@@ -164,9 +164,6 @@
     <ClInclude Include="include\ext\library_logger\logger.hpp">
       <Filter>include\library_logger</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\library_logger\simple_logger.hpp">
-      <Filter>include\library_logger</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\library_logger\logging_macros.hpp">
       <Filter>include\library_logger</Filter>
     </ClInclude>
@@ -478,7 +475,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="LICENSE_1_0.txt" />
+    <Text Include="LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="vsnatvis\ext.natvis" />

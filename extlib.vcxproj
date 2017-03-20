@@ -100,7 +100,6 @@
     <ClInclude Include="include\ext\join_into.hpp" />
     <ClInclude Include="include\ext\library_logger\logger.hpp" />
     <ClInclude Include="include\ext\library_logger\logging_macros.hpp" />
-    <ClInclude Include="include\ext\library_logger\simple_logger.hpp" />
     <ClInclude Include="include\ext\lrucache.hpp" />
     <ClInclude Include="include\ext\openssl.hpp" />
     <ClInclude Include="include\ext\iterator\outdirect_iterator.hpp" />
