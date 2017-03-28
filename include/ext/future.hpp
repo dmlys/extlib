@@ -108,7 +108,7 @@ namespace ext
 		std::integral_constant<bool, is_future_type<Head>::value && is_future_types<Tail...>::value> {};
 
 
-	/// result of whan_any call
+	/// result of when_any call
 	template <class Sequence>
 	struct when_any_result
 	{
@@ -1964,6 +1964,23 @@ namespace ext
 		ptr->set_value();
 		return {ptr};
 	}
+
+	template <class Type>
+	ext::future<Type> make_exceptional_future(std::exception_ptr ex)
+	{
+		auto ptr = ext::make_intrusive<ext::shared_state<Type>>();
+		ptr->set_exception(std::move(ex));
+		return {ptr};
+	}
+	
+	template <class Type, class Exception>
+	ext::future<Type> make_exceptional_future(Exception ex)
+	{
+		auto ptr = ext::make_intrusive<ext::shared_state<Type>>();
+		ptr->set_exception(std::make_exception_ptr(std::move(ex)));
+		return {ptr};
+	}
+	
 
 	template<class Function, class... Args>
 	auto async(ext::launch policy, Function && func, Args && ... args) ->

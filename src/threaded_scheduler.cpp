@@ -3,6 +3,19 @@
 
 namespace ext
 {
+	static constexpr auto max_timepoint()
+	{
+		// MSVC 2015 and some version of gcc have a bug, 
+		// that waiting in std::chrono::steady_clock::time_point::max() 
+		// does not work due to integer overflow internally.
+		// 
+		// Prevent this by returning twice time_point::max() / 2, value still will be quite a big
+
+		return std::chrono::steady_clock::time_point {
+			std::chrono::steady_clock::duration {std::chrono::steady_clock::duration::max().count() / 2}
+		};
+	}
+
 	bool threaded_scheduler::entry_comparer::operator()(const task_ptr & t1, const task_ptr & t2) const noexcept
 	{
 		// priority_queue with std::less provides constant lookup for greathest element, we need smallest
@@ -12,7 +25,7 @@ namespace ext
 	template <class Lock>
 	inline auto threaded_scheduler::next_in(Lock & lk) const -> time_point
 	{
-		return m_queue.empty() ? time_point::max() : m_queue.top()->point;
+		return m_queue.empty() ? max_timepoint() : m_queue.top()->point;
 	}
 
 	void threaded_scheduler::run_passed_events()
