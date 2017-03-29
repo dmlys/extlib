@@ -48,6 +48,7 @@ namespace ext
 
 		typedef encode_itearator<RandomAccessIterator> base64_iterator;
 		auto count = InputGroupSize - (last - first) % InputGroupSize;
+		count %= InputGroupSize;
 		
 		out = std::copy(base64_iterator(first), base64_iterator(last), out);
 		out = std::fill_n(out, count, '=');
