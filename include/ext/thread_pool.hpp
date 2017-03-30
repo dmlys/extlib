@@ -41,8 +41,8 @@ namespace ext
 			virtual void task_execute() noexcept = 0;
 
 		public:
-			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { if (ptr) ptr->task_addref(); }
-			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { if (ptr) ptr->task_release(); }
+			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { ptr->task_addref(); }
+			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { ptr->task_release(); }
 			friend inline void intrusive_ptr_use_count(const task_base * ptr) noexcept {}
 		};
 
@@ -65,8 +65,8 @@ namespace ext
 			using base_type::base_type;
 
 		public:
-			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { if (ptr) ptr->task_addref(); }
-			friend inline void intrusive_ptr_release(task_impl * ptr) noexcept { if (ptr) ptr->task_release(); }
+			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { ptr->task_addref(); }
+			friend inline void intrusive_ptr_release(task_impl * ptr) noexcept { ptr->task_release(); }
 			friend inline void intrusive_ptr_use_count(const task_impl * ptr) noexcept {}
 		};
 		

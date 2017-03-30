@@ -23,31 +23,23 @@ namespace ext
 	/// 
 	/// all functions, even those who actually not need it, 
 	/// take pointer as argument, so functions can be provided on ADL basis.
-	///
-	/// default constructed intrusive_ptr holds a value returned by intrusive_ptr_default, 
-	/// which is typically nullptr, but can be some shared empty val.
-	/// 
-	/// if default state is nullptr - then nullptr checks must be done 
-	/// in intrusive_ptr_* functions, helper classes already do them
-	/// 
-	/// if default state is some shared empty object, then nullptr checks can be omitted
 	/// 
 	/// Functions description:
 	/// * void intrusive_ptr_add_ref(value_type * ptr) 
 	///        increase reference counter
 	///        typical implementation would be:
-	///        if (ptr) { ++ptr->refs }
+	///        ++ptr->refs
 	/// 
 	/// * void intrusive_ptr_release(value_type * ptr)
 	///        decreases reference counter and deletes object if counter reaches 0
 	///        typical implementation would be:
-	///        if (ptr && --ptr->refs == 0)
+	///        if (--ptr->refs == 0)
 	///           delete ptr;
 	/// 
 	/// * auto intrusive_ptr_use_count(const value_type * ptr) -> ${ariphmetic type}
 	///        returns current refs. for nullptr should return 0
 	///        typical implementation would be:
-	///        return ptr ? ptr->refs : 0;
+	///        return ptr->refs;
 	template <class Type>
 	class intrusive_ptr :
 		boost::totally_ordered<intrusive_ptr<Type>, const Type *,
@@ -66,19 +58,19 @@ namespace ext
 		value_type * m_ptr = nullptr;
 
 	public:
-		auto use_count() const noexcept { return intrusive_ptr_use_count(m_ptr); }
-		auto addref()          noexcept { return intrusive_ptr_add_ref(m_ptr); }
-		auto subref()          noexcept { return intrusive_ptr_release(m_ptr); }
+		auto use_count() const noexcept { return m_ptr ? intrusive_ptr_use_count(m_ptr) : 0; }
+		void addref()          noexcept { if (m_ptr) intrusive_ptr_add_ref(m_ptr); }
+		void subref()          noexcept { if (m_ptr) intrusive_ptr_release(m_ptr); }
 
 		// releases the ownership of the managed object if any.
 		// get() returns nullptr after the call. Same as unique_ptr::release
 		auto release() noexcept { return std::exchange(m_ptr, nullptr); }
 
 		// reset returns whatever intrusive_ptr_release returns(including void)
-		auto reset(value_type * ptr)                noexcept;
-		auto reset(value_type * ptr, noaddref_type) noexcept;
-		auto reset(value_type * ptr, bool add_ref)  noexcept;
-		auto reset()                                noexcept { return reset(nullptr); }
+		void reset(value_type * ptr)                noexcept;
+		void reset(value_type * ptr, noaddref_type) noexcept;
+		void reset(value_type * ptr, bool add_ref)  noexcept;
+		void reset()                                noexcept { return reset(nullptr); }
 
 		value_type * get() const noexcept { return m_ptr; }
 		value_type & operator *() const noexcept { return *get(); }
@@ -94,14 +86,14 @@ namespace ext
 		bool operator ==(const value_type * ptr) const noexcept { return m_ptr == ptr; }
 
 	public:
-		explicit intrusive_ptr(value_type * ptr)                noexcept : m_ptr(ptr) { intrusive_ptr_add_ref(m_ptr); }
+		explicit intrusive_ptr(value_type * ptr)                noexcept : m_ptr(ptr) { addref(); }
 		explicit intrusive_ptr(value_type * ptr, noaddref_type) noexcept : m_ptr(ptr) { }
-		explicit intrusive_ptr(value_type * ptr, bool add_ref)  noexcept : m_ptr(ptr) { if (add_ref) intrusive_ptr_add_ref(m_ptr); }
+		explicit intrusive_ptr(value_type * ptr, bool add_ref)  noexcept : m_ptr(ptr) { if (add_ref) addref(); }
 
 		intrusive_ptr()  noexcept : m_ptr(nullptr) {};
-		~intrusive_ptr() noexcept { intrusive_ptr_release(m_ptr); }
+		~intrusive_ptr() noexcept { subref(); }
 
-		intrusive_ptr(const self_type & op) noexcept : m_ptr(op.m_ptr) { intrusive_ptr_add_ref(m_ptr); }
+		intrusive_ptr(const self_type & op) noexcept : m_ptr(op.m_ptr) { addref(); }
 		intrusive_ptr(self_type && op)      noexcept : m_ptr(op.release()) {}
 
 		intrusive_ptr & operator =(const self_type & op) noexcept { if (this != &op) reset(op.m_ptr);                return *this; }
@@ -113,35 +105,35 @@ namespace ext
 		intrusive_ptr(const intrusive_ptr<Other> & other) noexcept
 			: m_ptr(other.get())
 		{
-			intrusive_ptr_add_ref(m_ptr);
+			addref();
 		}
 
 		// for instrusive_ptr p = nullptr;
 		intrusive_ptr(std::nullptr_t) : m_ptr(nullptr) {};
-		intrusive_ptr & operator =(std::nullptr_t) noexcept { intrusive_ptr_release(m_ptr); m_ptr = nullptr; return *this; }
+		intrusive_ptr & operator =(std::nullptr_t) noexcept { subref(); m_ptr = nullptr; return *this; }
 	};
 
 	template <class Type>
-	auto intrusive_ptr<Type>::reset(value_type * ptr) noexcept
+	void intrusive_ptr<Type>::reset(value_type * ptr) noexcept
 	{
-		std::swap(ptr, m_ptr);
-		intrusive_ptr_add_ref(m_ptr);
-		return intrusive_ptr_release(ptr);
+		subref();
+		m_ptr = ptr;
+		addref();
 	}
 
 	template <class Type>
-	auto intrusive_ptr<Type>::reset(value_type * ptr, noaddref_type) noexcept
+	void intrusive_ptr<Type>::reset(value_type * ptr, noaddref_type) noexcept
 	{
-		std::swap(ptr, m_ptr);
-		return intrusive_ptr_release(ptr);
+		subref();
+		m_ptr = ptr;
 	}
 
 	template <class Type>
-	auto intrusive_ptr<Type>::reset(value_type * ptr, bool add_ref) noexcept
+	void intrusive_ptr<Type>::reset(value_type * ptr, bool add_ref) noexcept
 	{
-		std::swap(ptr, m_ptr);
-		if (add_ref) intrusive_ptr_add_ref(m_ptr);
-		return intrusive_ptr_release(ptr);
+		subref();
+		m_ptr = ptr;
+		if (add_ref) addref();
 	}
 
 	template <class Type, class ... Args>
@@ -198,27 +190,23 @@ namespace ext
 	/// default constructed intrusive_cow_ptr holds a value returned by intrusive_ptr_default, 
 	/// which is typically nullptr, but can be some shared empty val.
 	/// 
-	/// if default state is nullptr - then nullptr checks must be done 
-	/// in intrusive_ptr_* functions, helper classes already do them
-	/// 
-	/// if default state is some shared empty object, then nullptr checks can be omitted
 	/// 
 	/// Functions description:
 	/// * void intrusive_ptr_add_ref(value_type * ptr) 
 	///        increase reference counter
 	///        typical implementation would be:
-	///        if (ptr) { ++ptr->refs }
+	///        ++ptr->refs
 	/// 
 	/// * void intrusive_ptr_release(value_type * ptr)
 	///        decreases reference counter and deletes object if counter reaches 0
 	///        typical implementation would be:
-	///        if (ptr && --ptr->refs == 0)
+	///        if (--ptr->refs == 0)
 	///           delete ptr;
 	/// 
 	/// * auto intrusive_ptr_use_count(const value_type * ptr) -> ${ariphmetic type}
 	///        returns current refs. for nullptr should return 0
 	///        typical implementation would be:
-	///        return ptr ? ptr->refs : 0;
+	///        return ptr->refs;
 	/// 
 	/// * auto intrusive_ptr_default(const value_type *) -> value_type */std::nullptr_t
 	/// 
@@ -258,19 +246,19 @@ namespace ext
 		static value_type * defval() noexcept { return intrusive_ptr_default(static_cast<value_type *>(nullptr)); }
 
 	public:
-		auto use_count() const noexcept { return intrusive_ptr_use_count(m_ptr); }
-		auto addref()          noexcept { return intrusive_ptr_add_ref(m_ptr); }
-		auto subref()          noexcept { return intrusive_ptr_release(m_ptr); }
+		auto use_count() const noexcept { return m_ptr ? intrusive_ptr_use_count(m_ptr) : 0; }
+		void addref()          noexcept { if (m_ptr) intrusive_ptr_add_ref(m_ptr); }
+		void subref()          noexcept { if (m_ptr) intrusive_ptr_release(m_ptr); }
 
 		// releases the ownership of the managed object if any.
 		// get() returns nullptr after the call. Same as unique_ptr::release
 		auto release() noexcept { return std::exchange(m_ptr, defval()); }
 
 		// reset returns whatever intrusive_ptr_release returns(including void)
-		auto reset(value_type * ptr)                noexcept;
-		auto reset(value_type * ptr, noaddref_type) noexcept;
-		auto reset(value_type * ptr, bool add_ref)  noexcept;
-		auto reset()                                noexcept { return reset(defval()); }
+		void reset(value_type * ptr)                noexcept;
+		void reset(value_type * ptr, noaddref_type) noexcept;
+		void reset(value_type * ptr, bool add_ref)  noexcept;
+		void reset()                                noexcept { return reset(defval()); }
 		void detach();
 
 		// can be dangerous, does not detach, consider use of get, * or ->
@@ -295,14 +283,14 @@ namespace ext
 		bool operator ==(const value_type * ptr) const noexcept { return m_ptr == ptr; }
 
 	public:
-		explicit intrusive_cow_ptr(value_type * ptr)                noexcept : m_ptr(ptr) { intrusive_ptr_add_ref(m_ptr); }
+		explicit intrusive_cow_ptr(value_type * ptr)                noexcept : m_ptr(ptr) { addref(); }
 		explicit intrusive_cow_ptr(value_type * ptr, noaddref_type) noexcept : m_ptr(ptr) { }
-		explicit intrusive_cow_ptr(value_type * ptr, bool add_ref)  noexcept : m_ptr(ptr) { if (add_ref) intrusive_ptr_add_ref(m_ptr); }
+		explicit intrusive_cow_ptr(value_type * ptr, bool add_ref)  noexcept : m_ptr(ptr) { if (add_ref) addref(); }
 
 		intrusive_cow_ptr()  noexcept : m_ptr(defval()) {};
-		~intrusive_cow_ptr() noexcept { intrusive_ptr_release(m_ptr); }
+		~intrusive_cow_ptr() noexcept { subref(); }
 
-		intrusive_cow_ptr(const self_type & op) noexcept : m_ptr(op.m_ptr) { intrusive_ptr_add_ref(m_ptr); }
+		intrusive_cow_ptr(const self_type & op) noexcept : m_ptr(op.m_ptr) { addref(); }
 		intrusive_cow_ptr(self_type && op)      noexcept : m_ptr(op.release()) {}
 
 		intrusive_cow_ptr & operator =(const self_type & op) noexcept { if (this != &op) reset(op.m_ptr);                return *this; }
@@ -313,18 +301,18 @@ namespace ext
 		template <class Other, class = typename std::enable_if_t<std::is_convertible<Other *, value_type *>::value>>
 		intrusive_cow_ptr(const intrusive_cow_ptr<Other> & other) noexcept 
 			: m_ptr(other.get_ptr())
-		{ intrusive_ptr_add_ref(m_ptr); }
+		{ addref(); }
 
 		// for instrusive_cow_ptr p = nullptr;
 		intrusive_cow_ptr(std::nullptr_t) noexcept : m_ptr(nullptr) {};
-		intrusive_cow_ptr & operator =(std::nullptr_t) noexcept { intrusive_ptr_release(m_ptr); m_ptr = nullptr; return *this; }
+		intrusive_cow_ptr & operator =(std::nullptr_t) noexcept { subref(); m_ptr = nullptr; return *this; }
 	};
 
 	template <class Type>
 	void intrusive_cow_ptr<Type>::detach()
 	{
 		// we are the only one, detach is not needed
-		if (intrusive_ptr_use_count(m_ptr) <= 1) return;
+		if (use_count() <= 1) return;
 
 		// make a copy
 		value_type * copy;
@@ -334,26 +322,26 @@ namespace ext
 	}
 
 	template <class Type>
-	auto intrusive_cow_ptr<Type>::reset(value_type * ptr) noexcept
+	void intrusive_cow_ptr<Type>::reset(value_type * ptr) noexcept
 	{
-		std::swap(ptr, m_ptr);
-		intrusive_ptr_add_ref(m_ptr);
-		return intrusive_ptr_release(ptr);
+		subref();
+		m_ptr = ptr;
+		addref();
 	}
 
 	template <class Type>
-	auto intrusive_cow_ptr<Type>::reset(value_type * ptr, noaddref_type) noexcept
+	void intrusive_cow_ptr<Type>::reset(value_type * ptr, noaddref_type) noexcept
 	{
-		std::swap(ptr, m_ptr);
-		return intrusive_ptr_release(ptr);
+		subref();
+		m_ptr = ptr;
 	}
 
 	template <class Type>
-	auto intrusive_cow_ptr<Type>::reset(value_type * ptr, bool add_ref) noexcept
+	void intrusive_cow_ptr<Type>::reset(value_type * ptr, bool add_ref) noexcept
 	{
-		std::swap(ptr, m_ptr);
-		if (add_ref) intrusive_ptr_add_ref(m_ptr);
-		return intrusive_ptr_release(ptr);
+		subref();
+		m_ptr = ptr;
+		if (add_ref) addref();
 	}
 	
 	template <class Type>
@@ -397,6 +385,11 @@ namespace ext
 	protected:
 		std::atomic<unsigned> m_refs = {1};
 
+	protected:
+		unsigned counter_addref() noexcept;
+		unsigned counter_release() noexcept;
+		unsigned counter_usecount() const noexcept;
+
 	public:
 		intrusive_atomic_counter() = default;
 		intrusive_atomic_counter(intrusive_atomic_counter &&) = default;
@@ -406,35 +399,56 @@ namespace ext
 		intrusive_atomic_counter & operator =(const intrusive_atomic_counter &) noexcept { return *this; }
 
 
-		template <class Type> friend           void intrusive_ptr_add_ref(intrusive_atomic_counter<Type> * ptr) noexcept;
-		template <class Type> friend           void intrusive_ptr_release(intrusive_atomic_counter<Type> * ptr) noexcept;
+		template <class Type> friend       unsigned intrusive_ptr_add_ref(intrusive_atomic_counter<Type> * ptr) noexcept;
+		template <class Type> friend       unsigned intrusive_ptr_release(intrusive_atomic_counter<Type> * ptr) noexcept;
 		template <class Type> friend       unsigned intrusive_ptr_use_count(const intrusive_atomic_counter<Type> * ptr) noexcept;
-		template <class Type> friend std::nullptr_t intrusive_ptr_default(const intrusive_atomic_counter<Type> * ptr) noexcept;		
+		template <class Type> friend std::nullptr_t intrusive_ptr_default(const intrusive_atomic_counter<Type> * ptr) noexcept;
 		
 		template <class Type, class DestType>
 		friend void intrusive_ptr_clone(const intrusive_atomic_counter<Type> * ptr, DestType * & dest);
 	};
 
-	template <class Type>
-	inline void intrusive_ptr_add_ref(intrusive_atomic_counter<Type> * ptr) noexcept
+	template <class Derived>
+	inline unsigned intrusive_atomic_counter<Derived>::counter_addref() noexcept
 	{
-		if (ptr) ptr->m_refs.fetch_add(1, std::memory_order_relaxed);
+		return m_refs.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	template <class Derived>
+	inline unsigned intrusive_atomic_counter<Derived>::counter_release() noexcept
+	{
+		auto ref = m_refs.fetch_sub(1, std::memory_order_release);
+		if (ref == 1)
+		{
+			std::atomic_thread_fence(std::memory_order_acquire);
+			delete static_cast<Derived *>(this);
+		}
+
+		return --ref;
+	}
+
+	template <class Derived>
+	inline unsigned intrusive_atomic_counter<Derived>::counter_usecount() const noexcept
+	{
+		return m_refs.load(std::memory_order_relaxed);
 	}
 
 	template <class Type>
-	inline void intrusive_ptr_release(intrusive_atomic_counter<Type> * ptr) noexcept
-	{ 
-		if (ptr && ptr->m_refs.fetch_sub(1, std::memory_order_release) == 1)
-		{
-			std::atomic_thread_fence(std::memory_order_acquire);
-			delete static_cast<Type *>(ptr);
-		}
+	inline unsigned intrusive_ptr_add_ref(intrusive_atomic_counter<Type> * ptr) noexcept
+	{
+		return ptr->counter_addref();
+	}
+
+	template <class Type>
+	inline unsigned intrusive_ptr_release(intrusive_atomic_counter<Type> * ptr) noexcept
+	{
+		return ptr->counter_release();
 	}
 
 	template <class Type>
 	inline unsigned intrusive_ptr_use_count(const intrusive_atomic_counter<Type> * ptr) noexcept
 	{
-		return ptr ? ptr->m_refs.load(std::memory_order_relaxed) : 0;
+		return ptr->counter_usecount();
 	}
 
 	template <class Type>
@@ -461,6 +475,11 @@ namespace ext
 	protected:
 		unsigned m_refs = 1;
 
+	protected:
+		unsigned counter_addref() noexcept;
+		unsigned counter_release() noexcept;
+		unsigned counter_usecount() const noexcept;
+
 	public:
 		intrusive_plain_counter() = default;
 		intrusive_plain_counter(intrusive_plain_counter &&) = default;
@@ -470,8 +489,8 @@ namespace ext
 		intrusive_plain_counter & operator =(const intrusive_plain_counter &) noexcept { return *this; }
 
 
-		template <class Type> friend           void intrusive_ptr_add_ref(intrusive_plain_counter<Type> * ptr) noexcept;
-		template <class Type> friend           void intrusive_ptr_release(intrusive_plain_counter<Type> * ptr) noexcept;
+		template <class Type> friend       unsigned intrusive_ptr_add_ref(intrusive_plain_counter<Type> * ptr) noexcept;
+		template <class Type> friend       unsigned intrusive_ptr_release(intrusive_plain_counter<Type> * ptr) noexcept;
 		template <class Type> friend       unsigned intrusive_ptr_use_count(const intrusive_plain_counter<Type> * ptr) noexcept;
 		template <class Type> friend std::nullptr_t intrusive_ptr_default(const intrusive_plain_counter<Type> * ptr) noexcept;
 		
@@ -479,23 +498,46 @@ namespace ext
 		friend void intrusive_ptr_clone(const intrusive_plain_counter<Type> * ptr, DestType * & dest);
 	};
 
-	template <class Type>
-	inline void intrusive_ptr_add_ref(intrusive_plain_counter<Type> * ptr) noexcept
+	template <class Derived>
+	inline unsigned intrusive_plain_counter<Derived>::counter_addref() noexcept
 	{
-		if (ptr) ++ptr->m_refs;
+		return m_refs++;
+	}
+
+	template <class Derived>
+	inline unsigned intrusive_plain_counter<Derived>::counter_release() noexcept
+	{
+		if (--m_refs == 0)
+		{
+			std::atomic_thread_fence(std::memory_order_acquire);
+			delete static_cast<Derived *>(this);
+		}
+
+		return m_refs;
+	}
+
+	template <class Derived>
+	inline unsigned intrusive_plain_counter<Derived>::counter_usecount() const noexcept
+	{
+		return m_refs;
 	}
 
 	template <class Type>
-	inline void intrusive_ptr_release(intrusive_plain_counter<Type> * ptr) noexcept
+	inline unsigned intrusive_ptr_add_ref(intrusive_plain_counter<Type> * ptr) noexcept
 	{
-		if (ptr && --ptr->m_refs == 0)
-			delete static_cast<Type *>(ptr);
+		return ptr->counter_addref();
+	}
+
+	template <class Type>
+	inline unsigned intrusive_ptr_release(intrusive_plain_counter<Type> * ptr) noexcept
+	{
+		return ptr->counter_release();
 	}
 
 	template <class Type>
 	inline unsigned intrusive_ptr_use_count(const intrusive_plain_counter<Type> * ptr) noexcept
 	{
-		return ptr ? ptr->m_refs : 0;
+		return ptr->counter_usecount();
 	}
 
 	template <class Type>

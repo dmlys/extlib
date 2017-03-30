@@ -38,8 +38,8 @@ namespace ext
 			virtual void task_execute() = 0;
 
 		public:
-			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { if (ptr) ptr->task_addref(); }
-			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { if (ptr) ptr->task_release(); }
+			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { ptr->task_addref(); }
+			friend inline void intrusive_ptr_release(task_base * ptr) noexcept { ptr->task_release(); }
 			friend inline void intrusive_ptr_use_count(const task_base * ptr) noexcept {}
 		};
 
@@ -64,8 +64,8 @@ namespace ext
 				: m_functor(std::move(func)) { task_base::point = tp; }
 
 		public:
-			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { if (ptr) ptr->addref(); }
-			friend inline void intrusive_ptr_release(task_impl * ptr) noexcept { if (ptr) ptr->release(); }
+			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { ptr->addref(); }
+			friend inline void intrusive_ptr_release(task_impl * ptr) noexcept { ptr->release(); }
 			friend inline void intrusive_ptr_use_count(const task_impl * ptr) noexcept {}
 		};
 		
