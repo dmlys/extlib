@@ -492,9 +492,9 @@ namespace ext
 	};
 
 
-	inline void intrusive_ptr_add_ref(shared_state_basic * ptr) { if (ptr) ptr->addref(); }
-	inline void intrusive_ptr_release(shared_state_basic * ptr) { if (ptr) ptr->release(); }
-	inline unsigned intrusive_ptr_use_count(shared_state_basic * ptr) { return ptr ? ptr->use_count() : 0; }
+	inline unsigned intrusive_ptr_add_ref(shared_state_basic * ptr)   noexcept { return ptr->addref(); }
+	inline unsigned intrusive_ptr_release(shared_state_basic * ptr)   noexcept { return ptr->release(); }
+	inline unsigned intrusive_ptr_use_count(shared_state_basic * ptr) noexcept { return ptr->use_count(); }
 	
 
 	/// base class for service continuations, 
