@@ -117,7 +117,7 @@ namespace ext
 	};
 
 
-	void init_future_library(unsigned waiter_slots = std::thread::hardware_concurrency() * 4);
+	void init_future_library(unsigned waiter_slots = 0);
 	void free_future_library();
 
 
@@ -125,6 +125,13 @@ namespace ext
 	template <class Type>
 	future<std::decay_t<Type>> make_ready_future(Type && val);
 
+	/// returns satisfied future immediately holding exception
+	template <class Type, class Exception>
+	future<Type> make_exceptional_future(Exception ex);
+
+	/// returns satisfied future immediately holding exception
+	template <class Type>
+	future<Type> make_exceptional_future(std::exception_ptr ex);
 
 	template<class Function, class ... Args>
 	auto async(ext::launch policy, Function && f, Args && ... args) ->
@@ -174,7 +181,7 @@ namespace ext
 	/// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task.
 	/// ext::future, ext::promise, ext::packaged_task would be front-end classes used by clients.
 	/// This library would provide implementation of those interfaces via:
-	/// * shared_state_basic - type-independent implementation: refcount, wait, valid, etc
+	/// * shared_state_basic - type-independent implementation: refcount, wait, etc
 	/// * shared_state - type-dependent implementation: get, set_value, etc
 	/// but clients would be able to implement own if they need so.
 	/// 
@@ -186,7 +193,7 @@ namespace ext
 	///   Another option - use multiple inheritance(possibly with virtual base classes) - this leads to slightly increased object size
 	/// 
 	///   ifuture could be not a template class -> and get method would return void *.
-	///   Parametrization would be done by front-end classes: future, shared_duture.
+	///   Parametrization would be done by front-end classes: future, shared_future.
 	///   While ifuture is loosly typed, ext::future, ext::shared_future takes care of this.
 	///   
 	/// * major:
@@ -434,7 +441,7 @@ namespace ext
 
 		/// Cancellation request. If request successfully fulfilled - returns true,
 		/// If future is is already fulfilled - returns false.
-		/// If implementation does not support it - it can throw an exception.
+		/// If implementation does not support it - it can return false always.
 		/// Promise which comes with this library - supports cancellation.
 		virtual bool cancel() noexcept;
 
@@ -443,17 +450,14 @@ namespace ext
 		virtual void release_promise() noexcept;
 
 		/// Blocks until result becomes available,
-		/// The behavior is undefined if valid() == false before the call to this function.
 		virtual void wait() const;
 		/// Waits for the result to become available.
 		/// Blocks until specified timeout_duration has elapsed or the result becomes available,
-		/// whichever comes first.Returns value identifies the state of the result.
-		/// The behavior is undefined if valid() == false before the call to this function.
+		/// whichever comes first. Returns value identifies the state of the result.
 		virtual future_status wait_for(std::chrono::steady_clock::duration timeout_duration) const;
 		/// Waits for the result to become available.
 		/// Blocks until specified timeout_time has been reached or the result becomes available,
-		/// whichever comes first.Returns value identifies the state of the result.
-		/// The behavior is undefined if valid() == false before the call to this function.
+		/// whichever comes first. Returns value identifies the state of the result.
 		virtual future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const;
 		
 		/// type-erased get method, returns pointer to a stored value, for void future returns nullptr
