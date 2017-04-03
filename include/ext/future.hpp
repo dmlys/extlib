@@ -411,6 +411,7 @@ namespace ext
 		virtual unsigned release() noexcept;
 		virtual unsigned use_count() const noexcept;
 		
+	public:
 		/// marks future retrieval from shared state
 		void mark_retrived();
 		/// marks future cannot be cancelled(cancel call would return false),
@@ -454,12 +455,17 @@ namespace ext
 		/// whichever comes first.Returns value identifies the state of the result.
 		/// The behavior is undefined if valid() == false before the call to this function.
 		virtual future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const;
-
-		// set_value, set_exception are implemented in shared_state
 		
 		/// type-erased get method, returns pointer to a stored value, for void future returns nullptr
 		/// for reference specializations returns stored pointer.
 		virtual void * get_ptr() = 0;
+		/// Type-erased set_value method, fulfills promise and sets value result from ptr.
+		/// Implementation casts this pointer to a type of this shared_state<Type>.
+		/// Very type unsafe, use with care. You should probably use set_value methods.
+		/// NOTE: Implementation can and probably will move value from ptr.
+		virtual void set_ptr(void * ptr) = 0;
+		/// fulfills promise and sets exception result ex
+		virtual void set_exception(std::exception_ptr eptr) = 0;
 
 	public:
 		/// typed return, type is specified explicitly, it uses get_ptr internally and necessary casts
@@ -497,15 +503,21 @@ namespace ext
 	inline unsigned intrusive_ptr_use_count(shared_state_basic * ptr) noexcept { return ptr->use_count(); }
 	
 
-	/// base class for service continuations, 
+	/// base class for service continuations,
 	/// classes inheriting this class are service continuations and should not be seen to user.
 	/// they do not have result, and implement some logic on continuate method.
 	/// also they do not affect m_fstnext member leaving it as is for run_continuations method.
 	class continuation_base : public shared_state_basic
 	{
 	public:
+		// both get_ptr and set_exception are not needed and should not be used for service continuations
 		void * get_ptr() override { throw std::logic_error("continuation_base::get_ptr unexpected"); };
+		void set_ptr(void * ptr) override { throw std::logic_error("continuation_base::set_ptr unexpected"); }
+		void set_exception(std::exception_ptr eptr) override { throw std::logic_error("continuation_base::set_exception unexpected"); }
+
+		// set_future_ready is noop by default, service are internal and not visible outside
 		void set_future_ready() noexcept override {};
+		// continuate must be implemented
 		void continuate() noexcept override = 0;
 	};
 
@@ -537,6 +549,7 @@ namespace ext
 
 	public:
 		void * get_ptr() override;
+		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
 		void set_value(value_type && val);
@@ -577,6 +590,7 @@ namespace ext
 
 	public:
 		void * get_ptr() override;
+		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(value_type & val);
 		/// fulfills promise and sets exception result ex
@@ -612,6 +626,7 @@ namespace ext
 
 	public:
 		void * get_ptr() override;
+		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(void);
 		/// fulfills promise and sets exception result ex
@@ -653,9 +668,13 @@ namespace ext
 
 	public:
 		void * get_ptr() override;
+		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
 		void set_value(value_type && val);
+
+		// set_exception should not be called for shared_state_unexceptional
+		void set_exception(std::exception_ptr eptr) override;
 
 	public:
 		shared_state_unexceptional() noexcept;
@@ -688,8 +707,12 @@ namespace ext
 
 	public:
 		void * get_ptr() override;
+		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(value_type & val);
+
+		// set_exception should not be called for shared_state_unexceptional
+		void set_exception(std::exception_ptr eptr) override;
 
 	public:
 		shared_state_unexceptional() noexcept = default;
@@ -716,8 +739,12 @@ namespace ext
 		
 	public:
 		void * get_ptr() override;
+		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(void);
+
+		// set_exception should not be called for shared_state_unexceptional
+		void set_exception(std::exception_ptr eptr) override;
 
 	public:
 		shared_state_unexceptional() noexcept = default;
@@ -1131,6 +1158,12 @@ namespace ext
 	}
 
 	template <class Type>
+	void shared_state<Type>::set_ptr(void * ptr)
+	{
+		set_value(std::move(*static_cast<value_type *>(ptr)));
+	}
+
+	template <class Type>
 	void shared_state<Type>::set_value(const value_type & val)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
@@ -1204,6 +1237,12 @@ namespace ext
 	}
 
 	template <class Type>
+	void shared_state<Type &>::set_ptr(void * ptr)
+	{
+		set_value(*static_cast<value_type *>(ptr));
+	}
+
+	template <class Type>
 	void shared_state<Type &>::set_value(value_type & val)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
@@ -1265,6 +1304,11 @@ namespace ext
 		}
 	}
 
+	inline void shared_state<void>::set_ptr(void * ptr)
+	{
+		set_value();
+	}
+
 	inline void shared_state<void>::set_value(void)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
@@ -1324,6 +1368,12 @@ namespace ext
 	}
 
 	template <class Type>
+	void shared_state_unexceptional<Type>::set_ptr(void * ptr)
+	{
+		set_value(std::move(*static_cast<value_type *>(ptr)));
+	}
+
+	template <class Type>
 	void shared_state_unexceptional<Type>::set_value(const value_type & val)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
@@ -1341,6 +1391,12 @@ namespace ext
 		// construct in uninitialized memory
 		new (&m_val) value_type(std::move(val));
 		set_future_ready();
+	}
+
+	template <class Type>
+	void shared_state_unexceptional<Type>::set_exception(std::exception_ptr ex)
+	{
+		throw std::logic_error("shared_state_unexceptional::set_exception unexpeceted");
 	}
 
 	template <class Type>
@@ -1387,12 +1443,24 @@ namespace ext
 	}
 
 	template <class Type>
+	void shared_state_unexceptional<Type &>::set_ptr(void * ptr)
+	{
+		set_value(*static_cast<value_type *>(ptr));
+	}
+
+	template <class Type>
 	void shared_state_unexceptional<Type &>::set_value(value_type & val)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
 
 		m_val = &val;
 		set_future_ready();
+	}
+
+	template <class Type>
+	void shared_state_unexceptional<Type &>::set_exception(std::exception_ptr ex)
+	{
+		throw std::logic_error("shared_state_unexceptional::set_exception unexpeceted");
 	}
 
 	/************************************************************************/
@@ -1418,10 +1486,20 @@ namespace ext
 		}
 	}
 
+	inline void shared_state_unexceptional<void>::set_ptr(void * ptr)
+	{
+		set_value();
+	}
+
 	inline void shared_state_unexceptional<void>::set_value(void)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
 		set_future_ready();
+	}
+
+	inline void shared_state_unexceptional<void>::set_exception(std::exception_ptr ex)
+	{
+		throw std::logic_error("shared_state_unexceptional::set_exception unexpeceted");
 	}
 	
 	/************************************************************************/
