@@ -5,6 +5,15 @@
 #include <boost/predef.h> // for BOOST_OS_WINDOWS
 #include <boost/static_assert.hpp>
 
+#if BOOST_OS_WINDOWS
+#include <windows.h>
+
+#ifdef _MSC_VER
+#pragma comment(lib, "crypt32.lib")
+#endif // _MSC_VER
+
+#endif // BOOST_OS_WINDOWS
+
 namespace ext {
 namespace openssl
 {
