@@ -322,7 +322,8 @@ namespace ext
 
 		static constexpr unsigned future_retrived = 1u << (sizeof(unsigned) * CHAR_BIT - 1);
 		static constexpr unsigned future_uncancellable = future_retrived >> 1u;
-		static constexpr unsigned status_mask = ~(future_retrived | future_uncancellable);
+		static constexpr unsigned promise_taken = future_uncancellable >> 1u;
+		static constexpr unsigned status_mask = ~(future_retrived | future_uncancellable | promise_taken);
 
 		// future state, see description above.
 		static constexpr std::uintptr_t ready = 0;
@@ -333,7 +334,7 @@ namespace ext
 		/// object lifetime reference counter
 		std::atomic_uint m_refs = ATOMIC_VAR_INIT(1);
 		/// state of promise, unsatisfied, satisfied by: value, exception, cancellation, ...
-		std::atomic<unsigned> m_promise_state = ATOMIC_VAR_INIT(static_cast<unsigned>(future_state::unsatisfied));
+		std::atomic_uint m_promise_state = ATOMIC_VAR_INIT(static_cast<unsigned>(future_state::unsatisfied));
 		/// state and head of continuations slist
 		std::atomic_uintptr_t m_fstnext = ATOMIC_VAR_INIT(~lock_mask);
 
@@ -421,11 +422,14 @@ namespace ext
 	public:
 		/// marks future retrieval from shared state
 		void mark_retrived();
-		/// marks future cannot be cancelled(cancel call would return false),
-		/// but future is still not fulfilled.
-		/// returns true if successful. false if shared_state already holds some result(cancellation, value, ...)
-		/// or it was already marked uncancellable
+		/// marks future cannot be cancelled(cancel call would return false), but future is still not fulfilled.
+		/// returns true if successful(even if already was marked), false if shared_state already holds some result(cancellation, value, ...).
 		bool mark_uncancellable() noexcept;
+		/// marks promise is taken by someone and also uncancellable,
+		/// this is more of convenience synchronization flag. currently used only by packged_task/deffrered_packaged_task.
+		/// returns true if marked successfully(there was no mark) and future was not cancelled,
+		///         false if either future was cancelled, or packaged task already started execution.
+		bool mark_taken() noexcept;
 
 		/// status of shared state
 		future_state status() const noexcept { return pstatus(m_promise_state.load(std::memory_order_relaxed)); }
@@ -1538,7 +1542,7 @@ namespace ext
 	template <class Functor, class Ret, class ... Args>
 	void packaged_task_impl<Functor, Ret(Args...)>::execute(Args ... args) noexcept
 	{
-		if (not this->mark_uncancellable())
+		if (not this->mark_taken())
 			return;
 
 		try
@@ -1561,7 +1565,7 @@ namespace ext
 	template <class Functor, class Ret>
 	void deferred_task_impl<Functor, Ret()>::wait() const
 	{
-		if (not ext::unconst(this)->mark_uncancellable())
+		if (not ext::unconst(this)->mark_taken())
 			return base_type::wait();
 
 		try
@@ -1593,7 +1597,7 @@ namespace ext
 	template <class Functor, class Type>
 	void deferred_continuation_task<Functor, Type>::wait() const
 	{
-		if (not ext::unconst(this)->mark_uncancellable())
+		if (not ext::unconst(this)->mark_taken())
 			return base_type::wait();
 
 		try
@@ -1610,10 +1614,9 @@ namespace ext
 	void when_all_task<Type>::notify_satisfied(std::size_t) noexcept
 	{
 		auto prev_count = m_count.fetch_sub(1, std::memory_order_relaxed);
-		if (prev_count == 1 && this->mark_uncancellable())
+		if (prev_count == 1 && this->satisfy_promise(future_state::value))
 		{
 			// m_val already set in constructor
-			this->satisfy_promise(future_state::value);
 			this->set_future_ready();
 		}
 	}
@@ -1621,10 +1624,9 @@ namespace ext
 	template <class Type>
 	void when_any_task<Type>::notify_satisfied(std::size_t index) noexcept
 	{
-		if (this->mark_uncancellable())
+		if (this->satisfy_promise(future_state::value))
 		{
 			this->m_val.index = index;
-			this->satisfy_promise(future_state::value);
 			this->set_future_ready();
 		}
 	}
