@@ -332,7 +332,7 @@ namespace ext
 
 		do {
 			if (previous & future_uncancellable) 
-				return false;
+				return pstatus(previous) != future_state::cancellation;
 
 			switch (pstatus(previous))
 			{
@@ -351,6 +351,36 @@ namespace ext
 			}
 
 		} while (not m_promise_state.compare_exchange_weak(previous, previous | future_uncancellable, std::memory_order_relaxed));
+		return true;
+	}
+
+	bool shared_state_basic::mark_taken() noexcept
+	{
+		unsigned previous = m_promise_state.load(std::memory_order_relaxed);
+		unsigned newval;
+
+		do {
+			if (previous & promise_taken)
+				return false;
+
+			switch (pstatus(previous))
+			{
+				default:
+					EXT_UNREACHABLE();
+
+				case future_state::value:
+				case future_state::exception:
+				case future_state::abandonned:
+				case future_state::cancellation:
+					return false;
+
+				case future_state::unsatisfied:
+				case future_state::deffered:
+					break;
+			}
+
+			newval = previous | future_uncancellable | promise_taken;
+		} while (not m_promise_state.compare_exchange_weak(previous, newval, std::memory_order_relaxed));
 		return true;
 	}
 
