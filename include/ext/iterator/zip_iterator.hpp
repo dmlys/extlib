@@ -1,9 +1,9 @@
 #pragma once
 #include <type_traits>
-#include <utility>
 #include <iterator>
 #include <tuple>
-#include <ext/integer_sequence.hpp>
+#include <ext/utility.hpp>
+
 #include <boost/iterator/iterator_facade.hpp>
 
 /// WARN: experimental,
@@ -44,7 +44,7 @@ namespace ext
 				//using ref_tuple::ref_tuple;
 
 				template <std::size_t ... Indexes>
-				static ref_tuple construct_helper(value_tuple & tuple, ext::index_sequence<Indexes...>)
+				static ref_tuple construct_helper(value_tuple & tuple, std::index_sequence<Indexes...>)
 				{
 					return ref_tuple(std::get<Indexes>(tuple)...);
 				}
@@ -54,8 +54,8 @@ namespace ext
 
 				// conversions, needs more testing
 				ref_type_helper(const value_tuple & op) : ref_tuple(op) {}
-				ref_type_helper(value_tuple && op) : ref_tuple(construct_helper(op, ext::index_sequence_for<Iterators...>{})) {}
-				ref_type_helper(value_tuple & op) : ref_tuple(construct_helper(op, ext::index_sequence_for<Iterators...>{})) {}
+				ref_type_helper(value_tuple && op) : ref_tuple(construct_helper(op, std::index_sequence_for<Iterators...>{})) {}
+				ref_type_helper(value_tuple & op) : ref_tuple(construct_helper(op, std::index_sequence_for<Iterators...>{})) {}
 				//ref_type_helper(value_tuple & op) : ref_tuple(op) {}
 
 				ref_type_helper & operator =(const value_tuple & op)
@@ -125,25 +125,25 @@ namespace ext
 
 	private:
 		template <std::size_t... Indexes>
-		void increment_iterator_tuple(ext::index_sequence<Indexes...>)
+		void increment_iterator_tuple(std::index_sequence<Indexes...>)
 		{
 			ext::aux_pass(++std::get<Indexes>(m_iterators)...);
 		}
 
 		template <std::size_t... Indexes>
-		void decrement_iterator_tuple(ext::index_sequence<Indexes...>)
+		void decrement_iterator_tuple(std::index_sequence<Indexes...>)
 		{
 			ext::aux_pass(--std::get<Indexes>(m_iterators)...);
 		}
 
 		template <std::size_t... Indexes>
-		reference dereference_iterator_tuple(ext::index_sequence<Indexes...>) const
+		reference dereference_iterator_tuple(std::index_sequence<Indexes...>) const
 		{
 			return reference {*std::get<Indexes>(m_iterators)...};
 		}
 
 		template <std::size_t... Indexes>
-		void advance_iterator_tuple(difference_type n, ext::index_sequence<Indexes...>)
+		void advance_iterator_tuple(difference_type n, std::index_sequence<Indexes...>)
 		{
 			ext::aux_pass(std::get<Indexes>(m_iterators) += n ...);
 		}
@@ -157,12 +157,12 @@ namespace ext
 	private:
 		void increment()
 		{
-			increment_iterator_tuple(ext::index_sequence_for<Iterators...>());
+			increment_iterator_tuple(std::index_sequence_for<Iterators...>());
 		}
 
 		void decrement()
 		{
-			decrement_iterator_tuple(ext::index_sequence_for<Iterators...>());
+			decrement_iterator_tuple(std::index_sequence_for<Iterators...>());
 		}
 
 		bool equal(const zip_iterator & op) const
@@ -172,12 +172,12 @@ namespace ext
 
 		reference dereference() const
 		{
-			return dereference_iterator_tuple(ext::index_sequence_for<Iterators...>());
+			return dereference_iterator_tuple(std::index_sequence_for<Iterators...>());
 		}
 
 		void advance(difference_type n)
 		{
-			advance_iterator_tuple(n, ext::index_sequence_for<Iterators...>());
+			advance_iterator_tuple(n, std::index_sequence_for<Iterators...>());
 		}
 
 		difference_type distance_to(const zip_iterator & op) const
