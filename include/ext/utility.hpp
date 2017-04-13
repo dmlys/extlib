@@ -261,6 +261,14 @@ namespace ext
 		return detail::INVOKE(std::forward<Functor>(f), std::forward<Args>(args)...);
 	}
 
+	/// invokes f for each arguments from args, in same order as they are passed into this function
+	template <class Func, class... Args>
+	constexpr void invoke_for_each(Func && f, Args && ... args)
+	{
+		std::initializer_list<int> {
+			( ext::invoke(std::forward<Func>(f), std::forward<Args>(args)), 0 )...
+		};
+	}
 
 	template <class Functor, class Tuple, std::size_t... I>
 	constexpr decltype(auto) apply_impl(Functor && f, Tuple && t, std::index_sequence<I...>)
@@ -274,6 +282,21 @@ namespace ext
 		return apply_impl(std::forward<Functor>(f), std::forward<Tuple>(t),
 		                  std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
 	}
+
+	template <class Func, class Tuple, std::size_t ... I>
+	constexpr void apply_for_each_impl(Func && f, Tuple && t, std::index_sequence<I...>)
+	{
+		invoke_for_each(std::forward<Func>(f), std::get<I>(std::forward<Tuple>(t))...);
+	}
+
+	/// applies func f for each member of tuple t. see invoke_for_each
+	template <class Func, class Tuple>
+	constexpr void apply_for_each(Func && f, Tuple && t)
+	{
+		apply_for_each_impl(std::forward<Func>(f), std::forward<Tuple>(t),
+							std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
+	}
+
 
 	/// invokes func with element by runtime index idx from tuple ts
 	/// it's somewhat like func(std::get<idx>(ts)), except index can be not compile-time constant
@@ -301,6 +324,13 @@ namespace ext
 		return detail::visit_tuple_impl(std::move(ts), idx, std::forward<Functor>(func),
 		                                std::index_sequence_for<Args...> {});
 	}
+
+	/// helper method, to invoke expressions on variadic packs
+	/// for example: aux_pass(++std::get<Indexes>(tuple)...);
+	/// order of evaluation is undefined
+	template <class ... Types>
+	inline void aux_pass(Types && ...) {}
+
 
 	/// extracts element from tuple by idx, like get function, 
 	/// except this is functor -> can be easier passed to functions.

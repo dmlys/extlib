@@ -85,11 +85,4 @@ namespace ext
 
 	template<class... Types>
 	using index_sequence_for = typename __index_sequence_for<Types...>::type;
-
-
-	/// helper method, to invoke expressions on variadic packs
-	/// for example: aux_pass(++std::get<Indexes>(tuple)...);
-	/// order of evaluation is undefined
-	template <class ... Types>
-	inline void aux_pass(Types && ...) {}
 }
