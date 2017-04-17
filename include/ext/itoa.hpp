@@ -42,6 +42,22 @@ namespace ext
 		}
 	}
 
+	template <class Arithmetic>
+	constexpr auto itoa_required()
+	{
+		return 2 + std::numeric_limits<Arithmetic>::digits10 + (std::is_signed<Arithmetic>::value ? 1 : 0);
+	}
+
+	template <class Arithmetic>
+	constexpr auto itoa_required(Arithmetic)
+	{
+		return itoa_required<Arithmetic>();
+	}
+
+	template <class Arithmetic, class CharType = char>
+	using itoa_buffer = CharType[2 + std::numeric_limits<Arithmetic>::digits10 + (std::is_signed<Arithmetic>::value ? 1 : 0)];
+	//using itoa_buffer = CharType[itoa_required<Arithmetic>()]; // does not work on MSVC 2015, looks like msvc bug. works on gcc
+
 	/// converts val to string into buffer with buffer_size
 	/// it prints to right border of the buffer
 	/// so buffer + buffer_size - 1 == 0, buffer + buffer_size - 2 == last digit, and so on
@@ -68,8 +84,7 @@ namespace ext
 	{
 		static_assert(std::is_arithmetic<Arithmetic>::value, "not a arithmetic type");
 		// 1 - for null terminator, 1 - for last not fully representable group, see digits10 description
-		const int ExpectedBufferSize = 2 + std::numeric_limits<Arithmetic>::digits10
-			+ (std::is_signed<Arithmetic>::value ? 1 : 0);
+		constexpr auto ExpectedBufferSize = itoa_required<Arithmetic>();
 		static_assert(BufferSize >= ExpectedBufferSize, "buffer is to small");
 
 		return unsafe_itoa(val, buffer, BufferSize, 10);
