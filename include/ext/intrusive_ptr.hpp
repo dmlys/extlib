@@ -508,10 +508,7 @@ namespace ext
 	inline unsigned intrusive_plain_counter<Derived>::counter_release() noexcept
 	{
 		if (--m_refs == 0)
-		{
-			std::atomic_thread_fence(std::memory_order_acquire);
 			delete static_cast<Derived *>(this);
-		}
 
 		return m_refs;
 	}
