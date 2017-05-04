@@ -415,7 +415,8 @@ namespace ext
 
 	public:
 		/// refcount part, use_count is for intrusive_ptr
-		virtual unsigned addref(unsigned n = 1) noexcept;
+		virtual unsigned addref() noexcept;
+		virtual unsigned addref(unsigned n) noexcept;
 		virtual unsigned release() noexcept;
 		virtual unsigned use_count() const noexcept;
 		
@@ -1025,8 +1026,13 @@ namespace ext
 	};
 
 	/************************************************************************/
-	/*            shared_state_basic lifetime                                */
+	/*            shared_state_basic lifetime                               */
 	/************************************************************************/
+	inline unsigned shared_state_basic::addref() noexcept
+	{
+		return m_refs.fetch_add(1, std::memory_order_relaxed);
+	}
+
 	inline unsigned shared_state_basic::addref(unsigned n) noexcept
 	{
 		return m_refs.fetch_add(n, std::memory_order_relaxed);
