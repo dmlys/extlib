@@ -894,8 +894,15 @@ namespace ext
 		// смотри описание 2х фазного SSL_shutdown в описании функции SSL_shutdown:
 		// https://www.openssl.org/docs/manmaster/ssl/SSL_shutdown.html
 
-		int res, fstate;
+		char ch;
+		int res, fstate, selres;
+		long int rc;
+		handle_type sock;
+		fd_set rdset;
+
 		auto until = time_point::clock::now() + m_timeout;
+		struct timeval tv = {0, 0};
+
 		// first shutdown
 		for (;;)
 		{
@@ -907,7 +914,7 @@ namespace ext
 
 			if (ssl_rw_error(res, m_lasterror)) return false;
 
-			if (res == SSL_ERROR_WANT_READ)  fstate = freadable;
+			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
 			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
 			else        /* ??? */                 fstate = freadable | fwritable;
 
@@ -924,7 +931,7 @@ namespace ext
 
 			if (ssl_rw_error(res, m_lasterror)) break;
 
-			if (res == SSL_ERROR_WANT_READ)  fstate = freadable;
+			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
 			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
 			else        /* ??? */                 fstate = freadable | fwritable;
 
@@ -934,17 +941,14 @@ namespace ext
 
 		// второй shutdown не получился, это может быть как ошибка,
 		// так и нам просто закрыли канал по shutdown на другой стороне. проверяем
-		handle_type sock = ::SSL_get_fd(ssl);
-		fd_set rdset;
+		sock = ::SSL_get_fd(ssl);
 		FD_ZERO(&rdset);
 		FD_SET(sock, &rdset);
 
-		TIMEVAL tv = {0, 0};
-		auto selres = select(0, &rdset, nullptr, nullptr, &tv);
+		selres = select(0, &rdset, nullptr, nullptr, &tv);
 		if (selres <= 0) return false;
 
-		char c;
-		auto rc = recv(sock, &c, 1, MSG_PEEK);
+		rc = recv(sock, &ch, 1, MSG_PEEK);
 		if (rc != 0) return false; // socket closed
 
 		// да мы действительно получили FD_CLOSE
