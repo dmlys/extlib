@@ -50,7 +50,7 @@ lib extlib    # target name
 	  /boost//headers
 	  # static libs itself do not need other static libs,
 	  # but boost.build supports those depends and can automatically add them to dll/exe.
-	  # consider adding reqired boost libs
+	  # consider adding required boost libs
 	  
 	: # requirements
 	  [ conditional <extlib-wzlib>on    : <define>EXT_ENABLE_CPPZLIB <source>$(zlib_src) ]
