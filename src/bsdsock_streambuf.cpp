@@ -208,6 +208,8 @@ namespace ext
 		}
 	}
 
+	const std::string bsdsock_streambuf::empty;
+	
 	/************************************************************************/
 	/*                   connect/resolve helpers                            */
 	/************************************************************************/
@@ -787,7 +789,8 @@ namespace ext
 	bool bsdsock_streambuf::ssl_rw_error(int & res, error_code_type & err_code)
 	{
 		int err;
-
+		int ret = res;
+		
 		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
 		if (state >= Interrupting)
@@ -796,18 +799,21 @@ namespace ext
 			return true;
 		}
 
-		res = ::SSL_get_error(m_sslhandle, res);
+		res = ::SSL_get_error(m_sslhandle, ret);
 		switch (res)
 		{
-			// can this happen? just try to handle as SSL_ERROR_SYSCALL
-			case SSL_ERROR_NONE:
-
 			// if it's SSL_ERROR_WANT_{WRITE,READ}
 			// errno can be EAGAIN or EINTR - repeat operation
 			case SSL_ERROR_WANT_READ:
 			case SSL_ERROR_WANT_WRITE:
-			case SSL_ERROR_SYSCALL:
+				return false;
+		
+			// can this happen? just try to handle as SSL_ERROR_SYSCALL
+			// according to doc, this can happen if res > 0
+			case SSL_ERROR_NONE:
+
 			case SSL_ERROR_SSL:
+			case SSL_ERROR_SYSCALL:
 				// if it some generic SSL error
 				if ((err = ::ERR_get_error()))
 				{
@@ -824,6 +830,13 @@ namespace ext
 					if (err == EAGAIN || err == EWOULDBLOCK) return false;
 
 					err_code.assign(err, std::generic_category());
+					return true;
+				}
+				
+				// it was unexpected eof
+				if (ret == 0)
+				{
+					err_code = make_error_code(sock_errc::eof);
 					return true;
 				}
 
@@ -851,13 +864,22 @@ namespace ext
 	bool bsdsock_streambuf::do_createssl(SSL *& ssl, SSL_CTX * sslctx)
 	{
 		ssl = ::SSL_new(sslctx);
-		if (!ssl)
-		{
-			m_lasterror.assign(static_cast<int>(::ERR_get_error()), ext::openssl_err_category());
-			return false;
-		}
+		if (ssl) return true;
 
-		int res = ::SSL_set_fd(ssl, m_sockhandle);
+		m_lasterror.assign(::ERR_get_error(), ext::openssl_err_category());
+		return false;
+	}
+
+	bool bsdsock_streambuf::do_configuressl(SSL *& ssl, const char * servername)
+	{
+		int res;
+		if (servername && *servername != 0) // not empty
+		{
+			res = ::SSL_set_tlsext_host_name(ssl, servername);
+			if (res != 1) goto error;
+		}
+		
+		res = ::SSL_set_fd(ssl, m_sockhandle);
 		if (res <= 0) goto error;
 
 		::SSL_set_mode(ssl, ::SSL_get_mode(ssl) | SSL_MODE_AUTO_RETRY);
@@ -963,11 +985,20 @@ namespace ext
 		return false;
 	}
 
+	void bsdsock_streambuf::set_ssl(SSL * ssl)
+	{
+		if (ssl_started())
+			throw std::logic_error("bsdsock_streambuf: can't set_ssl, ssl already started");
+
+		free_ssl();
+		m_sslhandle = ssl;
+	}
+	
 	bool bsdsock_streambuf::start_ssl_weak(SSL_CTX * sslctx)
 	{
 		if (!is_open())
 		{
-			m_lasterror = std::make_error_code(std::errc::not_a_socket);
+			m_lasterror.assign(ENOTSOCK, std::system_category());
 			return false;
 		}
 
@@ -978,7 +1009,8 @@ namespace ext
 		}
 		else
 		{
-			return do_createssl(m_sslhandle, sslctx) && 
+			return do_createssl(m_sslhandle, sslctx) &&
+			       do_configuressl(m_sslhandle) &&
 			       do_sslconnect(m_sslhandle);
 		}
 	}
@@ -990,18 +1022,38 @@ namespace ext
 		return res;
 	}
 
-	bool bsdsock_streambuf::start_ssl(const SSL_METHOD * sslmethod)
+	bool bsdsock_streambuf::start_ssl(const SSL_METHOD * sslmethod, const std::string & servername)
 	{
-		SSL_CTX * sslctx = ::SSL_CTX_new(sslmethod);
-		if (sslctx == nullptr)
+		if (!is_open())
 		{
-			m_lasterror.assign(static_cast<int>(::ERR_get_error()), ext::openssl_err_category());
+			m_lasterror.assign(ENOTSOCK, std::system_category());
 			return false;
 		}
 
-		auto res = start_ssl_weak(sslctx);
+		if (sslmethod == nullptr)
+			sslmethod = ::SSLv23_client_method();
+
+		SSL_CTX * sslctx = ::SSL_CTX_new(sslmethod);
+		if (sslctx == nullptr)
+		{
+			m_lasterror.assign(::ERR_get_error(), ext::openssl_err_category());
+			return false;
+		}
+		
+		bool result;
+		if (m_sslhandle)
+		{
+			::SSL_set_SSL_CTX(m_sslhandle, sslctx);
+			result = do_configuressl(m_sslhandle, servername.c_str());
+		}
+		else
+		{
+			result = do_createssl(m_sslhandle, sslctx) &&
+			         do_configuressl(m_sslhandle, servername.c_str());
+		}
+		
 		::SSL_CTX_free(sslctx);
-		return res;
+		return result && do_sslconnect(m_sslhandle);
 	}
 
 	bool bsdsock_streambuf::start_ssl()
@@ -1010,7 +1062,7 @@ namespace ext
 			return do_sslconnect(m_sslhandle);
 		else
 		{
-			const SSL_METHOD * sslm = SSLv23_client_method();
+			const SSL_METHOD * sslm = nullptr;
 			return start_ssl(sslm);
 		}
 	}

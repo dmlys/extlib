@@ -28,8 +28,7 @@
 // warning C4244: '=' : conversion from '__int64' to 'long', possible loss of data
 // warning C4244: 'initializing' : conversion from '__int64' to 'long', possible loss of data
 // warning C4706: assignment within conditional expression
-// warning C4533: initialization of '<variable' is skipped by 'goto <label>'
-#pragma warning(disable : 4267 4244 4706 4533)
+#pragma warning(disable : 4267 4244 4706)
 #endif // _MSC_VER
 
 namespace ext
@@ -65,6 +64,9 @@ namespace ext
 			reinterpret_cast<sockaddr_in *>(addr->ai_addr)->sin_port = ::htons(port);
 		}
 	}
+
+	const std::string winsock2_streambuf::empty;
+	const std::wstring winsock2_streambuf::wempty;
 
 	/************************************************************************/
 	/*                   connect/resolve helpers                            */
@@ -669,6 +671,7 @@ namespace ext
 	bool winsock2_streambuf::ssl_rw_error(int & res, error_code_type & err_code)
 	{
 		int wsaerr;
+		int ret = res;
 
 		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
@@ -678,18 +681,21 @@ namespace ext
 			return true;
 		}
 
-		res = ::SSL_get_error(m_sslhandle, res);
+		res = ::SSL_get_error(m_sslhandle, ret);
 		switch (res)
 		{
-			// can this happen? just try to handle as SSL_ERROR_SYSCALL
-			case SSL_ERROR_NONE:
-
 			// if it's SSL_ERROR_WANT_{WRITE,READ}
 			// WSAGetLastError() can be WSAEWOULDBLOCK or WSAEINTR - repeat operation
 			case SSL_ERROR_WANT_READ:
 			case SSL_ERROR_WANT_WRITE:
-			case SSL_ERROR_SYSCALL:
+				return false;
+
+				// can this happen? just try to handle as SSL_ERROR_SYSCALL
+				// according to doc, this can happen if res > 0
+			case SSL_ERROR_NONE:
+
 			case SSL_ERROR_SSL:
+			case SSL_ERROR_SYSCALL:
 				// if it some generic SSL error
 				if ((wsaerr = ::ERR_get_error()))
 				{
@@ -703,6 +709,13 @@ namespace ext
 					if (wsaerr == WSAEINTR || wsaerr == WSAEWOULDBLOCK) return false;
 
 					err_code.assign(wsaerr, std::system_category());
+					return true;
+				}
+
+				// it was unexpected eof
+				if (ret == 0)
+				{
+					err_code = make_error_code(sock_errc::eof);
 					return true;
 				}
 
@@ -720,13 +733,22 @@ namespace ext
 	bool winsock2_streambuf::do_createssl(SSL *& ssl, SSL_CTX * sslctx)
 	{
 		ssl = ::SSL_new(sslctx);
-		if (!ssl)
+		if (ssl) return true;
+
+		m_lasterror.assign(::ERR_get_error(), ext::openssl_err_category());
+		return false;
+	}
+
+	bool winsock2_streambuf::do_configuressl(SSL *& ssl, const char * servername)
+	{
+		int res;
+		if (servername && *servername != 0) // not empty
 		{
-			m_lasterror.assign(::ERR_get_error(), ext::openssl_err_category());
-			return false;
+			res = ::SSL_set_tlsext_host_name(ssl, servername);
+			if (res != 1) goto error;
 		}
 
-		int res = ::SSL_set_fd(ssl, m_sockhandle);
+		res = ::SSL_set_fd(ssl, m_sockhandle);
 		if (res <= 0) goto error;
 
 		::SSL_set_mode(ssl, ::SSL_get_mode(ssl) | SSL_MODE_AUTO_RETRY);
@@ -763,8 +785,15 @@ namespace ext
 		// смотри описание 2х фазного SSL_shutdown в описании функции SSL_shutdown:
 		// https://www.openssl.org/docs/manmaster/ssl/SSL_shutdown.html
 		
-		int res, fstate;
+		char ch;
+		int res, fstate, selres;
+		long int rc;
+		handle_type sock;
+		fd_set rdset;
+
 		auto until = time_point::clock::now() + m_timeout;
+		TIMEVAL tv = {0, 0};
+
 		// first shutdown
 		for (;;)
 		{
@@ -803,17 +832,14 @@ namespace ext
 		
 		// второй shutdown не получился, это может быть как ошибка,
 		// так и нам просто закрыли канал по shutdown на другой стороне. проверяем
-		handle_type sock = ::SSL_get_fd(ssl);
-		fd_set rdset;
+		sock = ::SSL_get_fd(ssl);
 		FD_ZERO(&rdset);
 		FD_SET(sock, &rdset);
 
-		TIMEVAL tv = {0, 0};
-		auto selres = select(0, &rdset, nullptr, nullptr, &tv);
+		selres = select(0, &rdset, nullptr, nullptr, &tv);
 		if (selres <= 0) return false;
 
-		char c;
-		auto rc = recv(sock, &c, 1, MSG_PEEK);
+		rc = recv(sock, &ch, 1, MSG_PEEK);
 		if (rc != 0) return false; // socket closed
 
 		// да мы действительно получили FD_CLOSE
@@ -826,6 +852,15 @@ namespace ext
 		// -1 - error or nonblocking, we are always blocking
 		m_lasterror = ssl_error(ssl, res);
 		return false;
+	}
+
+	void winsock2_streambuf::set_ssl(SSL * ssl)
+	{
+		if (ssl_started())
+			throw std::logic_error("winsock2_streambuf: can't set_ssl, ssl already started");
+
+		free_ssl();
+		m_sslhandle = ssl;
 	}
 
 	bool winsock2_streambuf::start_ssl_weak(SSL_CTX * sslctx)
@@ -844,6 +879,7 @@ namespace ext
 		else
 		{
 			return do_createssl(m_sslhandle, sslctx) &&
+			       do_configuressl(m_sslhandle) &&
 			       do_sslconnect(m_sslhandle);
 		}
 	}
@@ -855,18 +891,45 @@ namespace ext
 		return res;
 	}
 
-	bool winsock2_streambuf::start_ssl(const SSL_METHOD * sslmethod)
+	bool winsock2_streambuf::start_ssl(const SSL_METHOD * sslmethod, const std::string & servername)
 	{
+		if (!is_open())
+		{
+			m_lasterror.assign(WSAENOTSOCK, std::system_category());
+			return false;
+		}
+
+		if (sslmethod == nullptr)
+			sslmethod = ::SSLv23_client_method();
+
 		SSL_CTX * sslctx = ::SSL_CTX_new(sslmethod);
 		if (sslctx == nullptr)
 		{
 			m_lasterror.assign(::ERR_get_error(), ext::openssl_err_category());
 			return false;
 		}
-
-		auto res = start_ssl_weak(sslctx);
+		
+		bool result;
+		if (m_sslhandle)
+		{
+			::SSL_set_SSL_CTX(m_sslhandle, sslctx);
+			result = do_configuressl(m_sslhandle, servername.c_str());
+		}
+		else
+		{
+			result = do_createssl(m_sslhandle, sslctx) &&
+			         do_configuressl(m_sslhandle, servername.c_str());
+		}
+		
 		::SSL_CTX_free(sslctx);
-		return res;
+		return result && do_sslconnect(m_sslhandle);
+	}
+
+	bool winsock2_streambuf::start_ssl(const SSL_METHOD * sslmethod, const std::wstring & wservername)
+	{
+		std::codecvt_utf8<wchar_t> cvt;
+		auto servername = ext::codecvt_convert::to_bytes(cvt, wservername);
+		return start_ssl(sslmethod, servername);
 	}
 
 	bool winsock2_streambuf::start_ssl()
@@ -875,7 +938,7 @@ namespace ext
 			return do_sslconnect(m_sslhandle);
 		else
 		{
-			const SSL_METHOD * sslm = ::SSLv23_client_method();
+			const SSL_METHOD * sslm = nullptr;
 			return start_ssl(sslm);
 		}
 	}
