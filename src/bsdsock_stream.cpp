@@ -48,6 +48,22 @@ namespace ext
 			setstate(std::ios::badbit | std::ios::failbit);
 	}
 
+	void bsdsock_stream::start_ssl(const std::string & servername)
+	{
+		if (fail()) return;
+
+		if (!m_streambuf.start_ssl(servername))
+			setstate(std::ios::badbit | std::ios::failbit);
+	}
+
+	void bsdsock_stream::start_ssl(const SSL_METHOD * sslmethod, const std::string & servername)
+	{
+		if (fail()) return;
+
+		if (!m_streambuf.start_ssl(sslmethod, servername))
+			setstate(std::ios::badbit | std::ios::failbit);
+	}
+
 	void bsdsock_stream::stop_ssl()
 	{
 		if (fail()) return;

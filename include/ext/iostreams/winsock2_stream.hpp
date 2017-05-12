@@ -80,15 +80,16 @@ namespace ext
 #ifdef EXT_ENABLE_OPENSSL
 		bool ssl_started() const { return m_streambuf.ssl_started(); }
 		SSL * ssl_handle() { return m_streambuf.ssl_handle(); }
-		/// rdbuf()->start_ssl()
+		void set_ssl(SSL * ssl) { return m_streambuf.set_ssl(ssl); }
+		/// rdbuf()->start_ssl(...)
 		/// в случае ошибки устанавливает failbit | badbit
 		void start_ssl();
-		/// rdbuf()->start_ssl(sslctx)
-		/// в случае ошибки устанавливает failbit | badbit
 		void start_ssl(SSL_CTX * sslctx);
-		/// rdbuf()->start_ssl(sslmethod)
-		/// в случае ошибки устанавливает failbit | badbit
 		void start_ssl(const SSL_METHOD * sslmethod);
+		void start_ssl(const std::string & servername);
+		void start_ssl(const std::wstring & wservername);
+		void start_ssl(const SSL_METHOD * sslmethod, const std::string & servername);
+		void start_ssl(const SSL_METHOD * sslmethod, const std::wstring & wservername);
 		/// rdbuf()->stop_ssl()
 		/// в случае ошибки устанавливает failbit | badbit
 		void stop_ssl();

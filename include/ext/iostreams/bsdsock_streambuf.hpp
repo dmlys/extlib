@@ -117,6 +117,8 @@ namespace ext
 			freadable = 1,  // wait readable
 			fwritable = 2,  // wait writable
 		};
+		
+		static const std::string empty;
 
 	private:
 		/// внутреннее состояние класса, нужно для поддержки вызова interrupt.
@@ -206,9 +208,12 @@ namespace ext
 		/// В err_code записывает итоговую ошибку.
 		/// возвращает была ли действительно ошибка, или нужно повторить операцию(реакция на EINTR).
 		bool ssl_rw_error(int & res, error_code_type & err_code);
-		/// создает ssl объект, ассоциирует его с дескриптором сокета и настраивает его.
+		/// создает ssl объект, ассоциирует его с дескриптором сокета
 		/// в случае ошибок возвращает false, ssl == nullptr, m_lasterror содержит ошибку
 		bool do_createssl(SSL *& ssl, SSL_CTX * sslctx);
+		/// ассоциирует sslctx c ssl, выставляет servername,
+		/// в случае ошибок возвращает false, ssl == nullptr, m_lasterror содержит ошибку
+		bool do_configuressl(SSL *& ssl, const char * servername = nullptr);
 		/// выполняет ssl подключение(handshake)
 		/// в случае ошибок возвращает false, m_lasterror содержит ошибку
 		bool do_sslconnect(SSL * ssl);
@@ -319,14 +324,26 @@ namespace ext
 		/// тем не менее stop_ssl останавливает ssl соединение, но не удаляет сессию,
 		/// повторный вызов start_ssl переиспользует ее.
 		/// вызов close - освобождает ssl сессию.
-		/// На данный момент нельзя передать объект сессии из вне.
 		SSL * ssl_handle() { return m_sslhandle; }
+
+		/// устанавливает SSL сессию.
+		/// Если уже есть активная(ssl_started) сессия - кидает std::logic_error исключение.
+		/// Последующий вызов start_ssl будет использовать данную сессию.
+		/// Данный метод подразумевает владение ssl и взывает для него SSL_free в методе close
+		void set_ssl(SSL * ssl);
 
 		/// переключается в режим ssl c параметрами заданными последним вызовом bool start_ssl(SSL_CTX * sslctx)
 		/// если такого вызова не было - аналогично start_ssl(SSLv23_client_method()).
 		/// в случае ошибок возвращает false.
 		/// NOTE: метод не проверяет наличие активной сессии
 		bool start_ssl();
+
+		/// создает сессию с заданным методом и servername, выполняет ssl соединение, в случае ошибок возвращает false.
+		/// servername - ::SSL_set_tlsext_host_name(ssl, servername), он же ключ -servername у openssl.exe
+		/// NOTE: метод не проверяет наличие активной сессии
+		bool start_ssl(const SSL_METHOD * sslmethod)     { return start_ssl(sslmethod, empty); }
+		bool start_ssl(const std::string & servername)   { return start_ssl(nullptr, servername); }
+		bool start_ssl(const SSL_METHOD * sslmethod, const std::string & servername);
 
 		/// выполняет установку ssl сессии с заданными параметрами - в случае успеха возвращает true
 		/// данный метод подразумевает владение sslctx и взывает для него SSL_CTX_free
@@ -339,11 +356,6 @@ namespace ext
 		/// в случае ошибок возвращает false.
 		/// NOTE: метод не проверяет наличие активной сессии
 		bool start_ssl_weak(SSL_CTX * sslctx);
-
-		/// создает сессию с заданным методом и устанавливает ssl сессию
-		/// в случае ошибок возвращает false.
-		/// NOTE: метод не проверяет наличие активной сессии
-		bool start_ssl(const SSL_METHOD * sslmethod);
 
 		/// сбрасывает буфер и останавливает ssl сессию, если сессии не было - возвращает true
 		/// если на каком либо из этапов возникла ошибка - returns false

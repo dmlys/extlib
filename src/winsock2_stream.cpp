@@ -64,6 +64,38 @@ namespace ext
 			setstate(std::ios::badbit | std::ios::failbit);
 	}
 
+	void winsock2_stream::start_ssl(const std::string & servername)
+	{
+		if (fail()) return;
+
+		if (!m_streambuf.start_ssl(servername))
+			setstate(std::ios::badbit | std::ios::failbit);
+	}
+
+	void winsock2_stream::start_ssl(const std::wstring & wservername)
+	{
+		if (fail()) return;
+
+		if (!m_streambuf.start_ssl(wservername))
+			setstate(std::ios::badbit | std::ios::failbit);
+	}
+
+	void winsock2_stream::start_ssl(const SSL_METHOD * sslmethod, const std::string & servername)
+	{
+		if (fail()) return;
+
+		if (!m_streambuf.start_ssl(sslmethod, servername))
+			setstate(std::ios::badbit | std::ios::failbit);
+	}
+
+	void winsock2_stream::start_ssl(const SSL_METHOD * sslmethod, const std::wstring & wservername)
+	{
+		if (fail()) return;
+
+		if (!m_streambuf.start_ssl(sslmethod, wservername))
+			setstate(std::ios::badbit | std::ios::failbit);
+	}
+
 	void winsock2_stream::stop_ssl()
 	{
 		if (fail()) return;
