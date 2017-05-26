@@ -331,7 +331,7 @@ namespace ext
 		unsigned previous = m_promise_state.load(std::memory_order_relaxed);
 
 		do {
-			if (previous & future_uncancellable) 
+			if (previous & future_uncancellable)
 				return pstatus(previous) != future_state::cancellation;
 
 			switch (pstatus(previous))

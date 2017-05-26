@@ -44,7 +44,7 @@ namespace ext
 				{
 					if (has_resize_method<OutRange>::value)
 						resize(rng, sz);
-					else 
+					else
 					{
 						if (boost::size(rng) > sz) // set null terminator
 							*(ext::data(rng) + sz) = 0;

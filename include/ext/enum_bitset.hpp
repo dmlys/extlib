@@ -86,7 +86,7 @@ namespace ext
 
 
 		template <class Char, class Traits, class Alloc>
-		explicit enum_bitset( 
+		explicit enum_bitset(
 			const std::basic_string<Char, Traits, Alloc> & str,
             typename std::basic_string<Char, Traits, Alloc>::size_type pos = 0,
             typename std::basic_string<Char, Traits, Alloc>::size_type n = std::basic_string<Char, Traits, Alloc>::npos,
@@ -145,7 +145,7 @@ namespace ext
 		return lhs.underlaying() != rhs.underlaying();
 	}
 
-	
+
 	template <class Char, class Traits, class Enum, std::size_t Size>
 	inline std::basic_ostream<Char, Traits> & operator <<(std::basic_ostream<Char, Traits> & os, const enum_bitset<Enum, Size> & bs)
 	{

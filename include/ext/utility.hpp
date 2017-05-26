@@ -112,7 +112,7 @@ namespace ext
 		auto INVOKE(FuncType Base::*pmf, Derived && ref, Args && ... args)
 			noexcept(noexcept((std::forward<Derived>(ref).*pmf)(std::forward<Args>(args)...)))
 			-> std::enable_if_t<
-				std::is_function<FuncType>::value && 
+				std::is_function<FuncType>::value &&
 				std::is_base_of<Base, std::decay_t<Derived>>::value,
 				decltype((std::forward<Derived>(ref).*pmf)(std::forward<Args>(args)...))
 			>
@@ -138,7 +138,7 @@ namespace ext
 		auto INVOKE(FuncType Base::*pmf, Pointer && ptr, Args && ... args)
 			noexcept(noexcept(((*std::forward<Pointer>(ptr)).*pmf)(std::forward<Args>(args)...)))
 			-> std::enable_if_t<
-				std::is_function<FuncType>::value && 
+				std::is_function<FuncType>::value &&
 				is_reference_wrapper<std::decay_t<Pointer>>::value &&
 				!std::is_base_of<Base, std::decay_t<Pointer>>::value,
 				decltype(((*std::forward<Pointer>(ptr)).*pmf)(std::forward<Args>(args)...))
@@ -177,7 +177,7 @@ namespace ext
 		auto INVOKE(Type Base::*pmd, Pointer && ptr)
 			noexcept(noexcept((*std::forward<Pointer>(ptr)).*pmd))
 			-> std::enable_if_t<
-				!std::is_function<Type>::value && 
+				!std::is_function<Type>::value &&
 				!is_reference_wrapper<std::decay_t<Pointer>>::value &&
 				!std::is_base_of<Base, std::decay_t<Pointer>>::value,
 				decltype((*std::forward<Pointer>(ptr)).*pmd)>
@@ -219,7 +219,7 @@ namespace ext
 		struct tuple_visitation_result_type
 		{
 			typedef typename tuple_visitation_result_type_impl<
-				Tuple, Functor, 
+				Tuple, Functor,
 				typename std::make_index_sequence<
 					std::tuple_size<std::decay_t<Tuple>>::value
 				>::type
@@ -332,7 +332,7 @@ namespace ext
 	inline void aux_pass(Types && ...) {}
 
 
-	/// extracts element from tuple by idx, like get function, 
+	/// extracts element from tuple by idx, like get function,
 	/// except this is functor -> can be easier passed to functions.
 	/// for example: std::transform(vec.begin(), vec.end(), vecint.begin(), get_func<0>())
 	template <std::size_t Idx>

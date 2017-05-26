@@ -18,13 +18,13 @@ namespace ext
 		constexpr unsigned InputGroupSize = 3;
 
 		template <class Iterator>
-		using encode_itearator = 
+		using encode_itearator =
 			boost::archive::iterators::base64_from_binary<
 				boost::archive::iterators::transform_width<Iterator, 6, 8>
 			>;
 
 		template <class Iterator>
-		using decode_itearator = 
+		using decode_itearator =
 			boost::archive::iterators::transform_width<
 				boost::archive::iterators::binary_from_base64<Iterator>, 8, 6
 			>;
@@ -147,7 +147,7 @@ namespace ext
 		base64_itearator last = boost::end(inplit);
 		auto out_beg = boost::begin(out) + old_size;
 
-		std::copy(first, last, out_beg);		
+		std::copy(first, last, out_beg);
 	}
 
 	template <class OutputContainer = std::string, class InputRange>

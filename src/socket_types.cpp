@@ -42,7 +42,7 @@ namespace ext
 				return code && code != sock_errc::eof;
 			
 			default: return false;
-		}		
+		}
 	}
 
 

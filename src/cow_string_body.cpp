@@ -46,7 +46,7 @@ namespace ext
 		return const_cast<value_type *>(m_body->buffer + m_body->size);
 	}
 
-	inline auto cow_string_body::alloc_body(std::nothrow_t, size_type cap) -> heap_body * 
+	inline auto cow_string_body::alloc_body(std::nothrow_t, size_type cap) -> heap_body *
 	{
 		cap += sizeof(size_type) * 3 + 1; // 1 for null terminator
 		heap_body * body = reinterpret_cast<heap_body *>(new(std::nothrow) char[cap]);
@@ -55,7 +55,7 @@ namespace ext
 	}
 
 	inline auto cow_string_body::alloc_body(size_type cap) -> heap_body *
-	{		
+	{
 		cap += sizeof(heap_body) - alignof(heap_body) + 1; // 1 for null terminator
 		heap_body * body = reinterpret_cast<heap_body *>(new char[cap]);
 		new (body) heap_body;
@@ -69,7 +69,7 @@ namespace ext
 		new (body) cow_string_body::heap_body;
 
 		body->capacity = body->size = ptr->size;
-		std::memcpy(body->buffer, ptr->buffer, ptr->size);		
+		std::memcpy(body->buffer, ptr->buffer, ptr->size);
 	}
 
 	auto cow_string_body::alloc_body_adjusted(const heap_body & body, size_type newcap) -> heap_body *

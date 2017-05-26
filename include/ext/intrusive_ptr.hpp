@@ -21,11 +21,11 @@ namespace ext
 	/// * intrusive_ptr_use_count(const value_type *) -> counter_type
 	/// * intrusive_ptr_default(const value_type *) -> convertible to   value_type *
 	/// 
-	/// all functions, even those who actually not need it, 
+	/// all functions, even those who actually not need it,
 	/// take pointer as argument, so functions can be provided on ADL basis.
 	/// 
 	/// Functions description:
-	/// * void intrusive_ptr_add_ref(value_type * ptr) 
+	/// * void intrusive_ptr_add_ref(value_type * ptr)
 	///        increase reference counter
 	///        typical implementation would be:
 	///        ++ptr->refs
@@ -184,15 +184,15 @@ namespace ext
 	/// * intrusive_ptr_default(const value_type *) -> convertible to   value_type *
 	/// * intrusive_ptr_clone(const value_type *, value_type *&) -> void
 	/// 
-	/// all functions, even those who actually not need it, 
+	/// all functions, even those who actually not need it,
 	/// take pointer as argument, so functions can be provided on ADL basis.
 	///
-	/// default constructed intrusive_cow_ptr holds a value returned by intrusive_ptr_default, 
+	/// default constructed intrusive_cow_ptr holds a value returned by intrusive_ptr_default,
 	/// which is typically nullptr, but can be some shared empty val.
 	/// 
 	/// 
 	/// Functions description:
-	/// * void intrusive_ptr_add_ref(value_type * ptr) 
+	/// * void intrusive_ptr_add_ref(value_type * ptr)
 	///        increase reference counter
 	///        typical implementation would be:
 	///        ++ptr->refs
@@ -211,14 +211,14 @@ namespace ext
 	/// * auto intrusive_ptr_default(const value_type *) -> value_type */std::nullptr_t
 	/// 
 	///        returns pointer for a default constructed object.
-	///        if it returns pointer to shared empty object, 
+	///        if it returns pointer to shared empty object,
 	///        reference counter must be increased as if by intrusive_ptr_add_ref.
 	///
-	///        typical implementation would be: return nullptr; 
+	///        typical implementation would be: return nullptr;
 	///        or for shared empty:  intrusive_ptr_add_ref(&g_global_shared); return &g_global_shared;
 	///        
 	/// * void intrusive_ptr_clone(const value_type * ptr, value_type * & dest)
-	///        returns copy of object pointed by ptr into dest, 
+	///        returns copy of object pointed by ptr into dest,
 	///        copy must have increased reference count as if by intrusive_ptr_add_ref.
 	///        
 	///        typical implementation would be:
@@ -226,7 +226,7 @@ namespace ext
 	///       	copy->refs = 1;
 	/// 
 	template <class Type>
-	class intrusive_cow_ptr : 
+	class intrusive_cow_ptr :
 		boost::totally_ordered<intrusive_cow_ptr<Type>, const Type *,
 		boost::totally_ordered1<intrusive_cow_ptr<Type>> >
 	{
@@ -299,7 +299,7 @@ namespace ext
 		friend void swap(intrusive_cow_ptr & p1, intrusive_cow_ptr & p2) noexcept { std::swap(p1.m_ptr, p2.m_ptr); }
 
 		template <class Other, class = typename std::enable_if_t<std::is_convertible<Other *, value_type *>::value>>
-		intrusive_cow_ptr(const intrusive_cow_ptr<Other> & other) noexcept 
+		intrusive_cow_ptr(const intrusive_cow_ptr<Other> & other) noexcept
 			: m_ptr(other.get_ptr())
 		{ addref(); }
 
@@ -376,7 +376,7 @@ namespace ext
 
 
 
-	/// intrusive_atomic_counter implements atomic thread safe reference counter 
+	/// intrusive_atomic_counter implements atomic thread safe reference counter
 	/// for a derived user's class that is intended to be used with intrusive_ptr/intrusive_cow_ptr.
 	/// For complex hierarchies do not forget virtual destructor and probably virtual clone function
 	template <class Derived>
@@ -543,8 +543,8 @@ namespace ext
 		return nullptr;
 	}
 
-	template <class Type, class DestType> 
-	void intrusive_ptr_clone(const intrusive_plain_counter<Type> * ptr, DestType * & dest)	
+	template <class Type, class DestType>
+	void intrusive_ptr_clone(const intrusive_plain_counter<Type> * ptr, DestType * & dest)
 	{
 		assert(ptr);
 		dest = new Type(*static_cast<const Type *>(ptr));

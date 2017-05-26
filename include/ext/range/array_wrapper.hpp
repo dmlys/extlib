@@ -42,7 +42,7 @@ namespace ext
 
 	template <class Type>
 	class array_wrapper<const Type> : public boost::iterator_range<const Type *>
-	{	
+	{
 		typedef boost::iterator_range<const Type *> _base_type;
 	
 	public:

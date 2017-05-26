@@ -9,13 +9,13 @@ namespace ext
 	///
 	/// you should use them like:
 	///  * if (ss.last_error() == sock_errc::error) std::cerr << ss.last_error ...
-	///  * if (ss.last_error() == sock_errc::regular) { ... process result ... } 
+	///  * if (ss.last_error() == sock_errc::regular) { ... process result ... }
 	enum class sock_errc
 	{
 		eof      = 1,   /// socket eof, for example recv return 0, or OpenSSL returned SSL_ERR_ZERO_RETURN
 		timeout  = 2,   /// operation(connect, read, write, shutdown) timeout
 		
-		regular  = 3,   /// no a error, code == 0 or some error which is not critical, like eof(currently only eof)		
+		regular  = 3,   /// no a error, code == 0 or some error which is not critical, like eof(currently only eof)
 		error    = 4,   /// opposite of regular, some bad unexpected error, which breaks normal flow, timeout, system error, etc
 	};
 
