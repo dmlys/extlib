@@ -13,12 +13,12 @@
 /// * addrinfo
 /// * sockaddr
 /// * socklen_t
-/// * sockoptlen_t - type that setsockopt accepts as len parameter, 
+/// * sockoptlen_t - type that setsockopt accepts as len parameter,
 ///                  normally it should same as socklen_t but on some platforms can be different
 /// 
 
 #if BOOST_OS_LINUX
-	
+
 	struct addrinfo;
 	struct sockaddr;
 	typedef unsigned int socklen_t;

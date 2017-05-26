@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(future_simple_test)
 
 	BOOST_CHECK(count == 2);
 
-	pi = ext::promise<void>();	
+	pi = ext::promise<void>();
 	pi.set_exception(std::make_exception_ptr(std::exception()));
 
 	fi = pi.get_future();
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(future_broken_tests)
 	
 	BOOST_CHECK(fi.is_abandoned());
 	BOOST_CHECK_EXCEPTION(
-		fi.get(), ext::future_error, 
+		fi.get(), ext::future_error,
 		[](auto & ex) { return ex.code() == ext::future_errc::broken_promise; }
 	);
 }
@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(future_when_any_tests)
 		ext::shared_future<int> farr[] =
 		{
 			ext::async(ext::launch::deferred, [] { return 12; }),
-			ps.get_future()	
+			ps.get_future()
 		};
 
 		auto fres = ext::when_any(std::begin(farr), std::end(farr));

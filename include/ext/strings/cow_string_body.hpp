@@ -97,7 +97,7 @@ namespace ext
 		return body.buffer + body.size;
 	}
 
-	inline auto cow_string_body::data_end() const noexcept -> const value_type * 
+	inline auto cow_string_body::data_end() const noexcept -> const value_type *
 	{
 		auto & body = *m_body;
 		return body.buffer + body.size;

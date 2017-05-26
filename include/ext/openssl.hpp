@@ -68,7 +68,7 @@ namespace ext
 namespace std
 {
 	template <>
-	struct is_error_code_enum<ext::openssl::ssl_error> 
+	struct is_error_code_enum<ext::openssl::ssl_error>
 		: std::true_type { };
 }
 

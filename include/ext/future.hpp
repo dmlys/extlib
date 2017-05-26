@@ -25,7 +25,7 @@
 #include <condition_variable>
 
 #include <ext/config.hpp>  // for EXT_UNREACHABLE
-#include <ext/utility.hpp> 
+#include <ext/utility.hpp>
 #include <ext/intrusive_ptr.hpp>
 #include <ext/try_reserve.hpp>
 
@@ -344,7 +344,7 @@ namespace ext
 		static future_state pstatus(unsigned promise_state) noexcept { return static_cast<future_state>(promise_state & status_mask); }
 
 		/// re-inits this shared_state_basic as deffered, should be called from constructor of derived class.
-		/// NOTE: probably shared_state_basic constructor initializing this class as deffered is better, 
+		/// NOTE: probably shared_state_basic constructor initializing this class as deffered is better,
 		///       but than it's must be forwarded by all derived classes...
 		void init_deffered() noexcept
 		{ this->m_promise_state.store(static_cast<unsigned>(future_state::deffered), std::memory_order_relaxed); }
@@ -410,7 +410,7 @@ namespace ext
 		virtual void continuate() noexcept { std::terminate(); }
 
 		/// special method for when_all, when_any support
-		/// index - index of satisfied shared_state. Used only by when_any 
+		/// index - index of satisfied shared_state. Used only by when_any
 		virtual void notify_satisfied(std::size_t index) noexcept { std::terminate(); }
 
 	public:
@@ -989,7 +989,7 @@ namespace ext
 	};
 
 	/// special continuation task.
-	/// Used as continuation into argument future, notifies parent when_any_task	
+	/// Used as continuation into argument future, notifies parent when_any_task
 	class when_any_task_continuation : public continuation_base
 	{
 		typedef shared_state_unexceptional<void>  base_type;
@@ -1589,7 +1589,7 @@ namespace ext
 	{
 		auto fstate = signal_future(m_task_next);
 		run_continuations(fstate);
-		 
+		
 		//auto next = base_type::m_fstnext.load(std::memory_order_acquire);
 		//run_continuations(next);
 	}
@@ -2135,7 +2135,7 @@ namespace ext
 			}
 
 			auto cont = ext::make_intrusive<when_any_task_continuation>(state, idx++);
-			if (not f.handle()->add_continuation(cont.get())) 
+			if (not f.handle()->add_continuation(cont.get()))
 				break; // executed immediately, no sense to continue
 		}
 

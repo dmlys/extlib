@@ -629,7 +629,7 @@ namespace ext
 		err = errno;
 	error:
 		if (rw_error(-1, err, m_lasterror)) return false;
-		goto again;		
+		goto again;
 	}
 
 	std::streamsize bsdsock_streambuf::showmanyc()
@@ -708,7 +708,7 @@ namespace ext
 	{
 		// error can be result of shutdown from interrupt
 		auto state = m_state.load(std::memory_order_relaxed);
-		if (state >= Interrupting) 
+		if (state >= Interrupting)
 		{
 			err_code = std::make_error_code(std::errc::interrupted);
 			return true;
@@ -1083,7 +1083,7 @@ namespace ext
 	}
 	
 #endif //EXT_ENABLE_OPENSSL
-	
+
 	/************************************************************************/
 	/*                     getters/setters                                  */
 	/************************************************************************/
@@ -1138,7 +1138,7 @@ namespace ext
 		unsigned short port;
 		ext::inet_ntop(addr, host, port);
 		
-		char buffer[std::numeric_limits<unsigned short>::digits10 + 2];		
+		char buffer[std::numeric_limits<unsigned short>::digits10 + 2];
 		host += ':';
 		host += ext::itoa(port, buffer);
 		

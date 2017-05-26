@@ -102,7 +102,7 @@ namespace ext
 
 	public:
 		template <class Functor>
-		auto submit(time_point tp, Functor && func) -> 
+		auto submit(time_point tp, Functor && func) ->
 			ext::future<std::result_of_t<std::decay_t<Functor>()>>;
 
 		template <class Functor>
@@ -119,7 +119,7 @@ namespace ext
 		threaded_scheduler & operator =(threaded_scheduler &&) = delete;
 
 		threaded_scheduler(const threaded_scheduler & ) = delete;
-		threaded_scheduler & operator =(const threaded_scheduler &) = delete;		
+		threaded_scheduler & operator =(const threaded_scheduler &) = delete;
 	};
 
 	template <class Functor>

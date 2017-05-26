@@ -4,7 +4,7 @@
 
 namespace ext
 {
-	
+
 	template <class Type>
 	struct is_decayed_type_charlike :
 		std::integral_constant
@@ -34,20 +34,20 @@ namespace ext
 	template <class CharType, std::size_t N>
 	struct is_string<CharType[N]> : is_char_type<CharType> {};
 
-	// range detection is done via boost::begin, boost::end, 
+	// range detection is done via boost::begin, boost::end,
 	// and those work with std::pair, pair of anything is not a string.
 	// sort of protection from std::pair<char *, char *>, etc
 	template <class Type>
 	struct is_string<std::pair<Type, Type>> : std::false_type {};
 
 	template <class Type>
-	struct is_string_range : 
+	struct is_string_range :
 		ext::is_string<
 			std::decay_t<ext::range_value_t<Type>>
 		> {};
 
 	template <class Type>
-	struct is_string_or_string_range : 
+	struct is_string_or_string_range :
 		std::integral_constant<bool,
 			ext::is_string<Type>::value || ext::is_string_range<Type>::value
 		>

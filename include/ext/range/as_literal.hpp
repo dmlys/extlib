@@ -12,7 +12,7 @@
 #include <boost/range/as_literal.hpp> // needed for some boost::range char * integration
 
 namespace ext
-{	
+{
 	/// same as boost::as_literal, but always returns iterator_range of pointers(boost::iterator_range<Type *>),
 	/// thus working only with contiguous string ranges, string literals and std::string are those.
 
@@ -55,7 +55,7 @@ namespace ext
 	}
 	
 	template <class Range>
-	inline auto as_array(Range & range) -> 
+	inline auto as_array(Range & range) ->
 		boost::iterator_range<typename boost::range_iterator<Range>::type>
 	{
 		return boost::make_iterator_range(range);

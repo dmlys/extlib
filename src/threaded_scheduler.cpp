@@ -5,8 +5,8 @@ namespace ext
 {
 	static constexpr auto max_timepoint()
 	{
-		// MSVC 2015 and some version of gcc have a bug, 
-		// that waiting in std::chrono::steady_clock::time_point::max() 
+		// MSVC 2015 and some version of gcc have a bug,
+		// that waiting in std::chrono::steady_clock::time_point::max()
 		// does not work due to integer overflow internally.
 		// 
 		// Prevent this by returning twice time_point::max() / 2, value still will be quite a big

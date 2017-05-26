@@ -291,7 +291,7 @@ namespace ext
 		using base_type::pack;
 		using base_type::unpack;
 
-	private:		
+	private:
 		template <class SizeType>
 		static SizeType decrease_size(SizeType cursize, std::size_t decsize);
 		static std::size_t increase_size(std::size_t cursize, std::size_t incsize);
@@ -892,7 +892,7 @@ namespace ext
 	}
 
 	template <unsigned InplaceSize>
-	auto compact_string_base<InplaceSize>::shrink_body(heap_short_body * oldbody, std::size_t newsize) 
+	auto compact_string_base<InplaceSize>::shrink_body(heap_short_body * oldbody, std::size_t newsize)
 		-> value_type *
 	{
 		using namespace compact_string_detail;
@@ -919,7 +919,7 @@ namespace ext
 	}
 
 	template <unsigned InplaceSize>
-	auto compact_string_base<InplaceSize>::shrink_body(heap_long_body * oldbody, std::size_t newsize) 
+	auto compact_string_base<InplaceSize>::shrink_body(heap_long_body * oldbody, std::size_t newsize)
 		-> value_type *
 	{
 		using namespace compact_string_detail;
@@ -953,7 +953,7 @@ namespace ext
 	}
 
 	template <unsigned InplaceSize>
-	auto compact_string_base<InplaceSize>::shrink_body(heap_huge_body * oldbody, std::size_t newsize) 
+	auto compact_string_base<InplaceSize>::shrink_body(heap_huge_body * oldbody, std::size_t newsize)
 		-> value_type *
 	{
 		using namespace compact_string_detail;
@@ -1031,7 +1031,7 @@ namespace ext
 	}
 	
 	template <unsigned InplaceSize>
-	BOOST_NOINLINE auto compact_string_base<InplaceSize>::grow_by(size_type size_increment) 
+	BOOST_NOINLINE auto compact_string_base<InplaceSize>::grow_by(size_type size_increment)
 		-> std::pair<value_type *, size_type>
 	{
 		using namespace compact_string_detail;
@@ -1113,7 +1113,7 @@ namespace ext
 	}
 
 	template <unsigned InplaceSize>
-	BOOST_NOINLINE void compact_string_base<InplaceSize>::resize(size_type newsize)	
+	BOOST_NOINLINE void compact_string_base<InplaceSize>::resize(size_type newsize)
 	{
 		using namespace compact_string_detail;
 		if (newsize >= max_size()) throw_xlen();

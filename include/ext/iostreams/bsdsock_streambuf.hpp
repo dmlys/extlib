@@ -152,7 +152,7 @@ namespace ext
 		std::atomic<StateType> m_state = {Closed};
 
 		error_code_type m_lasterror;
-		duration_type m_timeout = std::chrono::seconds(10); 
+		duration_type m_timeout = std::chrono::seconds(10);
 
 	private:
 		/// публикует сокет для которого началось подключение,
@@ -319,8 +319,8 @@ namespace ext
 		/// есть ли активная ssl сессия
 		bool ssl_started() const;
 		
-		/// возвращает текущую SSL сессию. 
-		/// если вызова start_ssl еще не было - returns nullptr, 
+		/// возвращает текущую SSL сессию.
+		/// если вызова start_ssl еще не было - returns nullptr,
 		/// тем не менее stop_ssl останавливает ssl соединение, но не удаляет сессию,
 		/// повторный вызов start_ssl переиспользует ее.
 		/// вызов close - освобождает ssl сессию.
