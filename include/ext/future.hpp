@@ -561,7 +561,7 @@ namespace ext
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
-		void set_value(value_type && val);
+		void set_value(std::remove_const_t<value_type> && val);
 		/// fulfills promise and sets exception result ex
 		void set_exception(std::exception_ptr ex);
 
@@ -680,7 +680,7 @@ namespace ext
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
-		void set_value(value_type && val);
+		void set_value(std::remove_const_t<value_type> && val);
 
 		// set_exception should not be called for shared_state_unexceptional
 		void set_exception(std::exception_ptr eptr) override;
@@ -941,7 +941,7 @@ namespace ext
 		using base_type::m_promise_state;
 
 	public:
-		//void set_value(value_type && val) override { std::terminate(); }
+		//void set_value(std::remove_const_t<value_type> && val) override { std::terminate(); }
 		//void set_value(const value_type & val) override { std::terminate(); }
 		void notify_satisfied(std::size_t index) noexcept override;
 
@@ -979,7 +979,7 @@ namespace ext
 		std::atomic_size_t m_count;
 
 	public:
-		//void set_value(value_type && val) override { std::terminate(); }
+		//void set_value(std::remove_const_t<value_type> && val) override { std::terminate(); }
 		//void set_value(const value_type & val) override { std::terminate(); }
 		void notify_satisfied(std::size_t index) noexcept override;
 
@@ -1159,7 +1159,7 @@ namespace ext
 		std::atomic_thread_fence(std::memory_order_acquire);
 		switch (status())
 		{
-			case future_state::value:         return &m_val;
+			case future_state::value:         return ext::unconst(&m_val);
 			case future_state::exception:     std::rethrow_exception(m_exptr);
 			case future_state::cancellation:  throw future_error(make_error_code(future_errc::cancelled));
 			case future_state::abandonned:    throw future_error(make_error_code(future_errc::broken_promise));
@@ -1183,17 +1183,17 @@ namespace ext
 		if (not satisfy_check_promise(future_state::value)) return;
 
 		// construct in uninitialized memory
-		new (&m_val) value_type(val);
+		new (ext::unconst(&m_val)) value_type(val);
 		set_future_ready();
 	}
 
 	template <class Type>
-	void shared_state<Type>::set_value(value_type && val)
+	void shared_state<Type>::set_value(std::remove_const_t<value_type> && val)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
 
 		// construct in uninitialized memory
-		new (&m_val) value_type(std::move(val));
+		new (ext::unconst(&m_val)) value_type(std::move(val));
 		set_future_ready();
 	}
 
@@ -1398,7 +1398,7 @@ namespace ext
 	}
 
 	template <class Type>
-	void shared_state_unexceptional<Type>::set_value(value_type && val)
+	void shared_state_unexceptional<Type>::set_value(std::remove_const_t<value_type> && val)
 	{
 		if (not satisfy_check_promise(future_state::value)) return;
 
@@ -1722,7 +1722,7 @@ namespace ext
 
 		bool valid() const { return static_cast<bool>(m_ptr); }
 		bool cancel() { assert(valid()); return m_ptr->cancel(); }
-		value_type get() { assert(valid()); return m_ptr->template get<value_type>(); }
+		value_type get() { assert(valid()); return m_ptr->template get<value_type &>(); }
 
 		void wait() const { assert(valid()); return m_ptr->wait(); }
 		future_status wait_for(std::chrono::steady_clock::duration timeout_duration)  const { assert(valid()); return m_ptr->wait_for(timeout_duration); }
@@ -1771,7 +1771,7 @@ namespace ext
 
 		bool cancel();
 		void set_value(const value_type & val);
-		void set_value(value_type && val);
+		void set_value(std::remove_const_t<value_type> && val);
 		void set_exception(std::exception_ptr ex);
 
 	public:
@@ -1811,7 +1811,7 @@ namespace ext
 	}
 
 	template <class Type>
-	inline void promise<Type>::set_value(value_type && val)
+	inline void promise<Type>::set_value(std::remove_const_t<value_type> && val)
 	{
 		check_state();
 		m_ptr->set_value(std::move(val));
