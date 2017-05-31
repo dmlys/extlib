@@ -169,9 +169,8 @@ namespace ext
 		if (is_waiter(ptr))
 		{
 			auto * waiter = static_cast<continuation_waiter *>(ptr);
-			waiter->continuate();
-
 			addr = waiter->m_fstnext.load(std::memory_order_acquire);
+			waiter->continuate();
 
 			if (waiter->release() == 1)
 				ext::release_waiter(waiter);
@@ -181,8 +180,8 @@ namespace ext
 
 		do
 		{
-			ptr->continuate();
 			addr = ptr->m_fstnext.load(std::memory_order_acquire);
+			ptr->continuate();
 			ptr->release();
 
 		loop:
