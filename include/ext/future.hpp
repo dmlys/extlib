@@ -329,6 +329,8 @@ namespace ext
 		static constexpr std::uintptr_t ready = 0;
 		// mask to extract lock state
 		static constexpr std::uintptr_t lock_mask = 1;
+		// initial value fo fsnext
+		static constexpr std::uintptr_t fsnext_init = ~lock_mask;
 
 	protected:
 		/// object lifetime reference counter
@@ -336,7 +338,7 @@ namespace ext
 		/// state of promise, unsatisfied, satisfied by: value, exception, cancellation, ...
 		std::atomic_uint m_promise_state = ATOMIC_VAR_INIT(static_cast<unsigned>(future_state::unsatisfied));
 		/// state and head of continuations slist
-		std::atomic_uintptr_t m_fstnext = ATOMIC_VAR_INIT(~lock_mask);
+		std::atomic_uintptr_t m_fstnext = ATOMIC_VAR_INIT(fsnext_init);
 
 	protected:
 		static bool is_waiter(continuation_type * ptr) noexcept;
@@ -465,8 +467,10 @@ namespace ext
 		/// whichever comes first. Returns value identifies the state of the result.
 		virtual future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const;
 		
-		/// type-erased get method, returns pointer to a stored value, for void future returns nullptr
+		/// Type-erased get method, returns pointer to a stored value, for void future returns nullptr
 		/// for reference specializations returns stored pointer.
+		/// Does not wait or checks for future become ready, 
+		/// use get<Type>() instead - it waits for becoming ready
 		virtual void * get_ptr() = 0;
 		/// Type-erased set_value method, fulfills promise and sets value result from ptr.
 		/// Implementation casts this pointer to a type of this shared_state<Type>.
@@ -856,6 +860,7 @@ namespace ext
 	protected:
 		typedef shared_state_basic continuation_type;
 		using base_type::lock_mask;
+		using base_type::fsnext_init;
 		
 		using base_type::signal_future;
 		using base_type::attach_continuation;
@@ -868,7 +873,7 @@ namespace ext
 		/// But this is continuation chain of this continuation_task.
 		/// It's needed because user can wait on this future, or even cancel it.
 		/// This should not affect parent future.
-		std::atomic_uintptr_t m_task_next = ATOMIC_VAR_INIT(~lock_mask);
+		std::atomic_uintptr_t m_task_next = ATOMIC_VAR_INIT(fsnext_init);
 
 	protected:
 		/// set future status to ready and runs continuations
@@ -1071,6 +1076,11 @@ namespace ext
 	template <class Type>
 	inline Type shared_state_basic::get()
 	{
+		wait();
+		// wait checks m_fstnext for ready with std::memory_order_relaxed
+		// to see m_val, we must synchromize with release operation in set_* functions
+		std::atomic_thread_fence(std::memory_order_acquire);
+
 		typedef std::conditional_t<
 			std::is_reference<Type>::value,
 			Type &,     // if reference return as from reference
@@ -1087,7 +1097,12 @@ namespace ext
 
 	template <>
 	inline void shared_state_basic::get()
-	{
+	{		
+		wait();
+		// wait checks m_fstnext for ready with std::memory_order_relaxed
+		// to see m_val, we must synchromize with release operation in set_* functions
+		std::atomic_thread_fence(std::memory_order_acquire);
+
 		get_ptr();
 	}
 
@@ -1153,10 +1168,7 @@ namespace ext
 	template <class Type>
 	void * shared_state<Type>::get_ptr()
 	{
-		this->wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
+		assert(is_ready());
 		switch (status())
 		{
 			case future_state::value:         return ext::unconst(&m_val);
@@ -1232,10 +1244,7 @@ namespace ext
 	template <class Type>
 	void * shared_state<Type &>::get_ptr()
 	{
-		this->wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
+		assert(is_ready());
 		switch (status())
 		{
 			case future_state::value:         return ext::unconst(m_val);
@@ -1300,10 +1309,7 @@ namespace ext
 	/************************************************************************/
 	inline void * shared_state<void>::get_ptr()
 	{
-		this->wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
+		assert(is_ready());
 		switch (status())
 		{
 			case future_state::value:         return nullptr;
@@ -1363,10 +1369,7 @@ namespace ext
 	template <class Type>
 	void * shared_state_unexceptional<Type>::get_ptr()
 	{
-		this->wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
+		assert(is_ready());
 		switch (status())
 		{
 			case future_state::value:         return &m_val;
@@ -1438,10 +1441,7 @@ namespace ext
 	template <class Type>
 	void * shared_state_unexceptional<Type &>::get_ptr()
 	{
-		this->wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
+		assert(is_ready());
 		switch (status())
 		{
 			case future_state::value:         return ext::unconst(m_val);
@@ -1482,10 +1482,7 @@ namespace ext
 	/************************************************************************/
 	inline void * shared_state_unexceptional<void>::get_ptr()
 	{
-		this->wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
+		assert(is_ready());
 		switch (status())
 		{
 			case future_state::value:         return nullptr;

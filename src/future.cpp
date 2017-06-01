@@ -488,7 +488,7 @@ namespace ext
 	void continuation_waiter::reset() noexcept
 	{
 		m_ready = false;
-		m_fstnext.store(~lock_mask, std::memory_order_relaxed);
+		m_fstnext.store(fsnext_init, std::memory_order_relaxed);
 		m_promise_state.store(static_cast<unsigned>(future_state::unsatisfied), std::memory_order_relaxed);
 	}
 
