@@ -458,6 +458,100 @@ namespace ext
 		return res;
 	}
 
+
+	void unwrap_continuation::set_future_ready() noexcept
+	{
+		auto fstate = signal_future(m_task_next);
+		run_continuations(fstate);
+	}
+
+	void unwrap_continuation::continuate() noexcept
+	{
+		// we add ourself as continuation only to one shared_state at once, so there is no concurrency,
+		// but continuate can run on different threads - we have to constraint memory access.
+		// 
+		// continuate is called after chain is accquired with std::memory_order_acquire semantics
+		// so std::atomic_thread_fence(std::memory_order_acquire) is already done
+		auto ptr = m_future_ptr.load(std::memory_order_relaxed);
+		auto state = reinterpret_cast<ext::shared_state_basic *>(ptr);
+
+		// either it was last future in future chain,
+		// or some result was different from value(exception, abandonned, ...)
+		if (not m_unwrap_count.load(std::memory_order_relaxed) or not state->has_value())
+		{
+			// transfer future status into us and become ready
+			satisfy_promise(state->status());
+			set_future_ready();
+			return;
+		}
+		
+		// NOTE: this is only method here that is not noexcept,
+		// but at this point we know that it has value and it's value_type, so it's safe
+		auto newstate = state->get<const ext::intrusive_ptr<shared_state_basic> &>().get();
+		auto newptr = reinterpret_cast<std::uintptr_t>(newstate);
+		newstate->addref();
+
+		// set new current state, note that only continuate updates current state,
+		// and it does there are not concurrent continuate runs
+		lock_ptr(m_future_ptr);
+		m_unwrap_count.fetch_sub(1, std::memory_order_relaxed);
+		unlock_ptr(m_future_ptr, newptr);
+
+		// if deferred - run it
+		if (newstate->is_deferred())
+			newstate->wait();
+
+		m_fstnext.store(~lock_mask, std::memory_order_relaxed);
+		newstate->add_continuation(this);
+
+		// release old state
+		state->release();
+
+		// add_continuation(this) have memory_order_release semantics on this pointer
+		// (unlock_ptr in attach_continuation)
+		// so std::atomic_thread_fence(std::memory_order_release) is already done
+	}
+
+	bool unwrap_continuation::cancel() noexcept
+	{
+		if (is_ready()) return false;
+
+		auto & future_ptr = ext::unconst(m_future_ptr);
+		auto ptr = lock_ptr(future_ptr);
+		// note: we increase refcount under lock,
+		// so we can use newstate even after it released in continuate method
+		ext::intrusive_ptr<shared_state_basic> state {reinterpret_cast<ext::shared_state_basic *>(ptr)};
+		unlock_ptr(future_ptr);
+
+		return state->cancel();
+	}
+
+	void * unwrap_continuation::get_ptr()
+	{
+		auto ptr = m_future_ptr.load(std::memory_order_relaxed);
+		auto state = reinterpret_cast<ext::shared_state_basic *>(ptr);
+		return state->get_ptr();
+	}
+
+	unwrap_continuation::unwrap_continuation(ext::intrusive_ptr<shared_state_basic> future, unsigned unwrap_count) noexcept
+		: m_future_ptr(reinterpret_cast<std::uintptr_t>(future.get())),
+		  m_unwrap_count(unwrap_count)
+	{
+		if (future->is_deferred())
+			future->wait();
+
+		future.release()->add_continuation(this);
+	}
+
+	unwrap_continuation::~unwrap_continuation() noexcept
+	{
+		// required memory constraints are already should be done by this->release
+		auto ptr = m_future_ptr.load(std::memory_order_relaxed);
+		auto state = reinterpret_cast<ext::shared_state_basic *>(ptr);
+		state->release();
+	}
+
+
 	void continuation_waiter::continuate() noexcept
 	{
 		m_mutex.lock();

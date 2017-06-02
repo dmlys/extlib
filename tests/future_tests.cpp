@@ -75,10 +75,11 @@ BOOST_AUTO_TEST_CASE(future_cancellation_tests)
 		f11.cancel();
 		f22.cancel();
 		
+		// currently continuations on deferred run immediately
 		auto res = fi.get();
 		BOOST_CHECK(res == 12);
-		BOOST_CHECK(uc1 == 0);
-		BOOST_CHECK(uc2 == 1);
+		BOOST_CHECK(uc1 == 2);
+		BOOST_CHECK(uc2 == 2);
 	}
 }
 
@@ -180,7 +181,7 @@ BOOST_AUTO_TEST_CASE(future_deferred_tests)
 	auto f = ext::async(ext::launch::deferred, [] { return 12u; });
 	auto fc = f.then([](auto f) { return f.get() + 12u; });
 
-	BOOST_CHECK(fc.is_deferred());
+	//BOOST_CHECK(fc.is_deferred());
 	fc.wait();
 	BOOST_CHECK(fc.is_ready());
 	BOOST_CHECK(fc.get() == 24);
@@ -194,5 +195,37 @@ BOOST_AUTO_TEST_CASE(future_deferred_tests)
 	std::tie(f1, f2) = fall.get();
 	BOOST_CHECK(f1.get() + f2.get() == 24);
 }
+
+BOOST_AUTO_TEST_CASE(future_deferred_unwrap_tests)
+{
+	// async => deferred
+	{
+		auto f1 = ext::async(ext::launch::async, [] { return 12; });
+		auto f2 = f1.then([](auto f)
+		{
+			auto val = f.get();
+			return ext::async(ext::launch::deferred, [val] { return val * 2 + 3; });
+		});
+
+		auto fall = ext::when_all(f2.unwrap());
+		ext::future<int> fi = std::get<0>(fall.get());
+		BOOST_CHECK(fi.get() == 12 * 2 + 3);
+	}
+	
+	// deferred => async
+	{
+		auto f1 = ext::async(ext::launch::deferred, [] { return 12; });
+		auto f2 = f1.then([](auto f)
+		{
+			auto val = f.get();
+			return ext::async(ext::launch::async, [val] { return val * 2 + 3; });
+		});
+
+		auto fall = ext::when_all(f2.unwrap());
+		ext::future<int> fi = std::get<0>(fall.get());
+		BOOST_CHECK(fi.get() == 12 * 2 + 3);
+	}
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -246,14 +246,31 @@ namespace ext
 		typedef ext::future<result_type> future_type;
 
 		auto task = ext::make_intrusive<task_type>(std::move(wrapped));
-		auto cont = ext::make_intrusive<delayed_task_continuation>(this, task);
-		
-		{
-			std::lock_guard<std::mutex> lk(m_mutex);
-			m_delayed.push_back((cont.addref(), *cont.get()));
-		}
+		future_type fut {std::move(task)};
 
-		handle->add_continuation(cont.get());
-		return future_type {std::move(task)};
+		if (handle->is_deferred())
+		{	// make it ready
+			handle->wait();
+
+			{
+				std::lock_guard<std::mutex> lk(m_mutex);
+				m_tasks.push_back(*task.release());
+			}
+
+			m_event.notify_one();
+		}
+		else
+		{
+			auto cont = ext::make_intrusive<delayed_task_continuation>(this, task);
+
+			{
+				std::lock_guard<std::mutex> lk(m_mutex);
+				m_delayed.push_back((cont.addref(), *cont.get()));
+			}
+
+			handle->add_continuation(cont.get());
+		}
+		
+		return fut;
 	}
 }
