@@ -458,6 +458,50 @@ namespace ext
 		return res;
 	}
 
+
+	void unwrap_continuation::set_future_ready() noexcept
+	{
+		auto fstate = signal_future(m_task_next);
+		run_continuations(fstate);
+	}
+
+	void unwrap_continuation::continuate() noexcept
+	{
+		// we add ourself as continuation only to one shared_state at once, so there is no concurrency,
+		// but continuate can run on different threads - we have to constraint memory access.
+		// 
+		// continuate is called after chain is accquired with std::memory_order_acquire semantics
+		// so std::atomic_thread_fence(std::memory_order_acquire) is already done
+
+		if (not m_unwrap_count)
+		{
+			set_future_ready();
+			return;
+		}
+
+		--m_unwrap_count;
+
+		m_future = m_future->get<ext::intrusive_ptr<shared_state_basic> &>();
+		m_fstnext.store(~lock_mask, std::memory_order_relaxed);
+		m_future->add_continuation(this);
+
+		// add_continuation(this) have memory_order_release semantics on this pointer
+		// (unlock_ptr in attach_continuation)
+		// so std::atomic_thread_fence(std::memory_order_release) is already done
+	}
+
+	void * unwrap_continuation::get_ptr()
+	{
+		return m_future->get_ptr();
+	}
+
+	unwrap_continuation::unwrap_continuation(ext::intrusive_ptr<shared_state_basic> future, unsigned unwrap_count)
+		: m_future(future), m_unwrap_count(unwrap_count)
+	{
+		m_future->add_continuation(this);
+	}
+
+
 	void continuation_waiter::continuate() noexcept
 	{
 		m_mutex.lock();

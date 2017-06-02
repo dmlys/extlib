@@ -107,6 +107,47 @@ namespace ext
 	struct is_future_types<Head, Tail...> :
 		std::integral_constant<bool, is_future_type<Head>::value && is_future_types<Tail...>::value> {};
 
+	/// metafunction, returns how many future type wrappers is in type:
+	/// other type - 0
+	/// future<type> - 1
+	/// future<future<type>> - 2
+	/// ...
+	template <class Type> struct future_depth : std::integral_constant<unsigned, 0> {};
+	
+	template <class Type> struct future_depth<ext::future<Type>>
+		: std::integral_constant<unsigned, 1 + future_depth<Type>::value> {};
+
+	template <class Type> struct future_depth<ext::shared_future<Type>>
+		: std::integral_constant<unsigned, 1 + future_depth<Type>::value> {};
+
+	template <class Type>
+	constexpr unsigned future_depth_v = future_depth<Type>::value;
+
+	/// metafunction, unwrap future chain and returns underlying type
+	/// future<int> - int
+	/// future<future<string>> - string
+	/// ...
+	template <class Type>
+	struct future_unwrap
+	{
+		typedef Type type;
+	};
+
+	template <class Type>
+	struct future_unwrap<ext::future<Type>>
+	{
+		typedef typename future_unwrap<Type>::type type;
+	};
+
+	template <class Type>
+	struct future_unwrap<ext::shared_future<Type>>
+	{
+		typedef typename future_unwrap<Type>::type type;
+	};
+
+	template <class Type>
+	using future_unwrap_t = typename future_unwrap<Type>::type;
+
 
 	/// result of when_any call
 	template <class Sequence>
@@ -178,6 +219,22 @@ namespace ext
 			ext::future<std::tuple<std::decay_t<Futures>...>>
 		>;
 
+
+	template <class Future>
+	auto unwrap_future(Future f) ->
+		std::enable_if_t<
+			is_future_type<Future>::value && future_depth<typename Future::value_type>::value == 0,
+			ext::future<typename Future::value_type>
+		>;
+
+	template <class Future>
+	auto unwrap_future(Future f) ->
+		std::enable_if_t<
+			is_future_type<Future>::value && future_depth<typename Future::value_type>::value != 0,
+			ext::future<future_unwrap_t<typename Future::value_type>>
+		>;
+
+
 	/// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task.
 	/// ext::future, ext::promise, ext::packaged_task would be front-end classes used by clients.
 	/// This library would provide implementation of those interfaces via:
@@ -230,6 +287,7 @@ namespace ext
 	template <class Type> class shared_state_unexceptional;
 
 	class continuation_waiter;
+	class unwrap_continuation;
 	template <class>        class packaged_task_base;
 	template <class, class> class packaged_task_impl;
 	template <class, class> class deferred_task_impl;
@@ -469,7 +527,7 @@ namespace ext
 		
 		/// Type-erased get method, returns pointer to a stored value, for void future returns nullptr
 		/// for reference specializations returns stored pointer.
-		/// Does not wait or checks for future become ready, 
+		/// Does not wait or checks for future become ready,
 		/// use get<Type>() instead - it waits for becoming ready
 		virtual void * get_ptr() = 0;
 		/// Type-erased set_value method, fulfills promise and sets value result from ptr.
@@ -789,7 +847,7 @@ namespace ext
 		/// reset waiter, after that it can be used again
 		void reset() noexcept;
 	};
-
+	
 
 	template <class Ret, class ... Args>
 	class packaged_task_base<Ret(Args...)> : public shared_state<Ret>
@@ -1030,6 +1088,57 @@ namespace ext
 			: m_parent(std::move(parent)) {}
 	};
 
+
+	/// unwrap_future continuation for implementing unwrap functionality.
+	class unwrap_continuation : public ext::continuation_base
+	{
+		typedef ext::continuation_base base_type;
+
+	protected:
+		using base_type::lock_mask;
+		using base_type::fsnext_init;
+
+		using base_type::signal_future;
+		using base_type::attach_continuation;
+		using base_type::accquire_waiter;
+		using base_type::release_waiter;
+		using base_type::run_continuations;
+
+	protected:
+		/// like shared_state_basic::m_fsnext, see shared_state_basic class description.
+		/// But this is continuation chain of this continuation_task.
+		/// It's needed because user can wait on this future, or even cancel it.
+		/// This should not affect parent future.
+		std::atomic_uintptr_t m_task_next = ATOMIC_VAR_INIT(fsnext_init);
+		ext::intrusive_ptr<shared_state_basic> m_future;
+		unsigned m_unwrap_count;
+
+	protected:
+		/// set future status to ready and runs continuations
+		void set_future_ready() noexcept override;
+		/// attaches continuation to the internal continuation, increments refcount.
+		/// after continuation fires - refcount decrement.
+		/// returns false if shared_state was ready and continuation fired immediately
+		bool add_continuation(continuation_type * continuation) noexcept override
+		{ return attach_continuation(m_task_next, continuation); }
+		/// acquires waiter from internal continuation list, it it has it,
+		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
+		auto accquire_waiter() -> continuation_waiter * override
+		{ return accquire_waiter(m_task_next); }
+		/// release waiter, it there no more usages - detaches to from internal continuation list,
+		/// and release it to waiter objects pool
+		void release_waiter(continuation_waiter * waiter) noexcept override
+		{ return release_waiter(m_task_next, waiter); }
+
+	public:
+		void continuate() noexcept override;
+		void * get_ptr() override;
+
+	public:
+		unwrap_continuation(ext::intrusive_ptr<shared_state_basic> future, unsigned unwrap_count);
+	};
+
+
 	/************************************************************************/
 	/*            shared_state_basic lifetime                               */
 	/************************************************************************/
@@ -1097,7 +1206,7 @@ namespace ext
 
 	template <>
 	inline void shared_state_basic::get()
-	{		
+	{
 		wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchromize with release operation in set_* functions
@@ -1665,8 +1774,8 @@ namespace ext
 		bool cancel() { assert(valid()); return m_ptr->cancel(); }
 		value_type get() { assert(valid()); auto ptr = std::move(m_ptr); return ptr->template get<value_type>(); }
 
-
 		ext::shared_future<Type> share() { assert(valid()); return std::move(m_ptr); }
+		auto unwrap() noexcept { return ext::unwrap_future(std::move(*this)); }
 
 		void wait() const { assert(valid()); return m_ptr->wait(); }
 		future_status wait_for(std::chrono::steady_clock::duration timeout_duration)  const { assert(valid()); return m_ptr->wait_for(timeout_duration); }
@@ -1724,6 +1833,8 @@ namespace ext
 		void wait() const { assert(valid()); return m_ptr->wait(); }
 		future_status wait_for(std::chrono::steady_clock::duration timeout_duration)  const { assert(valid()); return m_ptr->wait_for(timeout_duration); }
 		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const { assert(valid()); return m_ptr->wait_until(timeout_point); }
+
+		auto unwrap() noexcept { return ext::unwrap_future(*this); }
 
 		template <class Functor>
 		auto then(Functor && continuation) ->
@@ -2233,6 +2344,29 @@ namespace ext
 		}
 
 		return {state};
+	}
+
+
+	template <class Future>
+	inline auto unwrap_future(Future f) ->
+		std::enable_if_t<
+			is_future_type<Future>::value && future_depth<typename Future::value_type>::value == 0,
+			ext::future<typename Future::value_type>
+		>
+	{
+		return f;
+	}
+
+	template <class Future>
+	auto unwrap_future(Future f) ->
+		std::enable_if_t<
+			is_future_type<Future>::value && future_depth<typename Future::value_type>::value != 0,
+			ext::future<future_unwrap_t<typename Future::value_type>>
+		>
+	{
+		auto unwrapper = ext::make_intrusive<unwrap_continuation>(
+			f.release(), future_depth_v<typename Future::value_type>);
+		return {std::move(unwrapper)};
 	}
 
 
