@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE(future_deferred_tests)
 	auto f = ext::async(ext::launch::deferred, [] { return 12u; });
 	auto fc = f.then([](auto f) { return f.get() + 12u; });
 
-	BOOST_CHECK(fc.is_deffered());
+	BOOST_CHECK(fc.is_deferred());
 	fc.wait();
 	BOOST_CHECK(fc.is_ready());
 	BOOST_CHECK(fc.get() == 24);

@@ -79,9 +79,9 @@
 
   <Type Name = "ext::shared_state_basic">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deferred">deferred</DisplayString>
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
-                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deferred">
       has result
     </DisplayString>
     <Expand>
@@ -94,9 +94,9 @@
 
   <Type Name = "ext::shared_state&lt;*&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deferred">deferred</DisplayString>
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
-                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deferred">
       has result
     </DisplayString>
     <Expand>
@@ -113,9 +113,9 @@
 
   <Type Name = "ext::shared_state&lt;void&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deferred">deferred</DisplayString>
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
-                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deferred">
       has result
     </DisplayString>
     <Expand>
@@ -133,9 +133,9 @@
 
   <Type Name = "ext::shared_state_unexceptional&lt;*&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deferred">deferred</DisplayString>
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
-                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deferred">
       has result
     </DisplayString>
     <Expand>
@@ -151,9 +151,9 @@
 
   <Type Name = "ext::shared_state_unexceptional&lt;void&gt;">
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::unsatisfied">pending</DisplayString>
-    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deffered">deffered</DisplayString>
+    <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) == ext::future_state::deferred">deferred</DisplayString>
     <DisplayString Condition = "(m_promise_state._My_val &amp; status_mask) != ext::future_state::unsatisfied &amp;&amp;
-                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deffered">
+                                (m_promise_state._My_val &amp; status_mask) != ext::future_state::deferred">
       has result
     </DisplayString>
     <Expand>
