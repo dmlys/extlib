@@ -951,7 +951,7 @@ namespace ext
 				{	// remember replacement is bigger than hole.
 					// first we move hole substring to beginning of hole.
 					// then normal tail move, and than move tail part(diff corrected) after hole
-					traits_type::copy(o_first, r_first, o_count); // fill replaceable hole
+					traits_type::move(o_first, r_first, o_count); // fill replaceable hole
 					traits_type::move(o_first + r_count, o_first + o_count, tail_count); // move tail after hole
 					this->set_eos(o_first + r_count + tail_count); // set eos at buffer end
 					traits_type::copy(o_first + o_count, r_first + o_count + diff, diff); // fill after hole
@@ -1034,7 +1034,7 @@ namespace ext
 				{	// remember replacement is bigger than hole.
 					// first we move hole substring to beginning of hole.
 					// then normal tail move, and than move tail part(diff corrected) after hole
-					traits_type::copy(first, str, count); // fill replaceable hole
+					traits_type::move(first, str, count); // fill replaceable hole
 					traits_type::move(first + count2, first + count, tail_count); // move tail after hole
 					this->set_eos(first + count2 + tail_count); // set eos at buffer end
 					traits_type::copy(first + count, str + count + diff, diff); // fill after hole

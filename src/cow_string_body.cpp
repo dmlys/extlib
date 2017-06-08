@@ -108,7 +108,7 @@ namespace ext
 		{
 			auto * newbody = alloc_body_adjusted(oldbody, newsize);
 			newbody->size = newsize;
-			m_body.reset(newbody);
+			m_body.reset(newbody, ext::noaddref);
 		}
 
 		set_eos(mutable_bufend());
@@ -123,7 +123,7 @@ namespace ext
 		if (newcap <= oldbody.capacity) return;
 
 		auto * newbody = alloc_body_adjusted(oldbody, newcap);
-		m_body.reset(newbody);
+		m_body.reset(newbody, ext::noaddref);
 
 		set_eos(mutable_bufend());
 	}
@@ -135,7 +135,7 @@ namespace ext
 
 		heap_body * newbody;
 		intrusive_ptr_clone(&body, newbody);
-		m_body.reset(newbody, false);
+		m_body.reset(newbody, ext::noaddref);
 
 		set_eos(mutable_bufend());
 	}
@@ -152,7 +152,7 @@ namespace ext
 		{
 			auto * newbody = alloc_body_adjusted(oldbody, newsize);
 			newbody->size = newsize;
-			m_body.reset(newbody);
+			m_body.reset(newbody, ext::noaddref);
 		}
 
 		return mutable_buffer();
@@ -169,7 +169,7 @@ namespace ext
 		{
 			auto * newbody = alloc_body_adjusted(body, newsize);
 			newbody->size = newsize;
-			m_body.reset(newbody);
+			m_body.reset(newbody, ext::noaddref);
 		}
 
 		return {mutable_buffer(), newsize};
