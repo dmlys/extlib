@@ -288,7 +288,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
-				case future_state::deffered:
+				case future_state::deferred:
 					break;
 			}
 
@@ -315,7 +315,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
-				case future_state::deffered:
+				case future_state::deferred:
 					break;
 			}
 
@@ -345,7 +345,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
-				case future_state::deffered:
+				case future_state::deferred:
 					break;
 			}
 
@@ -374,7 +374,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
-				case future_state::deffered:
+				case future_state::deferred:
 					break;
 			}
 
@@ -403,7 +403,7 @@ namespace ext
 					return false;
 
 				case future_state::unsatisfied:
-				case future_state::deffered:
+				case future_state::deferred:
 					break;
 			}
 
