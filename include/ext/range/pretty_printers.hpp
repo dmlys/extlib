@@ -1,7 +1,8 @@
 #pragma once
-#include <ext/range/range_traits.hpp>
 #include <ostream>
 #include <string>
+#include <ext/is_string.hpp>
+#include <ext/range/range_traits.hpp>
 
 namespace ext { namespace pretty_printers
 {
@@ -63,7 +64,11 @@ namespace ext { namespace pretty_printers
 	/// должен ли operator << для типа Type попадать в набор перегрузок
 	template <class Type>
 	struct is_streamable :
-		std::integral_constant<bool, is_range<Type>::value && !stream_ignore<Type>::value> {};
+		std::integral_constant<bool,
+			!stream_ignore<Type>::value &&
+			!is_string<Type>::value &&
+			 is_range<Type>::value
+		> {};
 
 	/// перегрузка оператора << для вывода Range
 	/// использовать следующим образом:
