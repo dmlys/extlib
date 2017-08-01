@@ -22,7 +22,7 @@ local zlib_src =    [ glob src/*zlib* ] ;
 local openssl_src = [ glob src/*openssl* ] ;
 local tests_src =   [ glob tests/*cpp ] ;
 
-if [ os.name ] = 'NT'
+if [ os.name ] = NT
 {
 	src += [ glob src/*winsock* ] ;
 }
