@@ -43,6 +43,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\basexx_coding_tables.cpp" />
     <ClCompile Include="src\cow_string_body.cpp" />
     <ClCompile Include="src\cppzlib.cpp" />
     <ClCompile Include="src\Errors.cpp" />
@@ -70,6 +71,7 @@
     <ClInclude Include="include\ext\algorithm\binary_find.hpp" />
     <ClInclude Include="include\ext\algorithm\slide.hpp" />
     <ClInclude Include="include\ext\algorithm\tribool_compare.hpp" />
+    <ClInclude Include="include\ext\base16.hpp" />
     <ClInclude Include="include\ext\is_string.hpp" />
     <ClInclude Include="include\ext\iterator\append_iterator.hpp" />
     <ClInclude Include="include\ext\codecvt_conv.hpp" />
