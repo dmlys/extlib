@@ -48,7 +48,8 @@ namespace ext
 		static_assert(std::is_same<typename boost::range_value<Container>::type, char>::value, "not a char container");
 
 		boost::filesystem::ifstream ifs(file, mode);
-		if (!ifs.is_open()) {
+		if (!ifs.is_open())
+		{
 			//      "Failed to open {1}, {2}
 			reps << "Failed to open " << file << ", " << ext::FormatErrno(errno) << std::endl;
 			return false;
@@ -60,20 +61,23 @@ namespace ext
 		ifs.seekg(0);
 
 		Container content_;
-		try {
+		try
+		{
 			std::make_unsigned<std::streamsize>::type ufs = fileSize; // to silence warning on x64
 			if (ufs > content_.max_size())
 				throw std::bad_alloc();
 			content_.resize(static_cast<std::size_t>(fileSize), 0);
 		}
-		catch (std::bad_alloc &) {
+		catch (std::bad_alloc &)
+		{
 			// "Failed to read {1}, file to big, size is {2,num}
 			reps << "Failed to read " << file << ", file to big, size is " << fileSize << std::endl;
 			return false;
 		}
 
 		ifs.read(ext::data(content_), fileSize);
-		if (ifs.bad()) {
+		if (ifs.bad())
+		{
 			// "Failed to read {1}, {2}
 			reps << "Failed to read " << file << ", " << ext::FormatErrno(errno) << std::endl;
 			return false;
@@ -84,18 +88,55 @@ namespace ext
 		return true;
 	}
 
+	template <class Container>
+	bool WriteFile(boost::filesystem::path const & file, Container & content, std::ostream & reps,
+	              std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
+	{
+		boost::filesystem::ofstream ifs(file, mode);
+		if (!ifs.is_open())
+		{
+			//      "Failed to open {1}, {2}
+			reps << "Failed to open " << file << ", " << ext::FormatErrno(errno) << std::endl;
+			return false;
+		}
+		
+		ifs.write(ext::data(content), content.size());
+		if (ifs.bad())
+		{
+			// "Failed to read {1}, {2}
+			reps << "Failed to write " << file << ", " << ext::FormatErrno(errno) << std::endl;
+			return false;
+		}
+		
+		return true;
+	}
+
 	struct FileLoadError : std::runtime_error
 	{
 		FileLoadError(std::string const & msg) : std::runtime_error(msg) {}
 	};
 
+	struct FileWriteError : std::runtime_error
+	{
+		FileWriteError(std::string const & msg) : std::runtime_error(msg) {}
+	};
+
 	template <class Container>
 	void LoadFile(boost::filesystem::path const & file, Container & content,
-				  std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
+	              std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
 	{
 		std::stringstream reps;
 		if (!LoadFile(file, content, reps, mode))
 			throw FileLoadError(reps.str());
+	}
+
+	template <class Container>
+	void WriteFile(boost::filesystem::path const & file, Container & content,
+	               std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
+	{
+		std::stringstream reps;
+		if (!WriteFile(file, content, reps, mode))
+			throw FileWriteError(reps.str());
 	}
 
 
