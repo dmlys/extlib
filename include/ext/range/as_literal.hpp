@@ -5,6 +5,7 @@
 //          http://www.boost.org/LICENSE_1_0.txt
 //          
 
+#include <ciso646>
 #include <cassert>
 
 #include <boost/static_assert.hpp>
@@ -18,7 +19,10 @@ namespace ext
 
 	template <class String>
 	inline auto as_literal(String & str) ->
-		boost::iterator_range<typename boost::range_value<String>::type *>
+		std::enable_if_t<
+			ext::is_contiguous_container<String>::value,
+			boost::iterator_range<typename boost::range_value<String>::type *>
+		>
 	{
 		auto * ptr = ext::data(str);
 		return {ptr, ptr + boost::size(str)};
@@ -26,11 +30,35 @@ namespace ext
 	
 	template <class String>
 	inline auto as_literal(const String & str) ->
-		boost::iterator_range<typename boost::range_value<String>::type const *>
+		std::enable_if_t<
+			ext::is_contiguous_container<String>::value,
+			boost::iterator_range<typename boost::range_value<String>::type const *>
+		>
 	{
 		auto * ptr = ext::data(str);
 		return {ptr, ptr + boost::size(str)};
 	}
+
+	template <class String>
+	inline auto as_literal(String & str) ->
+		std::enable_if_t<
+			not ext::is_contiguous_container<String>::value,
+			boost::iterator_range<typename boost::range_iterator<String>::type>
+		>
+	{
+		return boost::make_iterator_range(str);
+	}
+
+	template <class String>
+	inline auto as_literal(const String & str) ->
+		std::enable_if_t<
+			not ext::is_contiguous_container<String>::value,
+			boost::iterator_range<typename boost::range_iterator<const String>::type>
+		>
+	{
+		return boost::make_iterator_range(str);
+	}
+
 	
 	template <class CharType, std::size_t N>
 	inline auto as_literal(CharType (& str)[N]) ->
