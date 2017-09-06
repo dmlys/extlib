@@ -427,12 +427,12 @@ namespace ext
 		/// attaches continuation to a continuation list with head, increments refcount.
 		/// after continuation fires - refcount decrement.
 		/// returns false if shared_state was ready and continuation fired immediately
-		static bool attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation) noexcept;
+		static bool attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation, shared_state_basic * caller) noexcept;
 		/// runs continuations slist pointed by addr, checks if addr is_continuation.
 		/// typically should be called after signal_future.
 		/// for each item in list continuate and release are called, than next item is taken from m_fstnext.
 		/// if continuate some how affects item pointed by m_fstnext it probably should set it to ready or not_a_continuation.
-		static void run_continuations(std::uintptr_t addr) noexcept;
+		static void run_continuations(std::uintptr_t addr, shared_state_basic * caller) noexcept;
 		/// acquires waiter from continuation list, it it has it,
 		/// or acquires it from waiter objects pool and attaches it to continuation list.
 		static auto accquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *;
@@ -467,7 +467,7 @@ namespace ext
 		/// continuation support, must be implemented only by classes used as continuations.
 		/// Others - should ignore this method, default implementation calls std::terminate.
 		/// Currently those are: continuation_task and continuation_base derived classes.
-		virtual void continuate() noexcept { std::terminate(); }
+		virtual void continuate(shared_state_basic * caller) noexcept { std::terminate(); }
 
 		/// special method for when_all, when_any support
 		/// index - index of satisfied shared_state. Used only by when_any
@@ -487,7 +487,7 @@ namespace ext
 		/// returns true if successful(even if already was marked), false if shared_state already holds some result(cancellation, value, ...).
 		bool mark_uncancellable() noexcept;
 		/// marks promise is taken by someone and also uncancellable,
-		/// this is more of convenience synchronization flag. currently used only by packged_task/deffrered_packaged_task.
+		/// this is more of convenience synchronization flag. currently used only by packged_task/deferred_packaged_task.
 		/// returns true if marked successfully(there was no mark) and future was not cancelled,
 		///         false if either future was cancelled, or packaged task already started execution.
 		bool mark_taken() noexcept;
@@ -589,7 +589,7 @@ namespace ext
 		// set_future_ready is noop by default, service are internal and not visible outside
 		void set_future_ready() noexcept override {};
 		// continuate must be implemented
-		void continuate() noexcept override = 0;
+		void continuate(shared_state_basic * caller) noexcept override = 0;
 	};
 
 	/// shared_state - type dependent part, have space for object, exception pointer.
@@ -843,7 +843,7 @@ namespace ext
 
 	public:
 		/// fires condition_variable, waking any waiting thread
-		void continuate() noexcept override;
+		void continuate(shared_state_basic * caller) noexcept override;
 		/// reset waiter, after that it can be used again
 		void reset() noexcept;
 	};
@@ -910,10 +910,10 @@ namespace ext
 
 	/// implements continuations(future::then, shread_future::then)
 	template <class Functor, class Type>
-	class continuation_task : public packaged_task_impl<Functor, Type()>
+	class continuation_task : public packaged_task_impl<Functor, Type(shared_state_basic *)>
 	{
-		typedef continuation_task                    self_type;
-		typedef packaged_task_impl<Functor, Type()>  base_type;
+		typedef continuation_task                                        self_type;
+		typedef packaged_task_impl<Functor, Type(shared_state_basic *)>  base_type;
 
 	protected:
 		typedef shared_state_basic continuation_type;
@@ -940,7 +940,7 @@ namespace ext
 		/// after continuation fires - refcount decrement.
 		/// returns false if shared_state was ready and continuation fired immediately
 		bool add_continuation(continuation_type * continuation) noexcept override
-		{ return attach_continuation(m_task_next, continuation); }
+		{ return attach_continuation(m_task_next, continuation, this); }
 		/// acquires waiter from internal continuation list, if has one,
 		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
 		auto accquire_waiter() -> continuation_waiter * override
@@ -951,7 +951,7 @@ namespace ext
 		{ return release_waiter(m_task_next, waiter); }
 
 	public:
-		void continuate() noexcept override;
+		void continuate(shared_state_basic * caller) noexcept override;
 
 	public:
 		// inherit constructors
@@ -959,11 +959,15 @@ namespace ext
 	};
 
 	/// implements continuations(future::then, shread_future::then) for deferred futures
+	/// !!! Deferred continuations needs more work, do not use them for now(they are fired immediately for now)
 	template <class Functor, class Type>
 	class deferred_continuation_task : public continuation_task<Functor, Type>
 	{
 		typedef deferred_continuation_task         self_type;
 		typedef continuation_task<Functor, Type>   base_type;
+
+	protected:
+		ext::intrusive_ptr<shared_state_basic> m_parent;
 
 	public:
 		void wait() const override;
@@ -971,8 +975,12 @@ namespace ext
 		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
 
 	public:
-		deferred_continuation_task() noexcept { this->init_deferred(); }
-		deferred_continuation_task(Functor func) noexcept : base_type(std::move(func)) { this->init_deferred(); }
+		deferred_continuation_task(Functor func, ext::intrusive_ptr<shared_state_basic> parent) noexcept 
+			: base_type(std::move(func)), m_parent(std::move(parent))
+		{
+			assert(false);
+			this->init_deferred();
+		}
 	};
 	
 	/// shared state returned by whan_any call.
@@ -1066,7 +1074,7 @@ namespace ext
 		std::size_t m_index;
 
 	public:
-		void continuate() noexcept override { m_parent->notify_satisfied(m_index); }
+		void continuate(shared_state_basic * caller) noexcept override { m_parent->notify_satisfied(m_index); }
 
 	public:
 		when_any_task_continuation(ext::intrusive_ptr<parent_task_type> parent, std::size_t index) noexcept
@@ -1083,7 +1091,7 @@ namespace ext
 		ext::intrusive_ptr<parent_task_type> m_parent;
 
 	public:
-		void continuate() noexcept override { m_parent->notify_satisfied(0); }
+		void continuate(shared_state_basic * caller) noexcept override { m_parent->notify_satisfied(0); }
 
 	public:
 		when_all_task_continuation(ext::intrusive_ptr<parent_task_type> parent) noexcept
@@ -1122,7 +1130,7 @@ namespace ext
 		/// after continuation fires - refcount decrement.
 		/// returns false if shared_state was ready and continuation fired immediately
 		bool add_continuation(continuation_type * continuation) noexcept override
-		{ return attach_continuation(m_task_next, continuation); }
+		{ return attach_continuation(m_task_next, continuation, this); }
 		/// acquires waiter from internal continuation list, if has one,
 		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
 		auto accquire_waiter() -> continuation_waiter * override
@@ -1134,7 +1142,7 @@ namespace ext
 
 	public:
 		bool cancel() noexcept override;
-		void continuate() noexcept override;
+		void continuate(shared_state_basic * caller) noexcept override;
 		void * get_ptr() override;
 
 	public:
@@ -1226,10 +1234,10 @@ namespace ext
 		typedef std::result_of_t<std::decay_t<Functor>(ext::future<Type>)> return_type;
 		ext::intrusive_ptr<shared_state_basic> state;
 
-		auto wrapped = [continuation = std::forward<Functor>(continuation),
-		                self_ptr = ext::intrusive_ptr<self_type>(this)]() mutable -> return_type
+		auto wrapped = [continuation = std::forward<Functor>(continuation)]
+		                (shared_state_basic * caller) mutable -> return_type
 		{
-			return continuation(ext::future<Type>(std::move(self_ptr)));
+			return continuation(ext::future<Type>(ext::intrusive_ptr<shared_state_basic>(caller)));
 		};
 
 		// if we are deferred - become ready, defeats laziness, sadly :(
@@ -1249,10 +1257,10 @@ namespace ext
 		typedef std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)> return_type;
 		ext::intrusive_ptr<shared_state_basic> state;
 
-		auto wrapped = [continuation = std::forward<Functor>(continuation),
-		                self_ptr = ext::intrusive_ptr<self_type>(this)]() mutable -> return_type
+		auto wrapped = [continuation = std::forward<Functor>(continuation)]
+		                (shared_state_basic * caller) mutable -> return_type
 		{
-			return continuation(ext::shared_future<Type>(std::move(self_ptr)));
+			return continuation(ext::shared_future<Type>(ext::intrusive_ptr<shared_state_basic>(caller)));
 		};
 
 		// if we are deferred - become ready, defeats laziness, sadly :(
@@ -1688,16 +1696,16 @@ namespace ext
 	void continuation_task<Functor, Type>::set_future_ready() noexcept
 	{
 		auto fstate = signal_future(m_task_next);
-		run_continuations(fstate);
+		run_continuations(fstate, this);
 		
 		//auto next = base_type::m_fstnext.load(std::memory_order_acquire);
-		//run_continuations(next);
+		//run_continuations(next, this);
 	}
 
 	template <class Functor, class Type>
-	void continuation_task<Functor, Type>::continuate() noexcept
+	void continuation_task<Functor, Type>::continuate(shared_state_basic * caller) noexcept
 	{
-		this->execute();
+		this->execute(caller);
 	}
 
 	template <class Functor, class Type>
@@ -1708,7 +1716,8 @@ namespace ext
 
 		try
 		{
-			shared_state_execute(*ext::unconst(this), ext::unconst(this)->m_functor);
+			auto self = ext::unconst(this);
+			shared_state_execute(*self, self->m_functor, m_parent.get());
 		}
 		catch (...)
 		{

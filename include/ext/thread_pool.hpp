@@ -81,7 +81,7 @@ namespace ext
 			ext::intrusive_ptr<task_base> m_task;
 
 		public:
-			void continuate() noexcept override;
+			void continuate(shared_state_basic * caller) noexcept override;
 			void abandone() noexcept;
 
 		public:
