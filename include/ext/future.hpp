@@ -464,9 +464,9 @@ namespace ext
 		virtual void release_waiter(continuation_waiter * waiter);
 
 	public:
-		/// continuation support, must be implemented only by classes used as continuations:
-		/// shared_state_basic only uses continuation_waiter and continuation_task.
+		/// continuation support, must be implemented only by classes used as continuations.
 		/// Others - should ignore this method, default implementation calls std::terminate.
+		/// Currently those are: continuation_task and continuation_base derived classes.
 		virtual void continuate() noexcept { std::terminate(); }
 
 		/// special method for when_all, when_any support
@@ -1628,7 +1628,7 @@ namespace ext
 	template <class Functor, class ... Args>
 	inline void shared_state_execute(shared_state<void> & sh, Functor & functor, Args && ... args)
 	{
-		ext::invoke(functor, std::forward(args)...);
+		ext::invoke(functor, std::forward<Args>(args)...);
 		sh.set_value();
 	}
 
@@ -1641,7 +1641,7 @@ namespace ext
 	template <class Functor, class ... Args>
 	inline void shared_state_execute(shared_state_unexceptional<void> & sh, Functor & functor, Args && ... args)
 	{
-		ext::invoke(functor, std::forward(args)...);
+		ext::invoke(functor, std::forward<Args>(args)...);
 		sh.set_value();
 	}
 
