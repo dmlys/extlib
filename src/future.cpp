@@ -130,7 +130,7 @@ namespace ext
 		return fstate;
 	}
 
-	bool shared_state_basic::attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation) noexcept
+	bool shared_state_basic::attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation, shared_state_basic * caller) noexcept
 	{
 		assert(not dynamic_cast<continuation_waiter *>(continuation));
 		assert(not is_continuation(continuation->m_fstnext.load(std::memory_order_relaxed)));
@@ -138,7 +138,7 @@ namespace ext
 		auto fstate = lock_ptr(head);
 		if (fstate == ready)
 		{   // state became ready. just execute continuation.
-			continuation->continuate(); // it's defined as noexcept
+			continuation->continuate(caller); // it's defined as noexcept
 			return false;
 		}
 
@@ -161,7 +161,7 @@ namespace ext
 		return true;
 	}
 
-	void shared_state_basic::run_continuations(std::uintptr_t addr) noexcept
+	void shared_state_basic::run_continuations(std::uintptr_t addr, shared_state_basic * caller) noexcept
 	{
 		if (not is_continuation(addr)) return;
 
@@ -170,7 +170,7 @@ namespace ext
 		{
 			auto * waiter = static_cast<continuation_waiter *>(ptr);
 			addr = waiter->m_fstnext.load(std::memory_order_acquire);
-			waiter->continuate();
+			waiter->continuate(caller);
 
 			if (waiter->release() == 1)
 				ext::release_waiter(waiter);
@@ -181,7 +181,7 @@ namespace ext
 		do
 		{
 			addr = ptr->m_fstnext.load(std::memory_order_acquire);
-			ptr->continuate();
+			ptr->continuate(caller);
 			ptr->release();
 
 		loop:
@@ -250,12 +250,12 @@ namespace ext
 	void shared_state_basic::set_future_ready() noexcept
 	{
 		auto chain = signal_future(m_fstnext);
-		run_continuations(chain);
+		run_continuations(chain, this);
 	}
 
 	bool shared_state_basic::add_continuation(continuation_type * continuation) noexcept
 	{
-		return attach_continuation(m_fstnext, continuation);
+		return attach_continuation(m_fstnext, continuation, this);
 	}
 
 	auto shared_state_basic::accquire_waiter() -> continuation_waiter *
@@ -458,14 +458,13 @@ namespace ext
 		return res;
 	}
 
-
 	void unwrap_continuation::set_future_ready() noexcept
 	{
 		auto fstate = signal_future(m_task_next);
-		run_continuations(fstate);
+		run_continuations(fstate, this);
 	}
 
-	void unwrap_continuation::continuate() noexcept
+	void unwrap_continuation::continuate(shared_state_basic * caller) noexcept
 	{
 		// we add ourself as continuation only to one shared_state at once, so there is no concurrency,
 		// but continuate can run on different threads - we have to constraint memory access.
@@ -552,7 +551,7 @@ namespace ext
 	}
 
 
-	void continuation_waiter::continuate() noexcept
+	void continuation_waiter::continuate(shared_state_basic * caller) noexcept
 	{
 		m_mutex.lock();
 		m_ready = true;

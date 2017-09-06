@@ -23,7 +23,7 @@ namespace ext
 		return m_stop_request.exchange(true, std::memory_order_relaxed);
 	}
 
-	void thread_pool::delayed_task_continuation::continuate() noexcept
+	void thread_pool::delayed_task_continuation::continuate(shared_state_basic * caller) noexcept
 	{
 		auto owner = m_owner;
 		bool notify;
