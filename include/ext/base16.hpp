@@ -54,14 +54,14 @@ namespace ext
 
 		/// encodes symbol ch, as '<hex1><hex2>'
 		template <class OutputIterator>
-		inline constexpr OutputIterator & encode_char(OutputIterator & out, unsigned char ch)
+		inline OutputIterator & encode_char(OutputIterator & out, unsigned char ch)
 		{
 			*out = encoding_tables::hex_encoding_array[ch / 16];   ++out;			
 			*out = encoding_tables::hex_encoding_array[ch % 16];   ++out;
 			return out;
 		}
 
-		inline constexpr char decode_nibble(char ch)
+		inline char decode_nibble(char ch)
 		{
 			ch = encoding_tables::hex_decoding_array[static_cast<unsigned char>(ch)];
 			if (ch >= 0) return ch;
@@ -70,7 +70,7 @@ namespace ext
 		}
 
 		template <class Iterator>
-		inline constexpr char decode_char(Iterator & it)
+		inline char decode_char(Iterator & it)
 		{
 			return decode_nibble(*it++) * 16 + decode_nibble(*it++);
 		}

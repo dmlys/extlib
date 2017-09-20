@@ -1861,6 +1861,13 @@ namespace ext
 		shared_future & operator =(const shared_future &) = default;
 	};
 
+	template <>
+	inline void shared_future<void>::get()
+	{
+		assert(valid());
+		return m_ptr->get<void>();
+	}
+
 	/************************************************************************/
 	/*                   promise<Type>                                      */
 	/************************************************************************/

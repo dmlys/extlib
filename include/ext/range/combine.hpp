@@ -4,21 +4,28 @@
 
 namespace ext
 {
-	template <class... Iterators>
-	class combined_range : public boost::iterator_range<ext::zip_iterator<Iterators...>>
+	template <class... Ranges>
+	class combined_range : 
+		public boost::iterator_range<
+			ext::zip_iterator<typename boost::range_iterator<Ranges>::type...>
+		>
 	{
-		typedef boost::iterator_range<ext::zip_iterator<Iterators...>> base_type;
+	public:
+		using zip_iterator = ext::zip_iterator<typename boost::range_iterator<Ranges>::type...>;
+
+	private:
+		using self_type = combined_range;
+		using base_type = boost::iterator_range<zip_iterator>;
 
 	public:
-		combined_range(ext::zip_iterator<Iterators...> first, ext::zip_iterator<Iterators...> last)
+		combined_range(zip_iterator first, zip_iterator last)
 			: base_type(first, last) {}
 	};
 
 	template<typename... Ranges>
-	auto combine(Ranges && ... rngs) ->
-		combined_range<typename boost::range_iterator<Ranges>::type...>
+	auto combine(Ranges && ... rngs) -> combined_range<std::decay_t<Ranges>...>
 	{
-		typedef ext::zip_iterator<typename boost::range_iterator<Ranges>::type...> iterator;
-		return {iterator {boost::begin(rngs)...}, iterator {boost::end(rngs)...}};
+		using zip_iterator = typename combined_range<Ranges...>::zip_iterator;
+		return {zip_iterator {boost::begin(rngs)...}, zip_iterator {boost::end(rngs)...}};
 	}
 }
