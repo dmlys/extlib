@@ -35,7 +35,7 @@ namespace ext
 			virtual void task_addref()   noexcept = 0;
 			virtual void task_release()  noexcept = 0;
 			virtual void task_abandone() noexcept = 0;
-			virtual void task_execute() = 0;
+			virtual void task_execute()  noexcept = 0;
 
 		public:
 			friend inline void intrusive_ptr_add_ref(task_base * ptr) noexcept { ptr->task_addref(); }
@@ -57,7 +57,7 @@ namespace ext
 			void task_addref()   noexcept override { base_type::addref(); }
 			void task_release()  noexcept override { base_type::release(); }
 			void task_abandone() noexcept override { base_type::release_promise(); }
-			void task_execute()           override { ext::shared_state_execute(*this, m_functor); }
+			void task_execute()  noexcept override;
 
 		public:
 			task_impl(time_point tp, Functor func)
@@ -147,5 +147,21 @@ namespace ext
 		ext::future<std::result_of_t<std::decay_t<Functor>()>>
 	{
 		return submit(rel + time_point::clock::now(), std::forward<Functor>(func));
+	}
+
+	template <class Functor, class ResultType>
+	void threaded_scheduler::task_impl<Functor, ResultType>::task_execute() noexcept
+	{
+		if (not this->mark_taken())
+			return;
+
+		try
+		{
+			ext::shared_state_execute(*this, m_functor);
+		}
+		catch (...)
+		{
+			this->set_exception(std::current_exception());
+		}
 	}
 }

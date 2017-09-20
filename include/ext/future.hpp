@@ -1065,7 +1065,7 @@ namespace ext
 	/// Used as continuation into argument future, notifies parent when_any_task
 	class when_any_task_continuation : public continuation_base
 	{
-		typedef shared_state_unexceptional<void>  base_type;
+		typedef continuation_base                 base_type;
 		typedef when_any_task_continuation        self_type;
 		typedef shared_state_basic                parent_task_type;
 	
@@ -1083,7 +1083,7 @@ namespace ext
 
 	class when_all_task_continuation : public continuation_base
 	{
-		typedef shared_state_unexceptional<void>  base_type;
+		typedef continuation_base                 base_type;
 		typedef when_all_task_continuation        self_type;
 		typedef shared_state_basic                parent_task_type;
 
@@ -1888,6 +1888,7 @@ namespace ext
 		ext::future<value_type> get_future();
 
 		bool cancel();
+		bool mark_uncancellable();
 		void set_value(const value_type & val);
 		void set_value(std::remove_const_t<value_type> && val);
 		void set_exception(std::exception_ptr ex);
@@ -1926,6 +1927,13 @@ namespace ext
 	{
 		check_state();
 		return m_ptr->cancel();
+	}
+
+	template <class Type>
+	inline bool promise<Type>::mark_uncancellable()
+	{
+		check_state();
+		return m_ptr->mark_uncancellable();
 	}
 
 	template <class Type>
@@ -1969,6 +1977,7 @@ namespace ext
 		ext::future<value_type &> get_future();
 
 		bool cancel();
+		bool mark_uncancellable();
 		void set_value(value_type & val);
 		void set_exception(std::exception_ptr ex);
 
@@ -2009,6 +2018,13 @@ namespace ext
 	}
 
 	template <class Type>
+	inline bool promise<Type &>::mark_uncancellable()
+	{
+		check_state();
+		return m_ptr->mark_uncancellable();
+	}
+
+	template <class Type>
 	inline void promise<Type &>::set_value(value_type & val)
 	{
 		check_state();
@@ -2040,6 +2056,7 @@ namespace ext
 		ext::future<value_type> get_future();
 
 		bool cancel();
+		bool mark_uncancellable();
 		void set_value(void);
 		void set_exception(std::exception_ptr ex);
 
@@ -2074,6 +2091,12 @@ namespace ext
 	{
 		check_state();
 		return m_ptr->cancel();
+	}
+
+	inline bool promise<void>::mark_uncancellable()
+	{
+		check_state();
+		return m_ptr->mark_uncancellable();
 	}
 
 	inline void promise<void>::set_value(void)
