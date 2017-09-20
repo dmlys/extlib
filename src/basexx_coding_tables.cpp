@@ -1,4 +1,3 @@
-#pragma once
 #include <ext/base16.hpp>
 
 const char ext::base16::encoding_tables::hex_encoding_array[16] = 
