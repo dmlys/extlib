@@ -6,19 +6,26 @@ namespace ext
 	///итератор, подобный ostream_iterator, но работающий напрямую со строкой
 	///@Param String - тип строки std::string, std::wstring, ...
 	template <class String>
-	class append_iterator :
-		public std::iterator<
-			std::output_iterator_tag,
-			void, void, void, void
-		>
+	class append_iterator		
 	{
-		String * str;
-		typedef typename String::value_type char_type;
+	public:
+		using string_type = String;
+		using char_type = typename string_type::value_type;
+
+		using iterator_category = std::output_iterator_tag;
+		using value_type = void;
+		using reference = void;
+		using pointer = void;
+		using difference_type = std::ptrdiff_t;
+
+	public:
+		string_type * str;
+
 
 		struct proxy
 		{
-			String * str;
-			proxy(String * str_) : str(str_) {}
+			string_type * str;
+			proxy(string_type * str_) : str(str_) {}
 
 			proxy & operator =(char_type ch)
 			{
@@ -34,7 +41,7 @@ namespace ext
 				return *this;
 			}
 
-			proxy & operator =(char_type const * val)
+			proxy & operator =(const char_type * val)
 			{
 				str->append(val);
 				return *this;
@@ -42,11 +49,12 @@ namespace ext
 		};
 
 	public:
-		append_iterator(String & str_) : str(&str_) {}
-
 		append_iterator & operator ++() { return *this; }
 		append_iterator & operator ++(int) { return *this; }
 		proxy operator *() { return proxy(str); }
+
+	public:
+		append_iterator(string_type & str_) : str(&str_) {}
 	};
 
 	template <class String>
