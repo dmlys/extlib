@@ -135,9 +135,6 @@
     <ClInclude Include="include\ext\range\range_traits.hpp">
       <Filter>include\range</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\range\adaptors\pair.hpp">
-      <Filter>include\range\adaptors</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\range\adapt\boost_match_result.hpp">
       <Filter>include\range\adapt</Filter>
     </ClInclude>
@@ -475,6 +472,9 @@
       <Filter>include\iostreams</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\base16.hpp" />
+    <ClInclude Include="include\ext\range\adaptors\getted.hpp">
+      <Filter>include\range\adaptors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE.txt" />

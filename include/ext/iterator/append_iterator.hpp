@@ -6,7 +6,7 @@ namespace ext
 	///итератор, подобный ostream_iterator, но работающий напрямую со строкой
 	///@Param String - тип строки std::string, std::wstring, ...
 	template <class String>
-	class append_iterator		
+	class append_iterator
 	{
 	public:
 		using string_type = String;
