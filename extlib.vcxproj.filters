@@ -28,9 +28,6 @@
     <Filter Include="include\algorithm">
       <UniqueIdentifier>{d744bc5c-df97-4d0a-be48-11620c040e4c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\varalgo">
-      <UniqueIdentifier>{e8572a87-6d03-477b-a1e6-673cca4f2e8c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="include\iostreams">
       <UniqueIdentifier>{32fba24e-6b9b-4bb8-b8ee-c4dc09db9611}</UniqueIdentifier>
     </Filter>
@@ -93,7 +90,9 @@
     <ClCompile Include="src\thread_pool.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\basexx_coding_tables.cpp" />
+    <ClCompile Include="src\basexx_coding_tables.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ext\FileSystemUtils.hpp">
@@ -197,156 +196,6 @@
     </ClInclude>
     <ClInclude Include="include\ext\regex_utils.hpp">
       <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\binary_find.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\binary_search.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\equal_range.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\is_sorted.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\is_sorted_until.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\lower_bound.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\nth_element.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\partial_sort.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\partial_sort_copy.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\sort.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\stable_sort.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\upper_bound.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\minmax_element.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\minmax.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\merge.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\inplace_merge.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\set_operations.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\adjacent_find.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\count_if.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\equal.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\find_end.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\find_first_of.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\find_if.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\find_if_not.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\mismatch.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\search.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\search_n.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\all_of.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\any_of.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\copy_if.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\for_each.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\is_partitioned.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\modifying_algo.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\none_of.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\non-modifying_algo.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\on_sorted_algo.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\partition.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\partition_algo.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\partition_copy.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\partition_point.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\remove_copy_if.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\remove_if.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\replace_copy_if.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\replace_if.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\sorting_algo.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\stable_partition.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\transform.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\unique.hpp">
-      <Filter>include\varalgo</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\varalgo\unique_copy.hpp">
-      <Filter>include\varalgo</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\integer_sequence.hpp">
       <Filter>include</Filter>
@@ -471,9 +320,11 @@
     <ClInclude Include="include\ext\iostreams\write.hpp">
       <Filter>include\iostreams</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\base16.hpp" />
     <ClInclude Include="include\ext\range\adaptors\getted.hpp">
       <Filter>include\range\adaptors</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\base16.hpp">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
