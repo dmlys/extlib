@@ -46,22 +46,19 @@ namespace ext
 		template <class Functor, class ResultType>
 		class task_impl :
 			public task_base,
-			public ext::shared_state_unexceptional<ResultType>
+			public ext::packaged_task_impl<Functor, ResultType()>
 		{
-			typedef ext::shared_state_unexceptional<ResultType> base_type;
-
-		private:
-			Functor m_functor;
+			typedef ext::packaged_task_impl<Functor, ResultType()> base_type;
 
 		public:
 			void task_addref()   noexcept override { base_type::addref(); }
 			void task_release()  noexcept override { base_type::release(); }
 			void task_abandone() noexcept override { base_type::release_promise(); }
-			void task_execute()  noexcept override;
+			void task_execute()  noexcept override { base_type::execute(); }
 
 		public:
 			task_impl(time_point tp, Functor func)
-				: m_functor(std::move(func)) { task_base::point = tp; }
+				: base_type(std::move(func)) { task_base::point = tp; }
 
 		public:
 			friend inline void intrusive_ptr_add_ref(task_impl * ptr) noexcept { ptr->addref(); }
@@ -147,21 +144,5 @@ namespace ext
 		ext::future<std::result_of_t<std::decay_t<Functor>()>>
 	{
 		return submit(rel + time_point::clock::now(), std::forward<Functor>(func));
-	}
-
-	template <class Functor, class ResultType>
-	void threaded_scheduler::task_impl<Functor, ResultType>::task_execute() noexcept
-	{
-		if (not this->mark_taken())
-			return;
-
-		try
-		{
-			ext::shared_state_execute(*this, m_functor);
-		}
-		catch (...)
-		{
-			this->set_exception(std::current_exception());
-		}
 	}
 }
