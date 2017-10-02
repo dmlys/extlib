@@ -551,7 +551,7 @@ namespace ext
 	}
 
 
-	void continuation_waiter::continuate(shared_state_basic * caller) noexcept
+	void continuation_waiter_impl::continuate(shared_state_basic * caller) noexcept
 	{
 		m_mutex.lock();
 		m_ready = true;
@@ -560,25 +560,25 @@ namespace ext
 		m_var.notify_all();
 	}
 
-	void continuation_waiter::wait_ready() noexcept
+	void continuation_waiter_impl::wait_ready() noexcept
 	{
 		std::unique_lock<std::mutex> lk(m_mutex);
-		m_var.wait(lk, [this] {return m_ready; });
+		m_var.wait(lk, [this] { return m_ready; });
 	}
 
-	bool continuation_waiter::wait_ready(std::chrono::steady_clock::time_point timeout_point) noexcept
+	bool continuation_waiter_impl::wait_ready(std::chrono::steady_clock::time_point timeout_point) noexcept
 	{
 		std::unique_lock<std::mutex> lk(m_mutex);
-		return m_var.wait_until(lk, timeout_point, [this] {return m_ready; });
+		return m_var.wait_until(lk, timeout_point, [this] { return m_ready; });
 	}
 
-	bool continuation_waiter::wait_ready(std::chrono::steady_clock::duration timeout_duration) noexcept
+	bool continuation_waiter_impl::wait_ready(std::chrono::steady_clock::duration timeout_duration) noexcept
 	{
 		std::unique_lock<std::mutex> lk(m_mutex);
-		return m_var.wait_for(lk, timeout_duration, [this] {return m_ready; });
+		return m_var.wait_for(lk, timeout_duration, [this] { return m_ready; });
 	}
 
-	void continuation_waiter::reset() noexcept
+	void continuation_waiter_impl::reset() noexcept
 	{
 		m_ready = false;
 		m_fstnext.store(fsnext_init, std::memory_order_relaxed);
@@ -612,7 +612,7 @@ namespace ext
 
 	bool default_continuation_waiters_pool::take(waiter_ptr & ptr)
 	{
-		ptr = ext::make_intrusive<ext::continuation_waiter>();
+		ptr = ext::make_intrusive<ext::continuation_waiter_impl>();
 		m_usecount.fetch_add(1, std::memory_order_relaxed);
 		return true;
 	}
@@ -654,7 +654,7 @@ namespace ext
 	{
 		m_objects.resize(num);
 		for (auto & val : m_objects)
-			val = ext::make_intrusive<ext::continuation_waiter>();
+			val = ext::make_intrusive<ext::continuation_waiter_impl>();
 	
 		m_first_avail.store(0, std::memory_order_relaxed);
 		m_last_avail.store(0, std::memory_order_relaxed);

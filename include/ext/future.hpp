@@ -277,16 +277,18 @@ namespace ext
 	/// * shared_state_unexceptional - same as shared_state, but does not allow set_exception and thus not storing std::exception_ptr,
 	///                                can be used by asynchronous task not throwing exceptions
 	/// Other classes are:
-	/// * continuation_task   - shared_state derived class used for continuations
-	/// * continuation_waiter - shared_state derived class used as continuations which implements wait functionality
-	/// * packaged_task_impl  - packaged_task implementation
-	/// * when_any/all_task   - classes for implementing when_all/any functions
+	/// * continuation_task        - shared_state derived class used for continuations
+	/// * continuation_waiter      - shared_state derived abstract class used as continuations which for wait functionality
+	/// * continuation_waiter_impl - implemntation of continuation_waiter using std::mutex and std::condition_variable
+	/// * packaged_task_impl       - packaged_task implementation
+	/// * when_any/all_task        - classes for implementing when_all/any functions
 
 	class shared_state_basic;
 	template <class Type> class shared_state;
 	template <class Type> class shared_state_unexceptional;
 
 	class continuation_waiter;
+	class continuation_waiter_impl;
 	class unwrap_continuation;
 	template <class>        class packaged_task_base;
 	template <class, class> class packaged_task_impl;
@@ -387,7 +389,7 @@ namespace ext
 		static constexpr std::uintptr_t ready = 0;
 		// mask to extract lock state
 		static constexpr std::uintptr_t lock_mask = 1;
-		// initial value fo fsnext
+		// initial value of fsnext
 		static constexpr std::uintptr_t fsnext_init = ~lock_mask;
 
 	protected:
@@ -826,9 +828,25 @@ namespace ext
 	};
 
 
-	/// Implements continuation used for waiting by shared_state_basic.
+	/// abstract continuation used for waiting by shared_state_basic.
 	/// Derived from shared_state_basic, sort of recursion
 	class continuation_waiter : public continuation_base
+	{
+	public:
+		/// waiting functions: waits until object become ready by execute call
+		virtual void wait_ready() noexcept = 0;
+		virtual bool wait_ready(std::chrono::steady_clock::time_point timeout_point) noexcept = 0;
+		virtual bool wait_ready(std::chrono::steady_clock::duration   timeout_duration) noexcept = 0;
+
+	public:
+		/// fires condition_variable, waking any waiting thread
+		virtual void continuate(shared_state_basic * caller) noexcept = 0;
+		/// reset waiter, after that it can be used again
+		virtual void reset() noexcept = 0;
+	};
+	
+	/// implemntation of continuation_waiter using std::mutex and std::condition_variable
+	class continuation_waiter_impl : public continuation_waiter
 	{
 	private:
 		std::mutex m_mutex;
@@ -837,17 +855,17 @@ namespace ext
 
 	public:
 		/// waiting functions: waits until object become ready by execute call
-		void wait_ready() noexcept;
-		bool wait_ready(std::chrono::steady_clock::time_point timeout_point) noexcept;
-		bool wait_ready(std::chrono::steady_clock::duration   timeout_duration) noexcept;
+		virtual void wait_ready() noexcept override;
+		virtual bool wait_ready(std::chrono::steady_clock::time_point timeout_point) noexcept override;
+		virtual bool wait_ready(std::chrono::steady_clock::duration   timeout_duration) noexcept override;
 
 	public:
 		/// fires condition_variable, waking any waiting thread
-		void continuate(shared_state_basic * caller) noexcept override;
+		virtual void continuate(shared_state_basic * caller) noexcept override;
 		/// reset waiter, after that it can be used again
-		void reset() noexcept;
+		virtual void reset() noexcept override;
 	};
-	
+
 
 	template <class Ret, class ... Args>
 	class packaged_task_base<Ret(Args...)> : public shared_state<Ret>
@@ -1184,7 +1202,8 @@ namespace ext
 
 	inline bool shared_state_basic::is_waiter(continuation_type * ptr) noexcept
 	{
-		return typeid(*ptr) == typeid(continuation_waiter);
+		return dynamic_cast<continuation_waiter *>(ptr);
+		//return typeid(*ptr) == typeid(continuation_waiter);
 	}
 
 	inline void shared_state_basic::mark_retrived()
