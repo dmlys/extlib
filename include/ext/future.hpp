@@ -9,6 +9,7 @@
 #include <cstdint> // for std::uintptr_t
 #include <cassert>
 
+#include <memory>
 #include <atomic>
 #include <chrono>   // for wait_* operations
 #include <tuple>    // used by when_all/when_any
@@ -92,6 +93,8 @@ namespace ext
 	template <class Type> class promise;
 	template <class Type> class packaged_task;
 
+	class continuation_waiters_pool;
+
 	// type_traits helpers
 	template <class Type> struct is_future_type : std::false_type {};
 	template <class Type> struct is_future_type<ext::future<Type>> : std::true_type {};
@@ -158,7 +161,9 @@ namespace ext
 	};
 
 
-	void init_future_library(unsigned waiter_slots = 0);
+	
+	bool init_future_library(std::unique_ptr<continuation_waiters_pool> pool);
+	bool init_future_library(unsigned waiter_slots = 0);
 	void free_future_library();
 
 
@@ -301,6 +306,8 @@ namespace ext
 
 	template <class> class when_any_task;
 	template <class> class when_all_task;
+
+
 	
 	/// shared_state_basic type independent part, implementation of promise state, continuations
 	/// 
@@ -851,7 +858,9 @@ namespace ext
 	private:
 		std::mutex m_mutex;
 		std::condition_variable m_var;
-		bool m_ready = false;
+		std::atomic_bool m_ready = ATOMIC_VAR_INIT(false);
+
+		using unique_lock = std::unique_lock<std::mutex>;
 
 	public:
 		/// waiting functions: waits until object become ready by execute call
@@ -1168,6 +1177,21 @@ namespace ext
 		~unwrap_continuation() noexcept;
 	};
 
+
+	/// abstract continuation_waiters_pool used to retrieve continuation waiters
+	class continuation_waiters_pool
+	{
+	public:
+		using waiter_ptr = ext::intrusive_ptr<ext::continuation_waiter>;
+
+	public:
+		virtual bool take(waiter_ptr & ptr) = 0;
+		virtual bool putback(waiter_ptr & ptr) = 0;
+		virtual bool used() const noexcept = 0;
+
+		virtual ~continuation_waiters_pool() = default;
+	};
+	
 
 	/************************************************************************/
 	/*            shared_state_basic lifetime                               */

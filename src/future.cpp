@@ -553,50 +553,36 @@ namespace ext
 
 	void continuation_waiter_impl::continuate(shared_state_basic * caller) noexcept
 	{
-		m_mutex.lock();
-		m_ready = true;
-		m_mutex.unlock();
-
+		m_ready.store(true, std::memory_order_relaxed);
 		m_var.notify_all();
 	}
 
 	void continuation_waiter_impl::wait_ready() noexcept
 	{
-		std::unique_lock<std::mutex> lk(m_mutex);
-		m_var.wait(lk, [this] { return m_ready; });
+		unique_lock lk(m_mutex);
+		m_var.wait(lk, [this] { return m_ready.load(std::memory_order_relaxed); });
 	}
 
 	bool continuation_waiter_impl::wait_ready(std::chrono::steady_clock::time_point timeout_point) noexcept
 	{
-		std::unique_lock<std::mutex> lk(m_mutex);
-		return m_var.wait_until(lk, timeout_point, [this] { return m_ready; });
+		unique_lock lk(m_mutex);
+		return m_var.wait_until(lk, timeout_point, [this] { return m_ready.load(std::memory_order_relaxed); });
 	}
 
 	bool continuation_waiter_impl::wait_ready(std::chrono::steady_clock::duration timeout_duration) noexcept
 	{
-		std::unique_lock<std::mutex> lk(m_mutex);
-		return m_var.wait_for(lk, timeout_duration, [this] { return m_ready; });
+		unique_lock lk(m_mutex);
+		return m_var.wait_for(lk, timeout_duration, [this] { return m_ready.load(std::memory_order_relaxed); });
 	}
 
 	void continuation_waiter_impl::reset() noexcept
 	{
-		m_ready = false;
+		m_ready.store(false, std::memory_order_relaxed);
 		m_fstnext.store(fsnext_init, std::memory_order_relaxed);
 		m_promise_state.store(static_cast<unsigned>(future_state::unsatisfied), std::memory_order_relaxed);
 	}
 
 
-	class continuation_waiters_pool
-	{
-	public:
-		typedef ext::intrusive_ptr<ext::continuation_waiter> waiter_ptr;
-
-	public:
-		virtual bool take(waiter_ptr & ptr) = 0;
-		virtual bool putback(waiter_ptr & ptr) = 0;
-
-		virtual ~continuation_waiters_pool() = default;
-	};
 
 	class default_continuation_waiters_pool : public continuation_waiters_pool
 	{
@@ -606,8 +592,7 @@ namespace ext
 	public:
 		bool take(waiter_ptr & ptr) override;
 		bool putback(waiter_ptr & ptr) override;
-
-		auto use_count() const { return m_usecount.load(std::memory_order_relaxed); }
+		bool used() const noexcept override { return m_usecount.load(std::memory_order_relaxed); }
 	};
 
 	bool default_continuation_waiters_pool::take(waiter_ptr & ptr)
@@ -641,6 +626,7 @@ namespace ext
 	public:
 		bool take(waiter_ptr & ptr) noexcept override;
 		bool putback(waiter_ptr & ptr) noexcept override;
+		bool used() const noexcept override;
 	
 	public:
 		lockfree_continuation_pool(std::size_t num) { init(num); }
@@ -686,6 +672,11 @@ namespace ext
 		// successfully taken element, now move it
 		ptr = std::move(m_objects[first]);
 		return true;
+	}
+
+	bool lockfree_continuation_pool::used() const noexcept
+	{
+		return m_last_avail.load(std::memory_order_relaxed) != m_first_free.load(std::memory_order_relaxed);
 	}
 
 	bool lockfree_continuation_pool::putback(waiter_ptr & ptr) noexcept
@@ -742,16 +733,29 @@ namespace ext
 		g_pool->putback(wptr);
 	}
 
-	void init_future_library(unsigned waiter_slots)
+	bool init_future_library(std::unique_ptr<continuation_waiters_pool> pool)
 	{
-		bool inited = g_pool != &g_default_pool or g_default_pool.use_count();
-		if (not inited)
-		{
-			// waiter_slots == 0 - use default_continuation_waiters_pool: allocate waiters new/delete
-			if (waiter_slots == 0) return;
-			
-			g_pool = new lockfree_continuation_pool(waiter_slots);
-		}
+		if (g_pool->used()) return false;
+
+		if (g_pool != &g_default_pool)
+			delete g_pool;
+
+		g_pool = pool.release();
+		return true;
+	}
+
+	bool init_future_library(unsigned waiter_slots)
+	{
+		if (g_pool->used()) return false;
+
+		if (g_pool != &g_default_pool)
+			delete g_pool;
+
+		// waiter_slots == 0 - use default_continuation_waiters_pool: allocate waiters new/delete
+		if (waiter_slots == 0) return true;
+		
+		g_pool = new lockfree_continuation_pool(waiter_slots);
+		return true;
 	}
 
 	void free_future_library()
