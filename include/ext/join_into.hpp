@@ -3,7 +3,6 @@
 #include <ext/range/range_traits.hpp>
 #include <ext/range/as_literal.hpp>
 #include <boost/range/algorithm/copy.hpp>
-#include <boost/range/algorithm_ext/push_back.hpp>
 
 namespace ext
 {
@@ -42,13 +41,15 @@ namespace ext
 		auto end = boost::end(input);
 		if (beg == end) return;
 
-		out = boost::push_back(out, ext::as_literal(*beg));
+		auto && val = *beg;
+		ext::append(out, boost::begin(val), boost::end(val));
 
 		auto sepr = boost::as_literal(sep);
 		for (auto it = ++beg; it != end; ++it)
 		{
-			out = boost::push_back(out, sepr);
-			out = boost::push_back(out, ext::as_literal(*it));
+			auto && val = *it;
+			ext::append(out, boost::begin(sepr), boost::end(sepr));
+			ext::append(out, boost::begin(val), boost::end(val));
 		}
 	}
 
