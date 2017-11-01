@@ -52,4 +52,16 @@ namespace ext
 			ext::is_string<Type>::value || ext::is_string_range<Type>::value
 		>
 	{ };
+
+	template <class Type>
+	constexpr bool is_char_type_v = is_char_type<Type>::value;
+
+	template <class Type>
+	constexpr bool is_string_v = is_string<Type>::value;
+
+	template <class Type>
+	constexpr bool is_string_range_v = is_string_range<Type>::value;
+
+	template <class Type>
+	constexpr bool is_string_or_string_range_v = is_string_or_string_range<Type>::value;
 }
