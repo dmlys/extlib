@@ -47,6 +47,9 @@ namespace ext
 	template <class Type>
 	struct is_iterator : detail::is_iterator<Type> {};
 
+	template <class Type>
+	constexpr bool is_iterator_v = is_iterator<Type>::value;
+
 
 
 	template <class Target, class Type, class = void>
@@ -69,4 +72,14 @@ namespace ext
 	template <class Target, class Type>
 	struct reinterpret_castable<Target, Type, ext::void_t<decltype(reinterpret_cast<Target>(std::declval<Type>()))>>
 		: std::true_type {};
+
+
+	template <class Target, class Type>
+	constexpr bool static_castable_v = static_castable<Target, Type>::value;
+
+	template <class Target, class Type>
+	constexpr bool dynamic_castable_v = dynamic_castable<Target, Type>::value;
+
+	template <class Target, class Type>
+	constexpr bool reinterpret_castable_v = reinterpret_castable<Target, Type>::value;
 }

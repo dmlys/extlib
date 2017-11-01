@@ -110,6 +110,12 @@ namespace ext
 	struct is_future_types<Head, Tail...> :
 		std::integral_constant<bool, is_future_type<Head>::value && is_future_types<Tail...>::value> {};
 
+	template <class Type>
+	constexpr bool is_future_type_v = is_future_type<Type>::value;
+
+	template <class ... Type>
+	constexpr bool is_future_types_v = is_future_types<Type...>::value;
+
 	/// metafunction, returns how many future type wrappers is in type:
 	/// other type - 0
 	/// future<type> - 1

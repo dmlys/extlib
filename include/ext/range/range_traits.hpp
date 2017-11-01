@@ -182,6 +182,10 @@ namespace ext
 		>
 	{};
 
+	template <typename Type>
+	constexpr bool has_resize_method_v = has_resize_method<Type>::value;
+
+
 	/// determines if container is contiguous
 	/// if expression: ext::data(declval<Type>()) is valid - it is contiguous container
 	/// examples of such containers is: vector, string, array. But not std::deque
@@ -191,6 +195,9 @@ namespace ext
 			detail::is_contiguous_container_test<Type>::value
 		>
 	{};
+
+	template <typename Type>
+	constexpr bool is_contiguous_container_v = is_contiguous_container<Type>::value;
 
 	template <typename Type>
 	struct is_begin_expression_valid :
@@ -214,6 +221,9 @@ namespace ext
 		>
 	{};
 
+	template <typename Type>
+	constexpr bool is_range_v = is_range<Type>::value;
+
 
 	template <typename Range, typename Default = void, bool = ext::is_range<Range>::value>
 	struct range_value
@@ -234,4 +244,7 @@ namespace ext
 	template <typename Range, typename Type>
 	struct is_range_of :
 		std::is_same<range_value_t<Range>, Type> {};
+
+	template <typename Range, typename Type>
+	constexpr bool is_range_of_v = is_range_of<Range, Type>::value;
 }
