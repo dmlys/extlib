@@ -91,7 +91,7 @@ namespace ext { namespace pretty_printers
 	>
 	std::basic_ostream<CharType> & operator <<(std::basic_ostream<CharType> & os, const Range & rng)
 	{
-		print(os, rng);
+		ext::print(os, rng);
 		return os;
 	}
 }}

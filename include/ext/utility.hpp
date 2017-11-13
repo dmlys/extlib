@@ -270,31 +270,34 @@ namespace ext
 		};
 	}
 
-	template <class Functor, class Tuple, std::size_t... I>
-	constexpr decltype(auto) apply_impl(Functor && f, Tuple && t, std::index_sequence<I...>)
+	namespace detail
 	{
-		return ext::invoke(std::forward<Functor>(f), std::get<I>(std::forward<Tuple>(t))...);
+		template <class Functor, class Tuple, std::size_t... I>
+		constexpr decltype(auto) apply_impl(Functor && f, Tuple && t, std::index_sequence<I...>)
+		{
+			return ext::invoke(std::forward<Functor>(f), std::get<I>(std::forward<Tuple>(t))...);
+		}
+
+		template <class Func, class Tuple, std::size_t ... I>
+		constexpr void apply_for_each_impl(Func && f, Tuple && t, std::index_sequence<I...>)
+		{
+			ext::invoke_for_each(std::forward<Func>(f), std::get<I>(std::forward<Tuple>(t))...);
+		}
 	}
 
 	template <class Functor, class Tuple>
 	constexpr decltype(auto) apply(Functor && f, Tuple && t)
 	{
-		return apply_impl(std::forward<Functor>(f), std::forward<Tuple>(t),
-		                  std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
-	}
-
-	template <class Func, class Tuple, std::size_t ... I>
-	constexpr void apply_for_each_impl(Func && f, Tuple && t, std::index_sequence<I...>)
-	{
-		invoke_for_each(std::forward<Func>(f), std::get<I>(std::forward<Tuple>(t))...);
+		return detail::apply_impl(std::forward<Functor>(f), std::forward<Tuple>(t),
+		                          std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
 	}
 
 	/// applies func f for each member of tuple t. see invoke_for_each
 	template <class Func, class Tuple>
 	constexpr void apply_for_each(Func && f, Tuple && t)
 	{
-		apply_for_each_impl(std::forward<Func>(f), std::forward<Tuple>(t),
-							std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
+		detail::apply_for_each_impl(std::forward<Func>(f), std::forward<Tuple>(t),
+		                            std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value> {});
 	}
 
 

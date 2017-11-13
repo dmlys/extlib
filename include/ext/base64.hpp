@@ -44,7 +44,7 @@ namespace ext
 	std::enable_if_t<ext::is_iterator<OutputIterator>::value, OutputIterator>
 	encode_base64(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
-		using namespace base64;
+		using base64;
 
 		typedef encode_itearator<RandomAccessIterator> base64_iterator;
 		auto count = InputGroupSize - (last - first) % InputGroupSize;
@@ -66,7 +66,7 @@ namespace ext
 		typedef typename boost::range_iterator<decltype(inplit)>::type input_iterator;
 		typedef encode_itearator<input_iterator> base64_itearator;
 
-		auto out_size = encode_estimation(boost::size(inplit));
+		auto out_size = base64::encode_estimation(boost::size(inplit));
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
@@ -84,7 +84,7 @@ namespace ext
 	OutputContainer encode_base64(const InputRange & input)
 	{
 		OutputContainer out;
-		encode_base64(input, out);
+		ext::encode_base64(input, out);
 		return out;
 	}
 
@@ -96,13 +96,13 @@ namespace ext
 		// encoding produces more than input
 		using namespace base64;
 		constexpr std::size_t buffer_size = 256;
-		constexpr std::size_t step_size = decode_estimation(buffer_size);
+		constexpr std::size_t step_size = base64::decode_estimation(buffer_size);
 		char buffer[buffer_size];
 
 		while (first < last)
 		{
 			auto step_last = first + std::min<std::ptrdiff_t>(step_size, last - first);
-			auto buf_end = encode_base64(first, step_last, buffer);
+			auto buf_end = ext::encode_base64(first, step_last, buffer);
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
@@ -113,7 +113,7 @@ namespace ext
 	encode_base64(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		encode_base64(boost::begin(inplit), boost::end(inplit), out);
+		ext::encode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 
@@ -139,7 +139,7 @@ namespace ext
 		typedef decode_itearator<input_iterator> base64_itearator;
 
 		// we are appending
-		auto out_size = decode_estimation(boost::size(inplit));
+		auto out_size = base64::decode_estimation(boost::size(inplit));
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
@@ -154,7 +154,7 @@ namespace ext
 	OutputContainer decode_base64(const InputRange & input)
 	{
 		OutputContainer out;
-		decode_base64(input, out);
+		ext::decode_base64(input, out);
 		return out;
 	}
 
@@ -171,7 +171,7 @@ namespace ext
 		while (first < last)
 		{
 			auto step_last = first + std::min<std::ptrdiff_t>(step_size, last - first);
-			auto buf_end = decode_base64(first, step_last, buffer);
+			auto buf_end = ext::decode_base64(first, step_last, buffer);
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
@@ -182,6 +182,6 @@ namespace ext
 	decode_base64(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		decode_base64(boost::begin(inplit), boost::end(inplit), out);
+		ext::decode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 }

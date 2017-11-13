@@ -61,7 +61,7 @@ namespace ext
 		using string = std::basic_string<char_type>;
 
 		string out;
-		join_into(input, sep, out);
+		ext::join_into(input, sep, out);
 		return out;
 	}
 }
