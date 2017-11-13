@@ -81,10 +81,8 @@ namespace ext
 	std::enable_if_t<ext::is_iterator<OutputIterator>::value, OutputIterator>
 	encode_base16(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
-		using namespace base16;
-
 		for (; first != last; ++first)
-			encode_char(out, *first);
+			base16::encode_char(out, *first);
 
 		return out;
 	}
@@ -94,11 +92,10 @@ namespace ext
 	std::enable_if_t<ext::is_range<OutputContainer>::value>
 	encode_base16(const InputRange & input, OutputContainer & out)
 	{
-		using namespace base16;
 		auto inplit = ext::as_literal(input);
 
 		// we are appending
-		auto out_size = encode_estimation(boost::size(inplit));
+		auto out_size = base16::encode_estimation(boost::size(inplit));
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
@@ -107,7 +104,7 @@ namespace ext
 		auto out_beg = boost::begin(out) + old_size;
 		//auto out_end = boost::end(out);
 
-		encode_base16(first, last, out_beg);
+		ext::encode_base16(first, last, out_beg);
 	}
 
 	/// encodes text from range into container out
@@ -115,7 +112,7 @@ namespace ext
 	OutputContainer encode_base16(const InputRange & input)
 	{
 		OutputContainer out;
-		encode_base16(input, out);
+		ext::encode_base16(input, out);
 		return out;
 	}
 
@@ -125,15 +122,14 @@ namespace ext
 	encode_base16(RandomAccessIterator first, RandomAccessIterator last, Sink & sink)
 	{
 		// encoding produces more than input
-		using namespace base16;
 		constexpr std::size_t buffer_size = 256;
-		constexpr std::size_t step_size = decode_estimation(buffer_size);
+		constexpr std::size_t step_size = base16::decode_estimation(buffer_size);
 		char buffer[buffer_size];
 
 		while (first < last)
 		{
 			auto step_last = first + std::min<std::ptrdiff_t>(step_size, last - first);
-			auto buf_end = encode_base16(first, step_last, buffer);
+			auto buf_end = ext::encode_base16(first, step_last, buffer);
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
@@ -144,7 +140,7 @@ namespace ext
 	encode_base16(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		encode_base16(boost::begin(inplit), boost::end(inplit), out);
+		ext::encode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 
@@ -153,11 +149,10 @@ namespace ext
 	std::enable_if_t<ext::is_iterator<OutputIterator>::value, OutputIterator>
 	decode_base16(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
-		using namespace base16;
-		if ((last - first) % 2) throw not_enough_input();
+		if ((last - first) % 2) throw base16::not_enough_input();
 
 		for (; first != last; ++out)
-			*out = decode_char(first);
+			*out = base16::decode_char(first);
 
 		return out;
 	}
@@ -166,11 +161,10 @@ namespace ext
 	std::enable_if_t<ext::is_range<OutputContainer>::value>
 	decode_base16(const InputRange & input, OutputContainer & out)
 	{
-		using namespace base16;
 		auto inplit = ext::as_literal(input);
 		
 		// we are appending
-		auto out_size = decode_estimation(boost::size(inplit));
+		auto out_size = base16::decode_estimation(boost::size(inplit));
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
@@ -178,14 +172,14 @@ namespace ext
 		auto last = boost::end(inplit);
 		auto out_beg = boost::begin(out) + old_size;
 
-		decode_base16(first, last, out_beg);
+		ext::decode_base16(first, last, out_beg);
 	}
 
 	template <class OutputContainer = std::string, class InputRange>
 	OutputContainer decode_base16(const InputRange & input)
 	{
 		OutputContainer out;
-		decode_base16(input, out);
+		ext::decode_base16(input, out);
 		return out;
 	}
 
@@ -202,7 +196,7 @@ namespace ext
 		while (first < last)
 		{
 			auto step_last = first + std::min<std::ptrdiff_t>(step_size, last - first);
-			auto buf_end = decode_base16(first, step_last, buffer);
+			auto buf_end = ext::decode_base16(first, step_last, buffer);
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
@@ -213,6 +207,6 @@ namespace ext
 	decode_base16(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		decode_base16(boost::begin(inplit), boost::end(inplit), out);
+		ext::decode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 }

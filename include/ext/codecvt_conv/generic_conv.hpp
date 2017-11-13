@@ -244,7 +244,7 @@ namespace ext
 			-> std::basic_string<typename std::codecvt<CvtTypes...>::intern_type>
 		{
 			std::basic_string<typename std::codecvt<CvtTypes...>::intern_type> out;
-			from_bytes(cvt, in, out);
+			ext::codecvt_convert::from_bytes(cvt, in, out);
 			return out;
 		}
 
@@ -255,7 +255,7 @@ namespace ext
 			-> std::basic_string<typename std::codecvt<CvtTypes...>::extern_type>
 		{
 			std::basic_string<typename std::codecvt<CvtTypes...>::extern_type> out;
-			to_bytes(cvt, in, out);
+			ext::codecvt_convert::to_bytes(cvt, in, out);
 			return out;
 		}
 	} //namespace codecvt_convert
