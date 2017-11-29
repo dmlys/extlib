@@ -212,7 +212,7 @@ namespace ext
 
 		if (closesock)
 		{
-			res = ::closesocket(m_sockhandle);
+			res = ::closesocket(sock);
 			assert(res == 0 || (res = ::WSAGetLastError()) == 0);
 		}
 
@@ -795,8 +795,7 @@ namespace ext
 		TIMEVAL tv = {0, 0};
 
 		// first shutdown
-		for (;;)
-		{
+		do {
 			res = ::SSL_shutdown(ssl);
 			if (res > 0) goto success;
 
@@ -809,13 +808,10 @@ namespace ext
 			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
 			else        /* ??? */                 fstate = freadable | fwritable;
 			
-			wait_state(until, fstate);
-			continue;
-		}
+		} while (wait_state(until, fstate));
 		
 		// second shutdown
-		for (;;)
-		{
+		do {
 			res = ::SSL_shutdown(ssl);
 			assert(res != 0);
 			if (res > 0) goto success;
@@ -826,9 +822,7 @@ namespace ext
 			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
 			else        /* ??? */                 fstate = freadable | fwritable;
 
-			wait_state(until, fstate);
-			continue;
-		}
+		} while (wait_state(until, fstate));
 		
 		// второй shutdown не получился, это может быть как ошибка,
 		// так и нам просто закрыли канал по shutdown на другой стороне. проверяем
