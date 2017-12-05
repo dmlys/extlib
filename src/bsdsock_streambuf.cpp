@@ -878,9 +878,6 @@ namespace ext
 			res = ::SSL_set_tlsext_host_name(ssl, servername);
 			if (res != 1) goto error;
 		}
-		
-		res = ::SSL_set_fd(ssl, m_sockhandle);
-		if (res <= 0) goto error;
 
 		::SSL_set_mode(ssl, ::SSL_get_mode(ssl) | SSL_MODE_AUTO_RETRY);
 		return true;
@@ -894,11 +891,18 @@ namespace ext
 
 	bool bsdsock_streambuf::do_sslconnect(SSL * ssl)
 	{
+		int res = ::SSL_set_fd(ssl, m_sockhandle);
+		if (res <= 0)
+		{
+			m_lasterror = ssl_error(ssl, res);
+			return false;
+		}
+
 		auto until = time_point::clock::now() + m_timeout;
 		int fstate;
 
 		do {
-			int res = ::SSL_connect(ssl);
+			res = ::SSL_connect(ssl);
 			if (res > 0) return true;
 
 			if (ssl_rw_error(res, m_lasterror)) return false;
