@@ -159,7 +159,7 @@ namespace ext
 		self_type & assign(const_iterator first, const_iterator last) { return assign(first, last - first); }
 		self_type & assign(iterator first, iterator last) { return assign(const_iterator(first), const_iterator(last)); }
 
-		template<class InputIterator, class = std::enable_if_t<ext::is_iterator<InputIterator>::value>>
+		template <class InputIterator, class = std::enable_if_t<ext::is_iterator<InputIterator>::value>>
 		self_type & assign(InputIterator first, InputIterator last);
 
 	public: // insert pack [done]
@@ -271,7 +271,7 @@ namespace ext
 		basic_string_facade(value_type * first, value_type * last)             : basic_string_facade(first, last - first) {}
 		basic_string_facade(std::initializer_list<value_type> ilist)           : basic_string_facade(ilist.begin(), ilist.size()) {}
 
-		template<class InputIt>
+		template <class InputIt>
 		basic_string_facade(InputIt first, InputIt last) { assign(first, last); }
 
 	public: // operator =
@@ -468,7 +468,7 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	template<class InputIterator, class /*= std::enable_if_t<ext::is_iterator<InputIterator>::value>*/>
+	template <class InputIterator, class /*= std::enable_if_t<ext::is_iterator<InputIterator>::value>*/>
 	basic_string_facade<storage, char_traits> &
 		basic_string_facade<storage, char_traits>::assign(InputIterator first, InputIterator last)
 	{
