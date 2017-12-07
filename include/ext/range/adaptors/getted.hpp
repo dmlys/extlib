@@ -25,7 +25,7 @@ namespace ext
 			using result_type = std::result_of_t<get_func<Idx>(range_iterator_reference)>;
 			using element_type = std::tuple_element_t<Idx, std::decay_t<range_iterator_reference>>;
 			
-			// if tuple we have tuple lreference or element is a lreference - we can pass as is,
+			// if tuple we have - is a tuple lreference or element is a lreference - we can pass as is,
 			// three is no dangling reference, otherwise - we should pass by value.
 			using reference = std::conditional_t<
 				std::is_lvalue_reference_v<range_iterator_reference> or std::is_lvalue_reference_v<element_type>,
