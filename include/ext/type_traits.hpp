@@ -52,34 +52,34 @@ namespace ext
 
 
 
-	template <class Target, class Type, class = void>
+	template <class From, class To, class = void>
 	struct static_castable : std::false_type {};
 
-	template <class Target, class Type>
-	struct static_castable<Target, Type, ext::void_t<decltype(static_cast<Target>(std::declval<Type>()))>>
+	template <class From, class To>
+	struct static_castable<From, To, ext::void_t<decltype(static_cast<To>(std::declval<From>()))>>
 		: std::true_type {};
 
-	template <class Target, class Type, class = void>
+	template <class From, class To, class = void>
 	struct dynamic_castable : std::false_type {};
 
-	template <class Target, class Type>
-	struct dynamic_castable<Target, Type, ext::void_t<decltype(dynamic_cast<Target>(std::declval<Type>()))>>
+	template <class From, class To>
+	struct dynamic_castable<From, To, ext::void_t<decltype(dynamic_cast<To>(std::declval<From>()))>>
 		: std::true_type {};
 
-	template <class Target, class Type, class = void>
+	template <class From, class To, class = void>
 	struct reinterpret_castable : std::false_type {};
 
-	template <class Target, class Type>
-	struct reinterpret_castable<Target, Type, ext::void_t<decltype(reinterpret_cast<Target>(std::declval<Type>()))>>
+	template <class From, class To>
+	struct reinterpret_castable<From, To, ext::void_t<decltype(reinterpret_cast<To>(std::declval<From>()))>>
 		: std::true_type {};
 
 
-	template <class Target, class Type>
-	constexpr bool static_castable_v = static_castable<Target, Type>::value;
+	template <class From, class To>
+	constexpr bool static_castable_v = static_castable<From, To>::value;
 
-	template <class Target, class Type>
-	constexpr bool dynamic_castable_v = dynamic_castable<Target, Type>::value;
+	template <class From, class To>
+	constexpr bool dynamic_castable_v = dynamic_castable<From, To>::value;
 
-	template <class Target, class Type>
-	constexpr bool reinterpret_castable_v = reinterpret_castable<Target, Type>::value;
+	template <class From, class To>
+	constexpr bool reinterpret_castable_v = reinterpret_castable<From, To>::value;
 }
