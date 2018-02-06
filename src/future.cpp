@@ -752,7 +752,11 @@ namespace ext
 			delete g_pool;
 
 		// waiter_slots == 0 - use default_continuation_waiters_pool: allocate waiters new/delete
-		if (waiter_slots == 0) return true;
+		if (waiter_slots == 0)
+		{
+			g_pool = &g_default_pool;
+			return true;
+		}
 		
 		g_pool = new lockfree_continuation_pool(waiter_slots);
 		return true;
