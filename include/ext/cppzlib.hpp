@@ -190,10 +190,10 @@ namespace zlib
 		}
 	};
 
-	/// infalte zstream, decompresses input data stream
+	/// inflate zstream, decompresses input data stream
 	/// remember windowBits configures deflate formats
 	///    8 ..  MAX_WBITS       - zlib format
-	///   -8 .. -MAX_WBITS       - raw defalte format
+	///   -8 .. -MAX_WBITS       - raw deflate format
 	///   -8 .. -MAX_WBITS + 16  - gzip format
 	///   -8 .. -MAX_WBITS + 32  - auto detect both gzip and zlib
 	/// prefer using MAX_WBITS
@@ -298,7 +298,7 @@ namespace zlib
 		}
 	};
 
-	/// infalte zstream, decompresses input data stream
+	/// deflate zstream, compresses input data stream
 	/// remember windowBits configures deflate formats
 	///    8 ..  MAX_WBITS      - zlib format
 	///   -8 .. -MAX_WBITS      - raw deflate format
