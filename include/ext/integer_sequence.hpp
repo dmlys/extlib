@@ -1,7 +1,5 @@
 #pragma once
 #include <cstddef>
-#include <boost/predef.h>
-#include <boost/config.hpp>
 
 /// реализация С++14 integer_sequence
 namespace ext
@@ -11,7 +9,7 @@ namespace ext
 	{
 	public:
 		typedef T value_type;
-		static BOOST_CONSTEXPR std::size_t size() { return sizeof...(Ints); }
+		static constexpr std::size_t size() { return sizeof...(Ints); }
 	};
 
 	template <std::size_t... Ints>

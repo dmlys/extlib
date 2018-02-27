@@ -604,7 +604,7 @@ namespace ext
 	/*                  ctors/dtors                                         */
 	/************************************************************************/
 	template <unsigned InplaceSize>
-	compact_string_base<InplaceSize>::~compact_string_base() BOOST_NOEXCEPT
+	compact_string_base<InplaceSize>::~compact_string_base() noexcept
 	{
 		using namespace compact_string_detail;
 		switch (type)

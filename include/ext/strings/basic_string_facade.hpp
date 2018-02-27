@@ -83,7 +83,7 @@ namespace ext
 		static const size_type npos = size_type(-1);
 
 	private:
-		const self_type * as_const() { return this; }
+		const self_type * as_const() noexcept { return this; }
 		static BOOST_NORETURN void throw_xpos() { throw std::out_of_range("out_of_range"); }
 		auto make_pointer(size_type pos) -> std::pair<value_type *, value_type *>;
 		auto make_pointer(size_type pos) const -> std::pair<const value_type *, const value_type *>;
@@ -93,7 +93,7 @@ namespace ext
 
 	public:
 		// Workaround for boost::range. Somehow metacode that checks for member method "size" crashes msvs 2013
-		// size_type size() const BOOST_NOEXCEPT { return base_type::size(); }
+		// size_type size() const noexcept { return base_type::size(); }
 
 		using base_type::data;
 		using base_type::data_end;
@@ -111,41 +111,41 @@ namespace ext
 		reference       at(size_type pos);
 		const_reference at(size_type pos) const;
 
-		reference       operator [](size_type pos)       BOOST_NOEXCEPT  { return *(data() + pos); }
-		const_reference operator [](size_type pos) const BOOST_NOEXCEPT  { return *(data() + pos); }
+		reference       operator [](size_type pos)       noexcept  { return *(data() + pos); }
+		const_reference operator [](size_type pos) const noexcept  { return *(data() + pos); }
 		
-		reference       front()       BOOST_NOEXCEPT { return *data(); }
-		const_reference front() const BOOST_NOEXCEPT { return *data(); }
+		reference       front()       noexcept { return *data(); }
+		const_reference front() const noexcept { return *data(); }
 
-		reference       back()       BOOST_NOEXCEPT { return *(data_end() - 1); }
-		const_reference back() const BOOST_NOEXCEPT { return *(data_end() - 1); }
+		reference       back()       noexcept { return *(data_end() - 1); }
+		const_reference back() const noexcept { return *(data_end() - 1); }
 
 	public: // [done]
-		void pop_back() BOOST_NOEXCEPT { this->shrink_by(1); };
+		void pop_back() noexcept { this->shrink_by(1); };
 		void push_back(value_type ch)  { append(1, ch); }
 
-		void clear()              BOOST_NOEXCEPT  { resize(0); }
-		size_type length() const  BOOST_NOEXCEPT  { return size(); }
+		void clear()              noexcept  { resize(0); }
+		size_type length() const  noexcept  { return size(); }
 
 		self_type substr(size_type pos = 0, size_type count = npos) const;
 		size_type copy(value_type * dest, size_type count, size_type pos = 0) const;
 
 	public: // iterators [done]
-		iterator begin()             BOOST_NOEXCEPT   { return data(); }
-		iterator end()               BOOST_NOEXCEPT   { return data_end(); }
-		const_iterator begin() const BOOST_NOEXCEPT   { return data(); }
-		const_iterator end()   const BOOST_NOEXCEPT	  { return data_end(); }
+		iterator begin()             noexcept   { return data(); }
+		iterator end()               noexcept   { return data_end(); }
+		const_iterator begin() const noexcept   { return data(); }
+		const_iterator end()   const noexcept	{ return data_end(); }
 
-		const_iterator cbegin() const BOOST_NOEXCEPT  { return data(); }
-		const_iterator cend()   const BOOST_NOEXCEPT  { return data_end(); }
+		const_iterator cbegin() const noexcept  { return data(); }
+		const_iterator cend()   const noexcept  { return data_end(); }
 
-		reverse_iterator rbegin()             BOOST_NOEXCEPT     { return reverse_iterator(data_end()); }
-		reverse_iterator rend()               BOOST_NOEXCEPT     { return reverse_iterator(data()); }
-		const_reverse_iterator rbegin() const BOOST_NOEXCEPT     { return const_reverse_iterator(data_end()); }
-		const_reverse_iterator rend()   const BOOST_NOEXCEPT     { return const_reverse_iterator(data()); }
+		reverse_iterator rbegin()             noexcept     { return reverse_iterator(data_end()); }
+		reverse_iterator rend()               noexcept     { return reverse_iterator(data()); }
+		const_reverse_iterator rbegin() const noexcept     { return const_reverse_iterator(data_end()); }
+		const_reverse_iterator rend()   const noexcept     { return const_reverse_iterator(data()); }
 
-		const_reverse_iterator crbegin() const BOOST_NOEXCEPT    { return const_reverse_iterator(data_end()); }
-		const_reverse_iterator crend()   const BOOST_NOEXCEPT    { return const_reverse_iterator(data()); }
+		const_reverse_iterator crbegin() const noexcept    { return const_reverse_iterator(data_end()); }
+		const_reverse_iterator crend()   const noexcept    { return const_reverse_iterator(data()); }
 
 	public: // assign pack [done]
 		self_type & assign(size_type count, value_type ch);
@@ -204,13 +204,13 @@ namespace ext
 		self_type & operator +=(std::initializer_list<value_type> ilist)  { return append(ilist); }
 
 	public: // compare pack [done]
-		int compare(const self_type & str) const BOOST_NOEXCEPT;
-		int compare(const value_type * str) const BOOST_NOEXCEPT;
-		int compare(size_type pos1, size_type count1, const self_type & str) const BOOST_NOEXCEPT;
+		int compare(const self_type & str) const noexcept;
+		int compare(const value_type * str) const noexcept;
+		int compare(size_type pos1, size_type count1, const self_type & str) const noexcept;
 		int compare(size_type pos1, size_type count1, const self_type & str,
-		            size_type pos2, size_type count2 = npos) const BOOST_NOEXCEPT;
-		int compare(size_type pos1, size_type count1, const value_type * str)                   const BOOST_NOEXCEPT;
-		int compare(size_type pos1, size_type count1, const value_type * str, size_type count2) const BOOST_NOEXCEPT;
+		            size_type pos2, size_type count2 = npos) const noexcept;
+		int compare(size_type pos1, size_type count1, const value_type * str)                   const noexcept;
+		int compare(size_type pos1, size_type count1, const value_type * str, size_type count2) const noexcept;
 
 	public: // replace pack [done]
 		self_type & replace(const_iterator first, const_iterator last, const self_type & str);
@@ -230,35 +230,35 @@ namespace ext
 		self_type & replace(const_iterator first, const_iterator last, InputIterator r_first, InputIterator r_last);
 
 	public: // search methods [done]
-		size_type find(const self_type & str, size_type pos = 0) const BOOST_NOEXCEPT;
-		size_type find(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT;
-		size_type find(const value_type * str, size_type pos = 0) const BOOST_NOEXCEPT;
-		size_type find(value_type ch, size_type pos = 0) const BOOST_NOEXCEPT;
+		size_type find(const self_type & str, size_type pos = 0) const noexcept;
+		size_type find(const value_type * str, size_type pos, size_type count) const noexcept;
+		size_type find(const value_type * str, size_type pos = 0) const noexcept;
+		size_type find(value_type ch, size_type pos = 0) const noexcept;
 
-		size_type rfind(const self_type & str, size_type pos = npos) const BOOST_NOEXCEPT;
-		size_type rfind(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT;
-		size_type rfind(const value_type * str, size_type pos = npos) const BOOST_NOEXCEPT;
-		size_type rfind(value_type ch, size_type pos = npos) const BOOST_NOEXCEPT;
+		size_type rfind(const self_type & str, size_type pos = npos) const noexcept;
+		size_type rfind(const value_type * str, size_type pos, size_type count) const noexcept;
+		size_type rfind(const value_type * str, size_type pos = npos) const noexcept;
+		size_type rfind(value_type ch, size_type pos = npos) const noexcept;
 
-		size_type find_first_of(const self_type & str, size_type pos = 0) const BOOST_NOEXCEPT;
-		size_type find_first_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT;
-		size_type find_first_of(const value_type * str, size_type pos = 0) const BOOST_NOEXCEPT;
-		size_type find_first_of(value_type ch, size_type pos = 0) const BOOST_NOEXCEPT;
+		size_type find_first_of(const self_type & str, size_type pos = 0) const noexcept;
+		size_type find_first_of(const value_type * str, size_type pos, size_type count) const noexcept;
+		size_type find_first_of(const value_type * str, size_type pos = 0) const noexcept;
+		size_type find_first_of(value_type ch, size_type pos = 0) const noexcept;
 
-		size_type find_first_not_of(const self_type & str, size_type pos = 0) const BOOST_NOEXCEPT;
-		size_type find_first_not_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT;
-		size_type find_first_not_of(const value_type * str, size_type pos = 0) const BOOST_NOEXCEPT;
-		size_type find_first_not_of(value_type ch, size_type pos = 0) const BOOST_NOEXCEPT;
+		size_type find_first_not_of(const self_type & str, size_type pos = 0) const noexcept;
+		size_type find_first_not_of(const value_type * str, size_type pos, size_type count) const noexcept;
+		size_type find_first_not_of(const value_type * str, size_type pos = 0) const noexcept;
+		size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept;
 		
-		size_type find_last_of(const self_type & str, size_type pos = npos) const BOOST_NOEXCEPT;
-		size_type find_last_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT;
-		size_type find_last_of(const value_type * str, size_type pos = npos) const BOOST_NOEXCEPT;
-		size_type find_last_of(value_type ch, size_type pos = npos) const BOOST_NOEXCEPT;
+		size_type find_last_of(const self_type & str, size_type pos = npos) const noexcept;
+		size_type find_last_of(const value_type * str, size_type pos, size_type count) const noexcept;
+		size_type find_last_of(const value_type * str, size_type pos = npos) const noexcept;
+		size_type find_last_of(value_type ch, size_type pos = npos) const noexcept;
 		
-		size_type find_last_not_of(const self_type & str, size_type pos = npos) const BOOST_NOEXCEPT;
-		size_type find_last_not_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT;
-		size_type find_last_not_of(const value_type * str, size_type pos = npos) const BOOST_NOEXCEPT;
-		size_type find_last_not_of(value_type ch, size_type pos = npos) const BOOST_NOEXCEPT;
+		size_type find_last_not_of(const self_type & str, size_type pos = npos) const noexcept;
+		size_type find_last_not_of(const value_type * str, size_type pos, size_type count) const noexcept;
+		size_type find_last_not_of(const value_type * str, size_type pos = npos) const noexcept;
+		size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept;
 
 	public: // ctors
 		// allocators not supported yet
@@ -280,14 +280,14 @@ namespace ext
 		basic_string_facade & operator=(std::initializer_list<value_type> ilist) { assign(ilist); return *this; }
 
 	public:
-		basic_string_facade()  BOOST_NOEXCEPT_IF(std::is_nothrow_default_constructible<base_type>::value) = default;
-		~basic_string_facade() BOOST_NOEXCEPT_IF(std::is_nothrow_destructible<base_type>::value) = default;
+		basic_string_facade()  noexcept(std::is_nothrow_default_constructible<base_type>::value) = default;
+		~basic_string_facade() noexcept(std::is_nothrow_destructible<base_type>::value) = default;
 
-		basic_string_facade(const basic_string_facade &)              BOOST_NOEXCEPT_IF(std::is_nothrow_copy_constructible<base_type>::value) = default;
-		basic_string_facade & operator =(const basic_string_facade &) BOOST_NOEXCEPT_IF(std::is_nothrow_copy_assignable<base_type>::value) = default;
+		basic_string_facade(const basic_string_facade &)              noexcept(std::is_nothrow_copy_constructible<base_type>::value) = default;
+		basic_string_facade & operator =(const basic_string_facade &) noexcept(std::is_nothrow_copy_assignable<base_type>::value) = default;
 		
-		basic_string_facade(basic_string_facade &&)              BOOST_NOEXCEPT_IF(std::is_nothrow_move_constructible<base_type>::value) = default;
-		basic_string_facade & operator =(basic_string_facade &&) BOOST_NOEXCEPT_IF(std::is_nothrow_move_assignable<base_type>::value) = default;
+		basic_string_facade(basic_string_facade &&)              noexcept(std::is_nothrow_move_constructible<base_type>::value) = default;
+		basic_string_facade & operator =(basic_string_facade &&) noexcept(std::is_nothrow_move_assignable<base_type>::value) = default;
 	};
 
 	/************************************************************************/
@@ -1144,13 +1144,13 @@ namespace ext
 	/*                   compare block                                      */
 	/************************************************************************/
 	template <class storage, class char_traits>
-	inline int basic_string_facade<storage, char_traits>::compare(const self_type & str) const BOOST_NOEXCEPT
+	inline int basic_string_facade<storage, char_traits>::compare(const self_type & str) const noexcept
 	{
 		return compare(0, npos, str);
 	}
 
 	template <class storage, class char_traits>
-	inline int basic_string_facade<storage, char_traits>::compare(size_type pos1, size_type count1, const self_type & str) const BOOST_NOEXCEPT
+	inline int basic_string_facade<storage, char_traits>::compare(size_type pos1, size_type count1, const self_type & str) const noexcept
 	{
 		return compare(pos1, count1, str, 0, npos);
 	}
@@ -1158,7 +1158,7 @@ namespace ext
 	template <class storage, class char_traits>
 	int basic_string_facade<storage, char_traits>::compare
 	    (size_type pos1, size_type count1,
-	     const self_type & str, size_type pos2, size_type count2 /* = npos */) const BOOST_NOEXCEPT
+	     const self_type & str, size_type pos2, size_type count2 /* = npos */) const noexcept
 	{
 		const value_type
 			* first1,
@@ -1180,13 +1180,13 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	inline int basic_string_facade<storage, char_traits>::compare(const value_type * str) const BOOST_NOEXCEPT
+	inline int basic_string_facade<storage, char_traits>::compare(const value_type * str) const noexcept
 	{
 		return compare(0, npos, str);
 	}
 
 	template <class storage, class char_traits>
-	inline int basic_string_facade<storage, char_traits>::compare(size_type pos1, size_type count1, const value_type * str) const BOOST_NOEXCEPT
+	inline int basic_string_facade<storage, char_traits>::compare(size_type pos1, size_type count1, const value_type * str) const noexcept
 	{
 		return compare(0, npos, str, 0, traits_type::length(str));
 	}
@@ -1194,7 +1194,7 @@ namespace ext
 	template <class storage, class char_traits>
 	int basic_string_facade<storage, char_traits>::compare
 	    (size_type pos1, size_type count1,
-		 const value_type * str, size_type count2) const BOOST_NOEXCEPT
+		 const value_type * str, size_type count2) const noexcept
 	{
 		const value_type
 			* first1,
@@ -1258,7 +1258,7 @@ namespace ext
 	/*                   find block                                         */
 	/************************************************************************/
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find(const self_type & str, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find(const self_type & str, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1268,7 +1268,7 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1295,13 +1295,13 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find(const value_type * str, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find(const value_type * str, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		return find(str, pos, traits_type::length(str));
 	}
 
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find(value_type ch, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find(value_type ch, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1317,7 +1317,7 @@ namespace ext
 	/*                 rfind block                                          */
 	/************************************************************************/
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::rfind(const self_type & str, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::rfind(const self_type & str, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1327,7 +1327,7 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::rfind(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::rfind(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1354,13 +1354,13 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::rfind(const value_type * str, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::rfind(const value_type * str, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		return rfind(str, pos, traits_type::length(str));
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::rfind(value_type ch, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::rfind(value_type ch, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		return rfind(&ch, pos, 1);
 	}
@@ -1369,7 +1369,7 @@ namespace ext
 	/*                   find_first_of                                      */
 	/************************************************************************/
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_first_of(const self_type & str, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_first_of(const self_type & str, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1379,7 +1379,7 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_first_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_first_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1396,13 +1396,13 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_first_of(const value_type * str, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_first_of(const value_type * str, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		return find_first_of(str, pos, traits_type::length(str));
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_first_of(value_type ch, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_first_of(value_type ch, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		return find_first_of(&ch, pos, 1);
 	}
@@ -1411,7 +1411,7 @@ namespace ext
 	/*                   find_first_not_of                                  */
 	/************************************************************************/
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_first_not_of(const self_type & str, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_first_not_of(const self_type & str, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1421,7 +1421,7 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_first_not_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_first_not_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1438,13 +1438,13 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_first_not_of(const value_type * str, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_first_not_of(const value_type * str, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		return find_first_not_of(str, pos, traits_type::length(str));
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_first_not_of(value_type ch, size_type pos /* = 0 */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_first_not_of(value_type ch, size_type pos /* = 0 */) const noexcept -> size_type
 	{
 		return find_first_not_of(&ch, pos, 1);
 	}
@@ -1453,7 +1453,7 @@ namespace ext
 	/*                  find_last_of                                        */
 	/************************************************************************/
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_last_of(const self_type & str, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_last_of(const self_type & str, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1463,7 +1463,7 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_last_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_last_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1481,13 +1481,13 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_last_of(const value_type * str, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_last_of(const value_type * str, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		return find_last_of(str, pos, traits_type::length(str));
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_last_of(value_type ch, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_last_of(value_type ch, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		return find_last_of(&ch, pos, 1);
 	}
@@ -1496,7 +1496,7 @@ namespace ext
 	/*                  find_last_not_of                                    */
 	/************************************************************************/
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_last_not_of(const self_type & str, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_last_not_of(const self_type & str, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1506,7 +1506,7 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	auto basic_string_facade<storage, char_traits>::find_last_not_of(const value_type * str, size_type pos, size_type count) const BOOST_NOEXCEPT -> size_type
+	auto basic_string_facade<storage, char_traits>::find_last_not_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
 		const value_type * first;
 		const value_type * last;
@@ -1524,13 +1524,13 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_last_not_of(const value_type * str, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_last_not_of(const value_type * str, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		return find_last_not_of(str, pos, traits_type::length(str));
 	}
 
 	template <class storage, class char_traits>
-	inline auto basic_string_facade<storage, char_traits>::find_last_not_of(value_type ch, size_type pos /* = npos */) const BOOST_NOEXCEPT -> size_type
+	inline auto basic_string_facade<storage, char_traits>::find_last_not_of(value_type ch, size_type pos /* = npos */) const noexcept -> size_type
 	{
 		return find_last_not_of(&ch, pos, 1);
 	}
@@ -1540,42 +1540,42 @@ namespace ext
 	/************************************************************************/
 	template <class storage, class char_traits>
 	inline bool operator ==(const basic_string_facade<storage, char_traits> & lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return lhs.compare(rhs) == 0;
 	}
 
 	template <class storage, class char_traits>
 	inline bool operator !=(const basic_string_facade<storage, char_traits> & lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return lhs.compare(rhs) != 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator <(const basic_string_facade<storage, char_traits> & lhs,
-	                       const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                       const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return lhs.compare(rhs) < 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator <=(const basic_string_facade<storage, char_traits> & lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return lhs.compare(rhs) <= 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator >(const basic_string_facade<storage, char_traits> & lhs,
-	                       const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                       const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return lhs.compare(rhs) > 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator >=(const basic_string_facade<storage, char_traits> & lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return lhs.compare(rhs) >= 0;
 	}
@@ -1583,84 +1583,84 @@ namespace ext
 
 	template <class storage, class char_traits>
 	inline bool operator ==(const typename basic_string_facade<storage, char_traits>::value_type * lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return rhs.compare(lhs) == 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator ==(const basic_string_facade<storage, char_traits> & lhs,
-	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) BOOST_NOEXCEPT
+	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) noexcept
 	{
 		return lhs.compare(rhs) == 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator !=(const typename basic_string_facade<storage, char_traits>::value_type * lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return rhs.compare(lhs) != 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator !=(const basic_string_facade<storage, char_traits> & lhs,
-	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) BOOST_NOEXCEPT
+	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) noexcept
 	{
 		return lhs.compare(rhs) != 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator <(const typename basic_string_facade<storage, char_traits>::value_type * lhs,
-	                       const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                       const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return rhs.compare(lhs) > 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator <(const basic_string_facade<storage, char_traits> & lhs,
-	                       const typename basic_string_facade<storage, char_traits>::value_type * rhs) BOOST_NOEXCEPT
+	                       const typename basic_string_facade<storage, char_traits>::value_type * rhs) noexcept
 	{
 		return lhs.compare(rhs) < 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator <=(const typename basic_string_facade<storage, char_traits>::value_type * lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return rhs.compare(lhs) >= 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator <=(const basic_string_facade<storage, char_traits> & lhs,
-	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) BOOST_NOEXCEPT
+	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) noexcept
 	{
 		return lhs.compare(rhs) <= 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator >(const typename basic_string_facade<storage, char_traits>::value_type * lhs,
-	                       const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                       const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return rhs.compare(lhs) < 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator >(const basic_string_facade<storage, char_traits> & lhs,
-	                       const typename basic_string_facade<storage, char_traits>::value_type * rhs) BOOST_NOEXCEPT
+	                       const typename basic_string_facade<storage, char_traits>::value_type * rhs) noexcept
 	{
 		return lhs.compare(rhs) > 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator >=(const typename basic_string_facade<storage, char_traits>::value_type * lhs,
-	                        const basic_string_facade<storage, char_traits> & rhs) BOOST_NOEXCEPT
+	                        const basic_string_facade<storage, char_traits> & rhs) noexcept
 	{
 		return rhs.compare(lhs) <= 0;
 	}
 	
 	template <class storage, class char_traits>
 	inline bool operator >=(const basic_string_facade<storage, char_traits> & lhs,
-	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) BOOST_NOEXCEPT
+	                        const typename basic_string_facade<storage, char_traits>::value_type * rhs) noexcept
 	{
 		return lhs.compare(rhs) >= 0;
 	}

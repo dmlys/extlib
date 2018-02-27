@@ -386,19 +386,19 @@ namespace ext
 		void interrupt();
 
 	public:
-		bsdsock_streambuf() BOOST_NOEXCEPT;
-		~bsdsock_streambuf() BOOST_NOEXCEPT;
+		bsdsock_streambuf();
+		~bsdsock_streambuf();
 
 		bsdsock_streambuf(const bsdsock_streambuf &) = delete;
 		bsdsock_streambuf & operator =(const bsdsock_streambuf &) = delete;
 
-		bsdsock_streambuf(bsdsock_streambuf &&) BOOST_NOEXCEPT;
-		bsdsock_streambuf & operator =(bsdsock_streambuf &&) BOOST_NOEXCEPT;
+		bsdsock_streambuf(bsdsock_streambuf &&) noexcept;
+		bsdsock_streambuf & operator =(bsdsock_streambuf &&) noexcept;
 
-		void swap(bsdsock_streambuf & other) BOOST_NOEXCEPT;
+		void swap(bsdsock_streambuf & other) noexcept;
 	};
 
-	inline void swap(bsdsock_streambuf & s1, bsdsock_streambuf & s2) BOOST_NOEXCEPT
+	inline void swap(bsdsock_streambuf & s1, bsdsock_streambuf & s2) noexcept
 	{
 		s1.swap(s2);
 	}

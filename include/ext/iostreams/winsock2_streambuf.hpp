@@ -13,6 +13,7 @@
 #include <system_error>
 
 #include <ext/iostreams/socket_streambuf_base.hpp>
+#include <boost/config.hpp> // for BOOST_NORETURN
 
 //#ifndef WIN32_LEAN_AND_MEAN
 //#define WIN32_LEAN_AND_MEAN
@@ -436,19 +437,19 @@ namespace ext
 		void interrupt();
 
 	public:
-		winsock2_streambuf() BOOST_NOEXCEPT;
-		~winsock2_streambuf() BOOST_NOEXCEPT;
+		winsock2_streambuf();
+		~winsock2_streambuf();
 
 		winsock2_streambuf(const winsock2_streambuf &) = delete;
 		winsock2_streambuf & operator =(const winsock2_streambuf &) = delete;
 
-		winsock2_streambuf(winsock2_streambuf &&) BOOST_NOEXCEPT;
-		winsock2_streambuf & operator =(winsock2_streambuf &&) BOOST_NOEXCEPT;
+		winsock2_streambuf(winsock2_streambuf &&) noexcept;
+		winsock2_streambuf & operator =(winsock2_streambuf &&) noexcept;
 
-		void swap(winsock2_streambuf & other) BOOST_NOEXCEPT;
+		void swap(winsock2_streambuf & other) noexcept;
 	};
 
-	inline void swap(winsock2_streambuf & s1, winsock2_streambuf & s2) BOOST_NOEXCEPT
+	inline void swap(winsock2_streambuf & s1, winsock2_streambuf & s2) noexcept
 	{
 		s1.swap(s2);
 	}

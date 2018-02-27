@@ -119,12 +119,12 @@ namespace ext
 		winsock2_stream(const winsock2_stream &) = delete;
 		winsock2_stream & operator =(const winsock2_stream &) = delete;
 
-		winsock2_stream(winsock2_stream && right) BOOST_NOEXCEPT;
-		winsock2_stream & operator =(winsock2_stream && right) BOOST_NOEXCEPT;
-		void swap(winsock2_stream & right) BOOST_NOEXCEPT;
+		winsock2_stream(winsock2_stream && right) noexcept;
+		winsock2_stream & operator =(winsock2_stream && right) noexcept;
+		void swap(winsock2_stream & right) noexcept;
 	};
 
-	inline void swap(winsock2_stream & s1, winsock2_stream & s2) BOOST_NOEXCEPT
+	inline void swap(winsock2_stream & s1, winsock2_stream & s2) noexcept
 	{
 		s1.swap(s2);
 	}

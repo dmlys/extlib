@@ -4,7 +4,6 @@
 #include <string>
 #include <algorithm>
 #include <ext/range/input_range_facade.hpp>
-#include <boost/config.hpp>
 
 namespace ext
 {

@@ -40,8 +40,8 @@ namespace ext
 	///
 	/// Данные категории возвращают текст в utf-8 и MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US)
 	/// Фактически должен быть ASCII
-	std::error_category const & system_utf8_category() BOOST_NOEXCEPT;
-	boost::system::error_category const & boost_system_utf8_category() BOOST_NOEXCEPT;
+	std::error_category const & system_utf8_category() noexcept;
+	boost::system::error_category const & boost_system_utf8_category() noexcept;
 
 	///эквивалентно throw std::system_error(GetLastError(), std::system_category(), errMsg);
 	void ThrowLastSystemError(const char * errMsg);

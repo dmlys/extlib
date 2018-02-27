@@ -118,14 +118,14 @@ namespace ext
 		connect(host, service);
 	}
 
-	bsdsock_stream::bsdsock_stream(bsdsock_stream && op) BOOST_NOEXCEPT
+	bsdsock_stream::bsdsock_stream(bsdsock_stream && op) noexcept
 		: std::iostream(std::move(op)),
 		  m_streambuf(std::move(op.m_streambuf))
 	{
 		set_rdbuf(&m_streambuf);
 	}
 
-	bsdsock_stream & bsdsock_stream::operator =(bsdsock_stream && op) BOOST_NOEXCEPT
+	bsdsock_stream & bsdsock_stream::operator =(bsdsock_stream && op) noexcept
 	{
 		if (this != &op)
 		{
@@ -136,7 +136,7 @@ namespace ext
 		return *this;
 	}
 
-	void bsdsock_stream::swap(bsdsock_stream & op) BOOST_NOEXCEPT
+	void bsdsock_stream::swap(bsdsock_stream & op) noexcept
 	{
 		this->std::iostream::swap(op);
 		m_streambuf.swap(op.m_streambuf);

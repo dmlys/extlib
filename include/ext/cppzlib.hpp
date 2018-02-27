@@ -6,7 +6,8 @@
 #include <utility>
 #include <stdexcept>
 #include <system_error>
-#include <boost/config.hpp> // for BOOST_NOEXCEPT
+
+#include <boost/config.hpp> // for BOOST_NORETURN
 
 /// very simple z_stream wrapper
 /// provides:
@@ -22,8 +23,8 @@ namespace zlib
 	typedef ::z_stream * zstream_handle;
 
 	/// error category for zlib
-	const std::error_category & zlib_category() BOOST_NOEXCEPT;
-	inline std::error_code make_zlib_error(int code) BOOST_NOEXCEPT { return {code, zlib_category()}; }
+	const std::error_category & zlib_category() noexcept;
+	inline std::error_code make_zlib_error(int code) noexcept { return {code, zlib_category()}; }
 
 	/// checks that code error is in:
 	///  Z_OK, Z_STREAM_END, Z_NEED_DICT, Z_BUF_ERROR
@@ -42,8 +43,8 @@ namespace zlib
 		std::error_code ec;
 
 	public:
-		const std::error_code & code() const BOOST_NOEXCEPT { return ec; }
-		const char * what() const BOOST_NOEXCEPT override { return errmsg.c_str(); }
+		const std::error_code & code() const noexcept { return ec; }
+		const char * what() const noexcept override { return errmsg.c_str(); }
 		
 		zlib_error(int code, const char * msg);
 	};
@@ -121,27 +122,27 @@ namespace zlib
 	protected:
 		zstream() = default;
 		~zstream() = default;
-		zstream(zstream_handle handle) BOOST_NOEXCEPT : handle(handle) {}
+		zstream(zstream_handle handle) noexcept : handle(handle) {}
 
 		zstream(const zstream &) = delete;
 		zstream & operator =(const zstream & ) = delete;
 
-		zstream(zstream && op) BOOST_NOEXCEPT : handle(std::move(op.handle)) {}
-		zstream & operator =(zstream && op) BOOST_NOEXCEPT {handle = std::exchange(op.handle, true); return *this;}
+		zstream(zstream && op) noexcept : handle(std::move(op.handle)) {}
+		zstream & operator =(zstream && op) noexcept {handle = std::exchange(op.handle, true); return *this;}
 
 		//zstream(zstream &&) = default;
 		//zstream & operator =(zstream &&) = default;
 		
 	public:
-		friend void swap(zstream & s1, zstream & s2) BOOST_NOEXCEPT { std::swap(s1.handle, s2.handle); }
+		friend void swap(zstream & s1, zstream & s2) noexcept { std::swap(s1.handle, s2.handle); }
 		
 	public:
-		operator zstream_handle() BOOST_NOEXCEPT { return native(); }
-		zstream_handle native() const BOOST_NOEXCEPT { return handle.get(); }
-		zstream_handle release() BOOST_NOEXCEPT { return handle.release(); }
-		void assign(zstream_handle handle) BOOST_NOEXCEPT { zstream::handle = handle; }
+		operator zstream_handle() noexcept { return native(); }
+		zstream_handle native() const noexcept { return handle.get(); }
+		zstream_handle release() noexcept { return handle.release(); }
+		void assign(zstream_handle handle) noexcept { zstream::handle = handle; }
 		
-		int close() BOOST_NOEXCEPT
+		int close() noexcept
 		{ return handle ? handle.get_deleter().closer_type::operator()(handle.get()) : Z_OK; }
 		// same as close
 		int end() { return close(); }
@@ -184,7 +185,7 @@ namespace zlib
 	/************************************************************************/
 	struct inflate_deleter
 	{
-		int operator()(zstream_handle handle) const BOOST_NOEXCEPT
+		int operator()(zstream_handle handle) const noexcept
 		{
 			return ::inflateEnd(handle);
 		}
@@ -203,10 +204,10 @@ namespace zlib
 		typedef zstream<inflate_deleter> base_type;
 		
 	public: // forward constructors
-		inflate_stream(zstream_handle handle) BOOST_NOEXCEPT : base_type(handle) {}
-		inflate_stream(inflate_stream && op) BOOST_NOEXCEPT : base_type(std::move(op)) {}
+		inflate_stream(zstream_handle handle) noexcept : base_type(handle) {}
+		inflate_stream(inflate_stream && op) noexcept : base_type(std::move(op)) {}
 
-		inflate_stream & operator =(inflate_stream && op) BOOST_NOEXCEPT
+		inflate_stream & operator =(inflate_stream && op) noexcept
 		{
 			handle = std::exchange(handle, nullptr);
 			return *this;
@@ -292,7 +293,7 @@ namespace zlib
 	/************************************************************************/
 	struct deflate_deleter
 	{
-		int operator()(zstream_handle handle) const BOOST_NOEXCEPT
+		int operator()(zstream_handle handle) const noexcept
 		{
 			return ::deflateEnd(handle);
 		}
@@ -308,10 +309,10 @@ namespace zlib
 		typedef zstream<deflate_deleter> base_type;
 		
 	public: // forward constructors
-		deflate_stream(zstream_handle handle) BOOST_NOEXCEPT : base_type(handle) {}
-		deflate_stream(deflate_stream && op) BOOST_NOEXCEPT : base_type(std::move(op)) {}
+		deflate_stream(zstream_handle handle) noexcept : base_type(handle) {}
+		deflate_stream(deflate_stream && op) noexcept : base_type(std::move(op)) {}
 
-		deflate_stream & operator =(deflate_stream && op) BOOST_NOEXCEPT
+		deflate_stream & operator =(deflate_stream && op) noexcept
 		{
 			handle = std::exchange(handle, nullptr);
 			return *this;
@@ -374,13 +375,13 @@ namespace zlib
 			return res;
 		}
 
-		uLong bound(uLong source_len) BOOST_NOEXCEPT
+		uLong bound(uLong source_len) noexcept
 		{
 			return ::deflateBound(native(), source_len);
 		}
 
 		template <class Arithmetic>
-		uLong bound(Arithmetic source_len) BOOST_NOEXCEPT
+		uLong bound(Arithmetic source_len) noexcept
 		{
 			return bound(static_cast<uLong>(source_len));
 		}
