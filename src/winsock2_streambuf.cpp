@@ -1098,17 +1098,17 @@ namespace ext
 	/************************************************************************/
 	/*                   ctors/dtor                                         */
 	/************************************************************************/
-	winsock2_streambuf::winsock2_streambuf() BOOST_NOEXCEPT
+	winsock2_streambuf::winsock2_streambuf()
 	{
 		m_sockhandle = INVALID_SOCKET;
 	}
 
-	winsock2_streambuf::~winsock2_streambuf() BOOST_NOEXCEPT
+	winsock2_streambuf::~winsock2_streambuf()
 	{
 		close();
 	}
 
-	winsock2_streambuf::winsock2_streambuf(winsock2_streambuf && right) BOOST_NOEXCEPT
+	winsock2_streambuf::winsock2_streambuf(winsock2_streambuf && right) noexcept
 		: base_type(std::move(right)),
 	      m_sockhandle(std::exchange(right.m_sockhandle, INVALID_SOCKET)),
 #ifdef EXT_ENABLE_OPENSSL
@@ -1121,7 +1121,7 @@ namespace ext
 
 	}
 
-	winsock2_streambuf & winsock2_streambuf::operator=(winsock2_streambuf && right) BOOST_NOEXCEPT
+	winsock2_streambuf & winsock2_streambuf::operator=(winsock2_streambuf && right) noexcept
 	{
 		if (this != &right)
 		{
@@ -1140,7 +1140,7 @@ namespace ext
 		return *this;
 	}
 
-	void winsock2_streambuf::swap(winsock2_streambuf & other) BOOST_NOEXCEPT
+	void winsock2_streambuf::swap(winsock2_streambuf & other) noexcept
 	{
 		using std::swap;
 

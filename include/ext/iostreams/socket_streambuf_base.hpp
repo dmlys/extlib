@@ -3,7 +3,6 @@
 #include <utility> // for std::exchange
 #include <streambuf>
 #include <ext/iostreams/streambuf.hpp>
-#include <boost/config.hpp>
 
 namespace ext
 {
@@ -75,7 +74,7 @@ namespace ext
 		bool self_tie(bool tie) { return std::exchange(m_tie_io, tie); }
 
 	protected:
-		socket_streambuf_base();
+		socket_streambuf_base() = default;
 		~socket_streambuf_base() = default;
 
 		socket_streambuf_base(const socket_streambuf_base &) = delete;
@@ -85,9 +84,9 @@ namespace ext
 		//socket_streambuf_base(socket_streambuf_base && right) = default;
 		//socket_streambuf_base & operator=(socket_streambuf_base && right) = default;
 		
-		socket_streambuf_base(socket_streambuf_base && right) BOOST_NOEXCEPT;
-		socket_streambuf_base & operator=(socket_streambuf_base && right) BOOST_NOEXCEPT;
+		socket_streambuf_base(socket_streambuf_base && right) noexcept;
+		socket_streambuf_base & operator=(socket_streambuf_base && right) noexcept;
 
-		void swap(socket_streambuf_base & right) BOOST_NOEXCEPT;
+		void swap(socket_streambuf_base & right) noexcept;
 	};
 }

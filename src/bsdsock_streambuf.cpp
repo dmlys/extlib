@@ -46,7 +46,7 @@ namespace ext
 
 	struct gai_error_category_impl : public std::error_category
 	{
-		const char * name() const BOOST_NOEXCEPT override { return "gai"; }
+		const char * name() const noexcept override { return "gai"; }
 		std::string message(int code) const override      { return ::gai_strerror(code); }
 	};
 
@@ -1236,17 +1236,17 @@ namespace ext
 	/************************************************************************/
 	/*                   ctors/dtor                                         */
 	/************************************************************************/
-	bsdsock_streambuf::bsdsock_streambuf() BOOST_NOEXCEPT
+	bsdsock_streambuf::bsdsock_streambuf()
 	{
 		m_sockhandle = -1;
 	}
 
-	bsdsock_streambuf::~bsdsock_streambuf() BOOST_NOEXCEPT
+	bsdsock_streambuf::~bsdsock_streambuf()
 	{
 		close();
 	}
 
-	bsdsock_streambuf::bsdsock_streambuf(bsdsock_streambuf && right) BOOST_NOEXCEPT
+	bsdsock_streambuf::bsdsock_streambuf(bsdsock_streambuf && right) noexcept
 		: base_type(std::move(right)),
 		  m_sockhandle(std::exchange(right.m_sockhandle, -1)),
 #ifdef EXT_ENABLE_OPENSSL
@@ -1259,7 +1259,7 @@ namespace ext
 
 	}
 
-	bsdsock_streambuf & bsdsock_streambuf::operator=(bsdsock_streambuf && right) BOOST_NOEXCEPT
+	bsdsock_streambuf & bsdsock_streambuf::operator=(bsdsock_streambuf && right) noexcept
 	{
 		if (this != &right)
 		{
@@ -1278,7 +1278,7 @@ namespace ext
 		return *this;
 	}
 
-	void bsdsock_streambuf::swap(bsdsock_streambuf & other) BOOST_NOEXCEPT
+	void bsdsock_streambuf::swap(bsdsock_streambuf & other) noexcept
 	{
 		using std::swap;
 

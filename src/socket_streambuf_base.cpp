@@ -232,12 +232,7 @@ namespace ext
 	/************************************************************************/
 	/*              ctors/dtors                                             */
 	/************************************************************************/
-	socket_streambuf_base::socket_streambuf_base()
-	{
-
-	}
-
-	socket_streambuf_base::socket_streambuf_base(socket_streambuf_base && op) BOOST_NOEXCEPT
+	socket_streambuf_base::socket_streambuf_base(socket_streambuf_base && op) noexcept
 		: base_type(std::move(op)),
 		  m_input_buffer(std::exchange(op.m_input_buffer, nullptr)),
 		  m_output_buffer(std::exchange(op.m_output_buffer, nullptr)),
@@ -246,7 +241,7 @@ namespace ext
 		  m_buffer(std::move(op.m_buffer))
 	{}
 
-	socket_streambuf_base & socket_streambuf_base::operator =(socket_streambuf_base && op) BOOST_NOEXCEPT
+	socket_streambuf_base & socket_streambuf_base::operator =(socket_streambuf_base && op) noexcept
 	{
 		if (this != &op)
 		{
@@ -261,7 +256,7 @@ namespace ext
 		return *this;
 	}
 
-	void socket_streambuf_base::swap(socket_streambuf_base & op) BOOST_NOEXCEPT
+	void socket_streambuf_base::swap(socket_streambuf_base & op) noexcept
 	{
 		using std::swap;
 		base_type::swap(op);

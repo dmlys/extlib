@@ -162,14 +162,14 @@ namespace ext
 		connect(host, service);
 	}
 
-	winsock2_stream::winsock2_stream(winsock2_stream && op) BOOST_NOEXCEPT
+	winsock2_stream::winsock2_stream(winsock2_stream && op) noexcept
 		: std::iostream(std::move(op)),
 		  m_streambuf(std::move(op.m_streambuf))
 	{
 		set_rdbuf(&m_streambuf);
 	};
 
-	winsock2_stream & winsock2_stream::operator =(winsock2_stream && op) BOOST_NOEXCEPT
+	winsock2_stream & winsock2_stream::operator =(winsock2_stream && op) noexcept
 	{
 		if (this != &op)
 		{
@@ -180,7 +180,7 @@ namespace ext
 		return *this;
 	}
 
-	void winsock2_stream::swap(winsock2_stream & op) BOOST_NOEXCEPT
+	void winsock2_stream::swap(winsock2_stream & op) noexcept
 	{
 		this->std::iostream::swap(op);
 		m_streambuf.swap(op.m_streambuf);

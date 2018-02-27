@@ -108,12 +108,12 @@ namespace ext
 		bsdsock_stream(const bsdsock_stream &) = delete;
 		bsdsock_stream & operator =(const bsdsock_stream &) = delete;
 
-		bsdsock_stream(bsdsock_stream && right) BOOST_NOEXCEPT;
-		bsdsock_stream & operator =(bsdsock_stream && right) BOOST_NOEXCEPT;
-		void swap(bsdsock_stream & right) BOOST_NOEXCEPT;
+		bsdsock_stream(bsdsock_stream && right) noexcept;
+		bsdsock_stream & operator =(bsdsock_stream && right) noexcept;
+		void swap(bsdsock_stream & right) noexcept;
 	};
 
-	inline void swap(bsdsock_stream & s1, bsdsock_stream & s2) BOOST_NOEXCEPT
+	inline void swap(bsdsock_stream & s1, bsdsock_stream & s2) noexcept
 	{
 		s1.swap(s2);
 	}

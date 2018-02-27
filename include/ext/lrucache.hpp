@@ -11,7 +11,6 @@
 #include <boost/call_traits.hpp>
 #include <boost/swap.hpp>
 #include <boost/assert.hpp>
-#include <boost/config.hpp>
 
 namespace ext
 {
@@ -166,17 +165,10 @@ namespace ext
 		manual_lru_cache(const manual_lru_cache &) = delete;
 		manual_lru_cache & operator =(const manual_lru_cache &) = delete;
 
-		manual_lru_cache(manual_lru_cache && r) BOOST_NOEXCEPT
-			: m_cache(std::move(r.m_cache)),
-			  m_cache_maxsize(r.m_cache_maxsize) {}
-
-		manual_lru_cache & operator =(manual_lru_cache && r) BOOST_NOEXCEPT
-		{
-			manual_lru_cache tmp = std::move(r);
-			swap(tmp);
-		}
+		manual_lru_cache(manual_lru_cache && r) = default;	
+		manual_lru_cache & operator =(manual_lru_cache && r) = default;
 		
-		void swap(manual_lru_cache & other) BOOST_NOEXCEPT
+		void swap(manual_lru_cache & other) noexcept
 		{
 			boost::swap(m_cache, other.m_cache);
 			boost::swap(m_cache_maxsize, other.m_cache_maxsize);
@@ -185,7 +177,7 @@ namespace ext
 
 	template <class Key, class Value, class Hash, class KeyEqual>
 	inline void swap(manual_lru_cache<Key, Value, Hash, KeyEqual> & c1,
-	                 manual_lru_cache<Key, Value, Hash, KeyEqual> & c2) BOOST_NOEXCEPT
+	                 manual_lru_cache<Key, Value, Hash, KeyEqual> & c2) noexcept
 	{
 		c1.swap(c2);
 	}
@@ -242,16 +234,10 @@ namespace ext
 		lru_cache(const lru_cache &) = delete;
 		lru_cache & operator =(const lru_cache &) = delete;
 
-		lru_cache(lru_cache && r) BOOST_NOEXCEPT
-			: base_type(std::move(r)), m_Acquire(std::move(r.m_Acquire)) {}
+		lru_cache(lru_cache && r) = default;
+		lru_cache & operator =(lru_cache && r) = default;
 
-		lru_cache & operator =(lru_cache && r) BOOST_NOEXCEPT
-		{
-			lru_cache tmp = std::move(r);
-			swap(tmp);
-		}
-
-		void swap(lru_cache & other) BOOST_NOEXCEPT
+		void swap(lru_cache & other) noexcept
 		{
 			base_type::swap(other);
 			boost::swap(m_Acquire, other.m_Acquire);
@@ -260,7 +246,7 @@ namespace ext
 
 	template <class Key, class Value, class Hash, class KeyEqual, class Acquire>
 	inline void swap(lru_cache<Key, Value, Hash, KeyEqual, Acquire> & c1,
-	                 lru_cache<Key, Value, Hash, KeyEqual, Acquire> & c2) BOOST_NOEXCEPT
+	                 lru_cache<Key, Value, Hash, KeyEqual, Acquire> & c2) noexcept
 	{
 		c1.swap(c2);
 	}
@@ -339,16 +325,10 @@ namespace ext
 		batch_lru_cache(const batch_lru_cache &) = delete;
 		batch_lru_cache & operator =(const batch_lru_cache &) = delete;
 
-		batch_lru_cache(batch_lru_cache && r) BOOST_NOEXCEPT
-			: base_type(std::move(r)), m_Acquire(std::move(r.m_Acquire)) {}
+		batch_lru_cache(batch_lru_cache && r) = default;		
+		batch_lru_cache & operator =(batch_lru_cache && r) = default;
 
-		batch_lru_cache & operator =(batch_lru_cache && r) BOOST_NOEXCEPT
-		{
-			batch_lru_cache tmp = std::move(r);
-			swap(tmp);
-		}
-
-		void swap(batch_lru_cache & other) BOOST_NOEXCEPT
+		void swap(batch_lru_cache & other) noexcept
 		{
 			base_type::swap(other);
 			boost::swap(m_Acquire, other.m_Acquire);
@@ -357,7 +337,7 @@ namespace ext
 
 	template <class Key, class Value, class Hash, class KeyEqual, class Acquire>
 	inline void swap(batch_lru_cache<Key, Value, Hash, KeyEqual, Acquire> & c1,
-	                 batch_lru_cache<Key, Value, Hash, KeyEqual, Acquire> & c2) BOOST_NOEXCEPT
+	                 batch_lru_cache<Key, Value, Hash, KeyEqual, Acquire> & c2) noexcept
 	{
 		c1.swap(c2);
 	}

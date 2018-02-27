@@ -1,7 +1,6 @@
 #pragma once
 #include <cstddef>
 #include <string>
-#include <boost/config.hpp>
 #include <boost/numeric/conversion/cast.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/pipeline.hpp>

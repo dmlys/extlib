@@ -10,11 +10,11 @@ namespace zlib
 	/************************************************************************/
 	struct zlib_category_impl : std::error_category
 	{
-		virtual const char * name() const BOOST_NOEXCEPT;
+		virtual const char * name() const noexcept;
 		virtual std::string message(int val) const;
 	};
 
-	const char * zlib_category_impl::name() const BOOST_NOEXCEPT
+	const char * zlib_category_impl::name() const noexcept
 	{
 		return "zlib";
 	}
@@ -39,7 +39,7 @@ namespace zlib
 
 	zlib_category_impl zlib_category_instance;
 
-	const std::error_category & zlib_category() BOOST_NOEXCEPT
+	const std::error_category & zlib_category() noexcept
 	{
 		return zlib_category_instance;
 	}

@@ -57,7 +57,6 @@ namespace ext
 #if BOOST_OS_WINDOWS
 #include <Windows.h>
 #include <vector>
-#include <boost/config.hpp>
 #include <boost/locale.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -92,17 +91,17 @@ namespace ext
 		struct SystemUtf8Category : std::error_category
 		{
 			std::string message(int err) const override;
-			const char * name() const BOOST_NOEXCEPT override {return "system";}
+			const char * name() const noexcept override {return "system";}
 
-			std::error_condition default_error_condition(int code) const BOOST_NOEXCEPT override;
+			std::error_condition default_error_condition(int code) const noexcept override;
 		};
 
 		struct BoostSystemUtf8Category : boost::system::error_category
 		{
 			std::string message(int err) const override;
-			const char * name() const BOOST_NOEXCEPT override {return "system";}
+			const char * name() const noexcept override {return "system";}
 
-			boost::system::error_condition default_error_condition(int code) const BOOST_NOEXCEPT override;
+			boost::system::error_condition default_error_condition(int code) const noexcept override;
 		};
 
 		std::string SystemUtf8Category::message(int err) const
@@ -110,7 +109,7 @@ namespace ext
 			return GetMessage(err);
 		}
 
-		std::error_condition SystemUtf8Category::default_error_condition(int code) const BOOST_NOEXCEPT
+		std::error_condition SystemUtf8Category::default_error_condition(int code) const noexcept
 		{
 			// forward to standard implementation
 			return std::system_category().default_error_condition(code);
@@ -121,7 +120,7 @@ namespace ext
 			return GetMessage(err);
 		}
 
-		boost::system::error_condition BoostSystemUtf8Category::default_error_condition(int code) const BOOST_NOEXCEPT
+		boost::system::error_condition BoostSystemUtf8Category::default_error_condition(int code) const noexcept
 		{
 			// forward to standard implementation
 			return boost::system::system_category().default_error_condition(code);
@@ -131,12 +130,12 @@ namespace ext
 		const BoostSystemUtf8Category BoostSystemUtf8CategoryInstance {};
 	} //anonymous namespace
 
-	std::error_category const & system_utf8_category() BOOST_NOEXCEPT
+	std::error_category const & system_utf8_category() noexcept
 	{
 		return SystemUtf8CategoryInstance;
 	}
 
-	boost::system::error_category const & boost_system_utf8_category() BOOST_NOEXCEPT
+	boost::system::error_category const & boost_system_utf8_category() noexcept
 	{
 		return BoostSystemUtf8CategoryInstance;
 	}
