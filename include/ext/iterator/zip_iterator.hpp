@@ -281,7 +281,6 @@ namespace ext
 
 	public:
 		zip_iterator() = default;
-		zip_iterator(const zip_iterator & op) = default;
 
 		explicit zip_iterator(Iterators... args)
 			: m_iterators(std::move(args)...) {}

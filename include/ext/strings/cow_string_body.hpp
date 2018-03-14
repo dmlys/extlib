@@ -83,10 +83,10 @@ namespace ext
 		cow_string_body() = default;
 		~cow_string_body() = default;
 
-		//cow_string_body(const self_type &) = default;
-		//cow_string_body(self_type &&) = default;
-		//cow_string_body & operator =(const self_type &) = default;
-		//cow_string_body & operator =(self_type &&) = default;
+		cow_string_body(const self_type &) = default;
+		cow_string_body(self_type &&) = default;
+		cow_string_body & operator =(const self_type &) = default;
+		cow_string_body & operator =(self_type &&) = default;
 
 		friend void swap(self_type & s1, self_type & s2) { swap(s1, s2); }
 	};
