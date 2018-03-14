@@ -127,11 +127,8 @@ namespace zlib
 		zstream(const zstream &) = delete;
 		zstream & operator =(const zstream & ) = delete;
 
-		zstream(zstream && op) noexcept : handle(std::move(op.handle)) {}
-		zstream & operator =(zstream && op) noexcept {handle = std::exchange(op.handle, true); return *this;}
-
-		//zstream(zstream &&) = default;
-		//zstream & operator =(zstream &&) = default;
+		zstream(zstream &&) = default;
+		zstream & operator =(zstream &&) = default;
 		
 	public:
 		friend void swap(zstream & s1, zstream & s2) noexcept { std::swap(s1.handle, s2.handle); }

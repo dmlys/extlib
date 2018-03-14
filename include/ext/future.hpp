@@ -801,8 +801,8 @@ namespace ext
 		void set_exception(std::exception_ptr eptr) override;
 
 	public:
-		shared_state_unexceptional() noexcept = default;
-		~shared_state_unexceptional() noexcept = default;
+		shared_state_unexceptional() = default;
+		~shared_state_unexceptional() = default;
 
 		shared_state_unexceptional(shared_state_unexceptional &&) = delete;
 		shared_state_unexceptional & operator = (shared_state_unexceptional &&) = delete;
@@ -833,8 +833,8 @@ namespace ext
 		void set_exception(std::exception_ptr eptr) override;
 
 	public:
-		shared_state_unexceptional() noexcept = default;
-		~shared_state_unexceptional() noexcept = default;
+		shared_state_unexceptional() = default;
+		~shared_state_unexceptional() = default;
 
 		shared_state_unexceptional(shared_state_unexceptional &&) = delete;
 		shared_state_unexceptional & operator = (shared_state_unexceptional &&) = delete;
