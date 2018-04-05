@@ -165,14 +165,38 @@ namespace ext
 	}
 
 	void thread_pool::clear()
-	{
-		task_list_type actions;
+	{		
+		delayed_task_continuation_list delayed;
+		task_list_type tasks;
+
 		{
 			std::lock_guard<std::mutex> lk(m_mutex);
-			m_tasks.swap(actions);
+			m_delayed.swap(delayed);
+		}
+
+		// cancel/take delayed tasks, see thread_pool body description
+		assert(m_delayed_count == 0);
+		for (auto it = delayed.begin(); it != delayed.end();)
+		{
+			if (not it->mark_taken())
+				++m_delayed_count, ++it;
+			else
+			{
+				auto & item = *it;
+				it = delayed.erase(it);
+				item.abandone();
+				item.release();
+			}
 		}
 		
-		actions.clear_and_dispose([](task_base * task)
+		// wait until all delayed_tasks are finished, and take pending tasks
+		{
+			std::unique_lock<std::mutex> lk(m_mutex);
+			m_event.wait(lk, [this] { return m_delayed_count == 0; });
+			tasks.swap(m_tasks);
+		}
+		
+		tasks.clear_and_dispose([](task_base * task)
 		{
 			task->task_abandone();
 			task->task_release();
@@ -211,7 +235,7 @@ namespace ext
 		for (auto it = delayed.begin(); it != delayed.end();)
 		{
 			if (not it->mark_taken())
-				++m_delayed_count;
+				++m_delayed_count, ++it;
 			else
 			{
 				auto & item = *it;

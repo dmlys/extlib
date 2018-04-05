@@ -12,11 +12,11 @@
 
 namespace ext
 {
-	/// thread_pool executioner implements simple thread pool.
+	/// simple thread_pool implementation.
 	/// Task can be submitted via submit method.
 	/// For every task result of execution can be retrieved via associated future.
 	/// Number of running threads can be controlled via set_nworkers/get_nworkers methods.
-	/// By default thread_pool constructed with 0 workers.
+	/// By default thread_pool constructed with 0 workers, you must explicitly set number you want.
 	/// 
 	/// All methods are thread-safe
 	class thread_pool
@@ -127,9 +127,9 @@ namespace ext
 		// linked list of task
 		task_list_type m_tasks;
 
-		// delayed tasks a little tricky, for every one - we create a service continuation,
+		// delayed tasks are little tricky, for every one - we create a service continuation,
 		// which when fired, adds task to task_list.
-		// Those can work and fire when we are destructing or destructed.
+		// Those can work and fire when we are being destructed,
 		// thred_pool lifetime should not linger on delayed_task - they should become abandoned.
 		// Nevertheless we have lifetime problem.
 		//
@@ -138,7 +138,7 @@ namespace ext
 		//    * if yes - thread_pool is gone, nothing to do;
 		//    * if not - thread_pool is still there and we should add task to a list;
 		// 
-		// - Destructor enumerates them and marks them as taken:
+		//  - When continuation is fired it checks if it's taken(future internal helper flag):
 		//   * if successful - service continuation is sort of cancelled and it will not access thread_pool
 		//   * if not - continuation is firing right now somewhere in the middle,
 		//     so destructor must wait until it finishes and then complete destruction.
@@ -161,14 +161,6 @@ namespace ext
 	private:
 		static bool is_finished(const worker_ptr & wptr) { return wptr->is_ready(); }
 		void thread_func(std::atomic_bool & stop_request);
-
-	public:
-		/// meta function to obtain future type returned by submit call
-		template <class Functor>
-		struct future_type
-		{
-			typedef ext::future<std::result_of_t<std::decay_t<Functor>()>> type;
-		};
 
 	public: // execution control
 		/// returns current number of workers
@@ -200,6 +192,7 @@ namespace ext
 		void clear();
 
 	public:
+		// 0 means 0, no workers at all, you must explicitly set number you want
 		thread_pool(unsigned nworkers = 0);
 		~thread_pool() noexcept;
 
