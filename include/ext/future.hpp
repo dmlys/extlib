@@ -173,15 +173,15 @@ namespace ext
 	void free_future_library();
 
 
-	/// returns satisfied future immediately holding val
+	/// returns immediately satisfied future holding val
 	template <class Type>
 	future<std::decay_t<Type>> make_ready_future(Type && val);
 
-	/// returns satisfied future immediately holding exception
+	/// returns immediately satisfied future holding exception
 	template <class Type, class Exception>
 	future<Type> make_exceptional_future(Exception ex);
 
-	/// returns satisfied future immediately holding exception
+	/// returns immediately satisfied future holding exception
 	template <class Type>
 	future<Type> make_exceptional_future(std::exception_ptr ex);
 
@@ -1809,7 +1809,7 @@ namespace ext
 		intrusive_ptr m_ptr;
 
 	public:
-		// low-level helpers
+		// low-level accessors
 		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
 		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
 
@@ -1865,7 +1865,7 @@ namespace ext
 		intrusive_ptr m_ptr;
 
 	public:
-		// low-level helpers
+		// low-level accessors
 		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
 		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
 
@@ -1929,6 +1929,11 @@ namespace ext
 
 	private:
 		intrusive_ptr m_ptr;
+
+	public:
+		// low-level accessors
+		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
+		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
 
 	private:
 		void check_state();
@@ -2019,6 +2024,11 @@ namespace ext
 	private:
 		intrusive_ptr m_ptr;
 
+	public:
+		// low-level accessors
+		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
+		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
+
 	private:
 		void check_state();
 
@@ -2098,6 +2108,11 @@ namespace ext
 	private:
 		intrusive_ptr m_ptr;
 
+	public:
+		// low-level accessors
+		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
+		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
+
 	private:
 		void check_state();
 
@@ -2171,6 +2186,11 @@ namespace ext
 
 	private:
 		intrusive_ptr m_ptr;
+
+	public:
+		// low-level accessors
+		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
+		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
 
 	private:
 		void check_state();

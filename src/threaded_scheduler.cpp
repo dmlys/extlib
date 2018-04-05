@@ -9,7 +9,7 @@ namespace ext
 		// that waiting in std::chrono::steady_clock::time_point::max()
 		// does not work due to integer overflow internally.
 		// 
-		// Prevent this by returning twice time_point::max() / 2, value still will be quite a big
+		// Prevent this by returning time_point::max() / 2, value still will be quite a big
 
 		return std::chrono::steady_clock::time_point {
 			std::chrono::steady_clock::duration {std::chrono::steady_clock::duration::max().count() / 2}
