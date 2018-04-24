@@ -10,7 +10,7 @@ namespace fs = boost::filesystem;
 
 namespace ext
 {
-	std::vector<fs::path> FilesByMask(fs::path const & mask)
+	std::vector<fs::path> FilesByMask(const fs::path & mask)
 	{
 		if (mask.empty())
 			return std::vector<fs::path>();
@@ -23,7 +23,8 @@ namespace ext
 		fs::directory_iterator iter(parent), eod;
 
 		std::vector<fs::path> res;
-		for (; iter != eod; ++iter) {
+		for (; iter != eod; ++iter)
+		{
 			if (rmask(iter->path().stem()))
 				res.push_back(iter->path());
 		}
@@ -31,7 +32,7 @@ namespace ext
 		return res;
 	}
 
-	bool is_wild_card(fs::path const & path)
+	bool is_wild_card(const fs::path & path)
 	{
 		auto const & str = path.native();
 		return boost::find_first_of(str, "?*") != boost::end(str);

@@ -20,11 +20,11 @@ namespace ext
 	/// boost.filesystem.path / boost.filesystem.directory_entry по заданному регекс выражению
 	struct FsMask
 	{
-		FsMask(boost::regex const & mask) : rx(mask) {};
-		FsMask(std::string const & mask) : rx(mask) {};
+		FsMask(const boost::regex & mask) : rx(mask) {};
+		FsMask(const std::string & mask) : rx(mask) {};
 
-		bool operator ()(boost::filesystem::path const & item) { return regex_match(item.string(), rx); }
-		bool operator ()(boost::filesystem::directory_entry const & item) { return operator()(item.path()); }
+		bool operator ()(const boost::filesystem::path & item)            const { return regex_match(item.string(), rx); }
+		bool operator ()(const boost::filesystem::directory_entry & item) const { return operator()(item.path()); }
 	private:
 		boost::regex rx;
 	};
@@ -32,16 +32,16 @@ namespace ext
 	/// возвращает набор файлов по указанному пути и маске
 	/// например "E:/work/*.txt"
 	/// маске должна быть только в конце, т.е. E:/wo*k/*.txt - некорректно
-	std::vector<boost::filesystem::path> FilesByMask(boost::filesystem::path const & mask);
+	std::vector<boost::filesystem::path> FilesByMask(const boost::filesystem::path & mask);
 
 	///проверяет содержит ли строка символы wildCard
-	bool is_wild_card(boost::filesystem::path const & path);
+	bool is_wild_card(const boost::filesystem::path & path);
 
 	/// считывает файл по заданному пути file в контейнер content
 	/// в поток reps выдается информация о процессе загрузки файла(в том числе и в случае успеха).
 	/// по умолчанию грузит файл в текстовом режиме
 	template <class Container>
-	bool LoadFile(boost::filesystem::path const & file, Container & content, std::ostream & reps,
+	bool LoadFile(const boost::filesystem::path & file, Container & content, std::ostream & reps,
 	              std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
 	{
 		static_assert(ext::has_resize_method<Container>::value, "not resizable container");
@@ -82,26 +82,26 @@ namespace ext
 			reps << "Failed to read " << file << ", " << ext::FormatErrno(errno) << std::endl;
 			return false;
 		}
-		content_.resize(static_cast<std::size_t>(ifs.gcount()));
 
+		content_.resize(static_cast<std::size_t>(ifs.gcount()));
 		boost::swap(content_, content);
 		return true;
 	}
 
 	template <class Container>
-	bool WriteFile(boost::filesystem::path const & file, Container & content, std::ostream & reps,
-	              std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
+	bool WriteFile(const boost::filesystem::path & file, const Container & content, std::ostream & reps,
+	               std::ios_base::openmode mode = std::ios_base::out /*| std::ios_base::text*/)
 	{
-		boost::filesystem::ofstream ifs(file, mode);
-		if (!ifs.is_open())
+		boost::filesystem::ofstream ofs(file, mode);
+		if (!ofs.is_open())
 		{
 			//      "Failed to open {1}, {2}
 			reps << "Failed to open " << file << ", " << ext::FormatErrno(errno) << std::endl;
 			return false;
 		}
 		
-		ifs.write(ext::data(content), content.size());
-		if (ifs.bad())
+		ofs.write(ext::data(content), content.size());
+		if (ofs.bad())
 		{
 			// "Failed to read {1}, {2}
 			reps << "Failed to write " << file << ", " << ext::FormatErrno(errno) << std::endl;
@@ -122,7 +122,7 @@ namespace ext
 	};
 
 	template <class Container>
-	void LoadFile(boost::filesystem::path const & file, Container & content,
+	void LoadFile(const boost::filesystem::path & file, Container & content,
 	              std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
 	{
 		std::stringstream reps;
@@ -131,8 +131,8 @@ namespace ext
 	}
 
 	template <class Container>
-	void WriteFile(boost::filesystem::path const & file, Container & content,
-	               std::ios_base::openmode mode = std::ios_base::in /*| std::ios_base::text*/)
+	void WriteFile(const boost::filesystem::path & file, const Container & content,
+	               std::ios_base::openmode mode = std::ios_base::out /*| std::ios_base::text*/)
 	{
 		std::stringstream reps;
 		if (!WriteFile(file, content, reps, mode))

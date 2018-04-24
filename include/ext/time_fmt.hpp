@@ -30,6 +30,11 @@ namespace ext
 	}
 
 
+
+	using std::localtime;
+	using std::gmtime;
+	using std::mktime;
+
 	/// версия gmtime без использование глобальных переменных
 	inline void gmtime(const time_t * tpoint, std::tm * t)
 	{
