@@ -1,29 +1,34 @@
 #pragma once
 #include <boost/iterator/iterator_adaptor.hpp>
+#include <boost/iterator/indirect_iterator.hpp>
 
 namespace ext
 {
 	template <class Iterator, class Value, class Category, class Reference, class Difference>
-	class outdirect_iterator;
+	class indirect_iterator;
 
 	namespace detail
 	{
 		template <class Iterator, class Value, class Category, class Reference, class Difference>
-		struct outdirect_iterator_base
+		struct indirect_iterator_base
 		{
+			using dereferencable = typename boost::iterator_value<Iterator>::type;
+			using deduced_reference = decltype(*std::declval<typename boost::iterator_reference<Iterator>::type>());
+			using dedeuced_value_type = std::remove_reference_t<deduced_reference>;
+
 			using type = boost::iterator_adaptor<
-				outdirect_iterator<Iterator, Value, Category, Reference, Difference>, // Iterator
-				Iterator, // Base
+				indirect_iterator<Iterator, Value, Category, Reference, Difference>,
+				Iterator,
 				typename std::conditional<
 					std::is_same<Value, boost::use_default>::value,
-					typename std::add_pointer<typename boost::iterator_reference<Iterator>::type>::type, Value
-				>::type,  // Value
-				Category, // Traversal
+					dedeuced_value_type, Value
+				>::type,
+				Category,
 				typename std::conditional<
 					std::is_same<Reference, boost::use_default>::value,
-					typename std::add_pointer<typename boost::iterator_reference<Iterator>::type>::type, Reference
-				>::type,   // Reference
-				Difference // Difference
+					deduced_reference, Reference
+				>::type,
+				Difference
 			>;
 		};
 	}
@@ -35,34 +40,35 @@ namespace ext
 		class Reference  = boost::use_default,
 		class Difference = boost::use_default
 	>
-	class outdirect_iterator :
-		public detail::outdirect_iterator_base<
+	class indirect_iterator :
+		public detail::indirect_iterator_base<
 			Iterator, Value, Category, Reference, Difference
 		>::type
 	{
 		friend boost::iterator_core_access;
 
-		using self_type = outdirect_iterator;
+		using self_type = indirect_iterator ;
 
-		using base_type = typename detail::outdirect_iterator_base<
+		using base_type = typename detail::indirect_iterator_base<
 			Iterator, Value, Category, Reference, Difference
-		>::type;
+		>::type ;
 
 	private:
 		inline typename base_type::reference dereference() const
 		{
-			return &*this->base();
+			return **this->base();
 		}
 
 	public:
-		outdirect_iterator() = default;
-		outdirect_iterator(Iterator iter) : base_type(iter) {}
+		indirect_iterator() = default;
+		indirect_iterator(Iterator iter) : base_type(iter) {}
 	};
 
 
 	template <class Iterator>
-	inline outdirect_iterator<Iterator> make_outdirect_iterator(Iterator iter)
+	inline indirect_iterator<Iterator> make_indirect_iterator(Iterator iter)
 	{
-		return outdirect_iterator<Iterator>(iter);
+		return indirect_iterator<Iterator>(iter);
 	}
+
 }

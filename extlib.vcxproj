@@ -106,6 +106,7 @@
     <ClInclude Include="include\ext\openssl.hpp" />
     <ClInclude Include="include\ext\iterator\outdirect_iterator.hpp" />
     <ClInclude Include="include\ext\range.hpp" />
+    <ClInclude Include="include\ext\range\adaptors\indirected.hpp" />
     <ClInclude Include="include\ext\range\adaptors\outdirected.hpp" />
     <ClInclude Include="include\ext\range\adapt\boost_match_result.hpp" />
     <ClInclude Include="include\ext\range\adapt\std_match_result.hpp" />
@@ -140,6 +141,7 @@
     <ClInclude Include="include\ext\utility.hpp" />
     <ClInclude Include="include\ext\iterator\zip_iterator.hpp" />
     <ClInclude Include="include\ext\type_traits.hpp" />
+    <ClInclude Include="include\ext\iterator\indirect_iterator.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE.txt" />

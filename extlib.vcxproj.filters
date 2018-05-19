@@ -326,6 +326,12 @@
     <ClInclude Include="include\ext\base16.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\ext\iterator\indirect_iterator.hpp">
+      <Filter>include\iterator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\range\adaptors\indirected.hpp">
+      <Filter>include\range\adaptors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE.txt" />

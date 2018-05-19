@@ -15,11 +15,11 @@ namespace ext
 			>
 		{
 		private:
-			typedef boost::iterator_range<
+			using base_type = boost::iterator_range<
 				ext::outdirect_iterator<typename boost::range_iterator<InputRange>::type>
-			> base_type;
+			>;
 		public:
-			typedef typename base_type::iterator iterator;
+			using iterator = typename base_type::iterator;
 
 			outdirected_range(InputRange & rng)
 				: base_type(iterator(boost::begin(rng)), iterator(boost::end(rng))) {}
