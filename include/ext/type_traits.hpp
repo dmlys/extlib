@@ -22,6 +22,15 @@ namespace ext
 		static_assert(sizeof(Yes) != sizeof(No), "");
 	}
 
+	template <class Type>
+	struct remove_cvref
+	{
+		using type = std::remove_cv_t<std::remove_reference_t<Type>>;
+	};
+
+	template <class Type>
+	using remove_cvref_t = typename remove_cvref<Type>::type;
+
 
 	namespace detail
 	{
