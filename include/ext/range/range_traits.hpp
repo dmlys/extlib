@@ -3,7 +3,6 @@
 
 #include <boost/predef.h>
 #include <boost/range.hpp>
-#include <boost/utility/declval.hpp>
 
 namespace ext
 {
@@ -111,7 +110,7 @@ namespace ext
 		struct has_resize_method_test
 		{
 			template<class C>
-			static auto Test(int) -> decltype(boost::declval<C>().resize(0), detail::Yes());
+			static auto Test(int) -> decltype(std::declval<C>().resize(0), detail::Yes());
 			
 			template<class C>
 			static detail::No Test(...);
@@ -124,7 +123,7 @@ namespace ext
 		struct is_contiguous_container_test
 		{
 			template <class C>
-			static auto Test(int) -> decltype(ext::data(boost::declval<C>()), detail::Yes());
+			static auto Test(int) -> decltype(ext::data(std::declval<C>()), detail::Yes());
 			
 			template <class C>
 			static detail::No Test(...);
@@ -143,7 +142,7 @@ namespace ext
 		template <typename Type>
 		struct is_begin_expression_valid_test<Type, boost::mpl::true_>
 		{
-			template <class C, class = decltype(boost::begin(boost::declval<C>()))>
+			template <class C, class = decltype(boost::begin(std::declval<C>()))>
 			static detail::Yes Test(int);
 
 			template <class C>
@@ -163,7 +162,7 @@ namespace ext
 		template <typename Type>
 		struct is_end_expression_valid_test<Type, boost::mpl::true_>
 		{
-			template <class C, class = decltype(boost::end(boost::declval<C>()))>
+			template <class C, class = decltype(boost::end(std::declval<C>()))>
 			static detail::Yes Test(int);
 
 			template <class C>
