@@ -1,5 +1,6 @@
 #pragma once
 #include <type_traits> // for result_of
+#include <ext/type_traits.hpp>
 #include <boost/pointee.hpp>
 
 namespace ext
@@ -11,17 +12,15 @@ namespace ext
 
 	public:
 		template <class... Args>
-		inline
-		typename std::result_of<Functor(typename boost::pointee<Args>::type& ...)>::type
-			operator()(Args... args)
+		inline std::invoke_result_t<Functor, typename boost::pointee<ext::remove_cvref_t<Args>>::type ...>
+			operator()(Args &&... args)
 		{
 			return f(*std::forward<Args>(args)...);
 		}
 
 		template <class... Args>
-		inline
-		typename std::result_of<Functor(typename boost::pointee<Args>::type& ...)>::type
-			operator()(Args... args) const
+		inline std::invoke_result_t<Functor, typename boost::pointee<ext::remove_cvref_t<Args>>::type ...>
+			operator()(Args &&... args) const
 		{
 			return f(*std::forward<Args>(args)...);
 		}
