@@ -15,7 +15,7 @@ namespace ext
 
 			typedef bool result_type;
 			template <class R1, class R2>
-			result_type operator()(R1 const & r1, R2 const & r2) const
+			result_type operator()(const R1 & r1, const R2 & r2) const
 			{
 				typedef typename boost::range_value<R1>::type char_type;
 				typedef boost::locale::collator<char_type> Comp;
@@ -31,7 +31,7 @@ namespace ext
 
 		struct is_iequal : is_equal
 		{
-			is_iequal(std::locale const & loc_ = std::locale(),
+			is_iequal(const std::locale & loc_ = std::locale(),
 			          boost::locale::collator_base::level_type level_ = boost::locale::collator_base::primary)
 				: is_equal(loc_, level_) {}
 		};
@@ -45,7 +45,7 @@ namespace ext
 
 			typedef bool result_type;
 			template <class R1, class R2>
-			result_type operator()(R1 const & r1, R2 const & r2) const
+			result_type operator()(const R1 & r1, const R2 & r2) const
 			{
 				typedef typename boost::range_value<R1>::type char_type;
 				typedef boost::locale::collator<char_type> Comp;
@@ -61,7 +61,7 @@ namespace ext
 
 		struct is_iless : is_less
 		{
-			is_iless(std::locale const & loc_ = std::locale(),
+			is_iless(const std::locale & loc_ = std::locale(),
 			         boost::locale::collator_base::level_type level_ = boost::locale::collator_base::primary)
 				: is_less(loc_, level_) {}
 		};

@@ -92,7 +92,7 @@ namespace ctpred
 		typedef bool result_type;
 
 		template <class R1, class R2>
-		bool operator()(R1 const & r1, R2 const & r2) const
+		bool operator()(const R1 & r1, const R2 & r2) const
 		{
 			auto l1 = detail::size(r1);
 			auto l2 = detail::size(r2);
@@ -106,7 +106,7 @@ namespace ctpred
 		typedef bool result_type;
 
 		template <class R1, class R2>
-		bool operator()(R1 const & r1, R2 const & r2) const
+		bool operator()(const R1 & r1, const R2 & r2) const
 		{
 			return compare<Type>(r1, r2) > 0;
 		}
