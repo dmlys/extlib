@@ -99,3 +99,16 @@ EXTLL_RESTORE_DOWHILE_WARNING()
 #else
 #define EXTLL_TRACE(lg, expr) ((void)0)
 #endif
+
+
+
+/// addition convenience macros for direct libfmt usage, NOTE this file does not include anything from fmt
+/// EXTLL_INFO_FMT(lg, "Hello {}", "World") same as EXTLL_INFO(lg, fmt::format("Hello {}", "Worlds"))
+
+#define EXTLL_LOG_FMT(lg, log_level, ...)   EXTLL_LOG(lg, log_level, fmt::format(__VA_ARGS__))
+#define EXTLL_FATAL_FMT(lg, ...)            EXTLL_FATAL(lg, fmt::format(__VA_ARGS__))
+#define EXTLL_ERROR_FMT(lg, ...)            EXTLL_ERROR(lg, fmt::format(__VA_ARGS__))
+#define EXTLL_WARN_FMT( lg, ...)            EXTLL_WARN( lg, fmt::format(__VA_ARGS__))
+#define EXTLL_INFO_FMT( lg, ...)            EXTLL_INFO( lg, fmt::format(__VA_ARGS__))
+#define EXTLL_DEBUG_FMT(lg, ...)            EXTLL_DEBUG(lg, fmt::format(__VA_ARGS__))
+#define EXTLL_TRACE_FMT(lg, ...)            EXTLL_TRACE(lg, fmt::format(__VA_ARGS__))
