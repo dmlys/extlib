@@ -138,6 +138,18 @@ namespace ext
 
 	}
 
+	winsock2_stream::winsock2_stream(socket_handle_type sock_handle)
+		: std::iostream(&m_streambuf), m_streambuf(sock_handle)
+	{
+
+	}
+
+	winsock2_stream::winsock2_stream(winsock2_streambuf && buf)
+		: std::iostream(&m_streambuf), m_streambuf(std::move(buf))
+	{
+
+	}
+
 	winsock2_stream::winsock2_stream(const std::wstring & host, unsigned short port)
 		: std::iostream(&m_streambuf)
 	{

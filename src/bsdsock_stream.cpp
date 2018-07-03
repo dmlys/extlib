@@ -106,6 +106,18 @@ namespace ext
 
 	}
 
+	bsdsock_stream::bsdsock_stream(socket_handle_type sock_handle)
+		: std::iostream(&m_streambuf), m_streambuf(sock_handle)
+	{
+
+	}
+
+	bsdsock_stream::bsdsock_stream(bsdsock_streambuf && buf)
+		: std::iostream(&m_streambuf), m_streambuf(std::move(buf))
+	{
+
+	}
+
 	bsdsock_stream::bsdsock_stream(const std::string & host, unsigned short port)
 		: std::iostream(&m_streambuf)
 	{

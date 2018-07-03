@@ -102,6 +102,9 @@ namespace ext
 
 	public:
 		bsdsock_stream();
+		bsdsock_stream(bsdsock_streambuf && buf);
+		explicit bsdsock_stream(socket_handle_type sock_handle);
+
 		bsdsock_stream(const std::string & host, unsigned short port);
 		bsdsock_stream(const std::string & host, const std::string & service);
 

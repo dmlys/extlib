@@ -111,6 +111,9 @@ namespace ext
 
 	public:
 		winsock2_stream();
+		winsock2_stream(winsock2_streambuf && buf);
+		explicit winsock2_stream(socket_handle_type sock_handle);
+
 		winsock2_stream(const std::wstring & host, unsigned short port);
 		winsock2_stream(const std::wstring & host, const std::wstring & service);
 		winsock2_stream(const std::string & host, unsigned short port);

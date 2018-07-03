@@ -66,8 +66,11 @@ namespace ext
 	/// по факту вызывает ext::wsastratup(); ext::openssl_init()
 	void winsock2_stream_init();
 
-	BOOST_NORETURN void throw_winsock2_error(int code, const char * errmsg);
-	BOOST_NORETURN void throw_winsock2_error(int code, const std::string & errmsg);
+	int last_socket_error() noexcept;
+	std::error_code last_socket_error_code() noexcept;
+	BOOST_NORETURN void throw_socket_error(int code, const char * errmsg);
+	BOOST_NORETURN void throw_socket_error(int code, const std::string & errmsg);
+	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg);
 
 	/// ::inet_ntop wrapper для winsock платформы, все строки в utf8(utf16 для wchar_t)
 	/// @Throws std::system_error в случае системной ошибки
@@ -439,6 +442,8 @@ namespace ext
 	public:
 		winsock2_streambuf();
 		~winsock2_streambuf();
+
+		explicit winsock2_streambuf(socket_handle_type sock_handle);
 
 		winsock2_streambuf(const winsock2_streambuf &) = delete;
 		winsock2_streambuf & operator =(const winsock2_streambuf &) = delete;

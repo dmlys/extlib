@@ -66,18 +66,33 @@ namespace ext
 #endif
 	}
 
-	BOOST_NORETURN void throw_winsock2_error(int code, const char * errmsg)
+	int last_socket_error() noexcept
+	{
+		return ::WSAGetLastError();
+	}
+
+	std::error_code last_socket_error_code() noexcept
+	{
+		return std::error_code(::WSAGetLastError(), std::system_category());
+	}
+
+	BOOST_NORETURN void throw_socket_error(int code, const char * errmsg)
 	{
 		throw winsock2_streambuf::system_error_type(
 			winsock2_streambuf::error_code_type(code, std::system_category()), errmsg
 		);
 	}
 
-	BOOST_NORETURN void throw_winsock2_error(int code, const std::string & errmsg)
+	BOOST_NORETURN void throw_socket_error(int code, const std::string & errmsg)
 	{
 		throw winsock2_streambuf::system_error_type(
 			winsock2_streambuf::error_code_type(code, std::system_category()), errmsg
 		);
+	}
+
+	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg)
+	{
+		throw winsock2_streambuf::system_error_type(last_socket_error_code(), errmsg);
 	}
 
 	void inet_ntop(const sockaddr * addr, std::wstring & wstr, unsigned short & port)
@@ -107,7 +122,7 @@ namespace ext
 		}
 
 		if (res == nullptr)
-			throw_winsock2_error(::WSAGetLastError(), "InetNtopW failed");
+			throw_last_socket_error("InetNtopW failed");
 
 		wstr.assign(res);
 	}
@@ -139,7 +154,7 @@ namespace ext
 		}
 
 		if (res == nullptr)
-			throw_winsock2_error(::WSAGetLastError(), "InetNtopW failed");
+			throw_last_socket_error("InetNtopW failed");
 
 		std::codecvt_utf8<wchar_t> cvt;
 		auto in = boost::make_iterator_range_n(buffer, std::wcslen(buffer));
@@ -157,15 +172,30 @@ namespace ext
 
 	bool inet_pton(int family, const wchar_t * waddr, sockaddr * out)
 	{
-		INT res = InetPtonW(family, waddr, out);
-		if (res == -1) throw_winsock2_error(::WSAGetLastError(), "InetPtonW failed");
+		INT res;
+		if (family == AF_INET)
+		{
+			auto * addr4 = reinterpret_cast<sockaddr_in *>(out);
+			res = ::InetPtonW(family, waddr, &addr4->sin_addr);
+		}
+		else if (family == AF_INET6)
+		{
+			auto * addr6 = reinterpret_cast<sockaddr_in6 *>(out);
+			res = ::InetPtonW(family, waddr, &addr6->sin6_addr);
+		}
+		else
+		{
+			throw_socket_error(WSAEAFNOSUPPORT, "InetPtonW failed");
+		}
+		
+		if (res == -1) throw_last_socket_error("InetPtonW failed");
 		return res > 0;
 	}
 
 	bool inet_pton(int family, const std::wstring & waddr, sockaddr * out)
 	{
 		INT res = InetPtonW(family, waddr.c_str(), out);
-		if (res == -1) throw_winsock2_error(::WSAGetLastError(), "InetPtonW failed");
+		if (res == -1) throw_last_socket_error("InetPtonW failed");
 		return res > 0;
 	}
 
@@ -233,7 +263,7 @@ namespace ext
 		if (res == 0)
 			return addrinfo_ptr(ptr);
 		else
-			throw_winsock2_error(res, "GetAddrInfoW failed");
+			throw_socket_error(res, "GetAddrInfoW failed");
 	}
 
 	addrinfo_ptr getaddrinfo(const char * host, const char * service, std::error_code & err)

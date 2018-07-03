@@ -57,18 +57,33 @@ namespace ext
 		return gai_error_category_instance;
 	}
 
-	BOOST_NORETURN void throw_bsdsock_error(int code, const char * errmsg)
+	int last_socket_error() noexcept
+	{
+		return errno;
+	}
+
+	std::error_code last_socket_error_code() noexcept
+	{
+		return std::error_code(errno, std::generic_category());
+	}
+
+	BOOST_NORETURN void throw_socket_error(int code, const char * errmsg)
 	{
 		throw bsdsock_streambuf::system_error_type(
 			bsdsock_streambuf::error_code_type(code, std::generic_category()), errmsg
 		);
 	}
 
-	BOOST_NORETURN void throw_bsdsock_error(int code, const std::string & errmsg)
+	BOOST_NORETURN void throw_socket_error(int code, const std::string & errmsg)
 	{
 		throw bsdsock_streambuf::system_error_type(
 			bsdsock_streambuf::error_code_type(code, std::generic_category()), errmsg
 		);
+	}
+
+	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg)
+	{
+		throw bsdsock_streambuf::system_error_type(last_socket_error_code(), errmsg);
 	}
 
 	void inet_ntop(const sockaddr * addr, std::string & str, unsigned short & port)
@@ -101,7 +116,7 @@ namespace ext
 		}
 		
 		if (res == nullptr)
-			throw_bsdsock_error(errno, "inet_ntop failed");
+			throw_last_socket_error("inet_ntop failed");
 
 		str = res;
 	}
@@ -134,7 +149,7 @@ namespace ext
 			);
 		}
 
-		if (res == -1) throw_bsdsock_error(errno, "InetPtonW failed");
+		if (res == -1) throw_last_socket_error("inet_pton failed");
 		return res > 0;
 	}
 
@@ -1102,10 +1117,7 @@ namespace ext
 		auto res = ::getpeername(m_sockhandle, addr, so_addrlen);
 		if (res != 0)
 		{
-			throw system_error_type(
-				error_code_type(errno, std::generic_category()),
-				"bsdsock_streambuf::peer_name getpeername failed"
-			);
+			throw_last_socket_error("bsdsock_streambuf::peer_name getpeername failed");
 		}
 	}
 
@@ -1118,10 +1130,7 @@ namespace ext
 		auto res = ::getsockname(m_sockhandle, addr, so_addrlen);
 		if (res != 0)
 		{
-			throw std::system_error(
-				error_code_type(errno, std::generic_category()),
-				"bsdsock_streambuf::sock_name getsockname failed"
-			);
+			throw_last_socket_error("bsdsock_streambuf::sock_name getsockname failed");
 		}
 	}
 
@@ -1244,6 +1253,13 @@ namespace ext
 	bsdsock_streambuf::~bsdsock_streambuf()
 	{
 		close();
+	}
+
+	bsdsock_streambuf::bsdsock_streambuf(socket_handle_type sock_handle)
+	{
+		m_sockhandle = sock_handle;
+		m_state.store(Opened, std::memory_order_relaxed);
+		init_buffers();
 	}
 
 	bsdsock_streambuf::bsdsock_streambuf(bsdsock_streambuf && right) noexcept
