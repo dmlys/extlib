@@ -37,8 +37,12 @@ namespace ext
 	/// error category for network address and service translation.
 	/// EAI_* codes, gai_strerror
 	const std::error_category & gai_error_category();
-	BOOST_NORETURN void throw_bsdsock_error(int code, const char * errmsg);
-	BOOST_NORETURN void throw_bsdsock_error(int code, const std::string & errmsg);
+	
+	int last_socket_error() noexcept;
+	std::error_code last_socket_error_code() noexcept;
+	BOOST_NORETURN void throw_socket_error(int code, const char * errmsg);
+	BOOST_NORETURN void throw_socket_error(int code, const std::string & errmsg);
+	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg);
 
 	/// ::inet_ntop wrapper, все строки в utf8
 	/// @Throws std::system_error в случае системной ошибки
@@ -388,6 +392,8 @@ namespace ext
 	public:
 		bsdsock_streambuf();
 		~bsdsock_streambuf();
+
+		explicit bsdsock_streambuf(socket_handle_type sock_handle);
 
 		bsdsock_streambuf(const bsdsock_streambuf &) = delete;
 		bsdsock_streambuf & operator =(const bsdsock_streambuf &) = delete;

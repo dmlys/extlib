@@ -49,7 +49,7 @@ namespace ext
 		DWORD buflen = INET6_ADDRSTRLEN;
 		int res = WSAAddressToStringW(addr, addrlen, nullptr, buffer, &buflen);
 		if (res != 0)
-			throw_winsock2_error(::WSAGetLastError(), "WSAAddressToStringW failed");
+			throw_last_socket_error("WSAAddressToStringW failed");
 
 		buflen -= 1; out.clear();
 		std::codecvt_utf8<wchar_t> cvt;
@@ -286,10 +286,10 @@ namespace ext
 		return m_state.compare_exchange_strong(prev, Connecting, std::memory_order_release);
 	}
 
-	inline bool winsock2_streambuf::publish_opened(handle_type sock, StateType & expected)
+	bool winsock2_streambuf::publish_opened(handle_type sock, StateType & expected)
 	{
 		// пытаемся переключится в Opened
-		// m_sockhandle = sock;
+		m_sockhandle = sock;
 		return m_state.compare_exchange_strong(expected, Opened, std::memory_order_release);
 	}
 
@@ -977,10 +977,7 @@ namespace ext
 		auto res = ::getpeername(m_sockhandle, addr, addrlen);
 		if (res != 0)
 		{
-			throw std::system_error(
-				error_code_type(::WSAGetLastError(), std::system_category()),
-				"winsock2_streambuf::peer_name getpeername failed"
-			);
+			throw_last_socket_error("winsock2_streambuf::peer_name getpeername failed");
 		}
 	}
 
@@ -992,10 +989,7 @@ namespace ext
 		auto res = ::getsockname(m_sockhandle, addr, addrlen);
 		if (res != 0)
 		{
-			throw std::system_error(
-				error_code_type(::WSAGetLastError(), std::system_category()),
-				"winsock2_streambuf::sock_name getsockname failed"
-			);
+			throw_last_socket_error("winsock2_streambuf::sock_name getsockname failed");
 		}
 	}
 
@@ -1106,6 +1100,13 @@ namespace ext
 	winsock2_streambuf::~winsock2_streambuf()
 	{
 		close();
+	}
+
+	winsock2_streambuf::winsock2_streambuf(socket_handle_type sock_handle)
+	{
+		m_sockhandle = sock_handle;
+		m_state.store(Opened, std::memory_order_relaxed);
+		init_buffers();
 	}
 
 	winsock2_streambuf::winsock2_streambuf(winsock2_streambuf && right) noexcept
