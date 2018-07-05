@@ -93,7 +93,7 @@
     <ClInclude Include="include\ext\iostreams\winsock2_stream.hpp" />
     <ClInclude Include="include\ext\iostreams\winsock2_streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\socket_stream.hpp" />
-    <ClInclude Include="include\ext\iostreams\write.hpp" />
+    <ClInclude Include="include\ext\iostreams\utility.hpp" />
     <ClInclude Include="include\ext\iostreams\basic_base_encoder.hpp" />
     <ClInclude Include="include\ext\iostreams\transform_width_decoder.hpp" />
     <ClInclude Include="include\ext\iostreams\transform_width_encoder.hpp" />

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <ext/range.hpp>
 #include <ext/type_traits.hpp>
-#include <ext/iostreams/utils.hpp>
+#include <ext/iostreams/utility.hpp>
 
 namespace ext
 {
