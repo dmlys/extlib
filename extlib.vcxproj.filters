@@ -317,9 +317,6 @@
     <ClInclude Include="include\ext\range\as_literal.hpp">
       <Filter>include\range</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\iostreams\write.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\range\adaptors\getted.hpp">
       <Filter>include\range\adaptors</Filter>
     </ClInclude>
@@ -331,6 +328,9 @@
     </ClInclude>
     <ClInclude Include="include\ext\range\adaptors\indirected.hpp">
       <Filter>include\range\adaptors</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\iostreams\utility.hpp">
+      <Filter>include\iostreams</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

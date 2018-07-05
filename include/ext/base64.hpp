@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <ext/range.hpp>
 #include <ext/type_traits.hpp>
-#include <ext/iostreams/utils.hpp>
+#include <ext/iostreams/utility.hpp>
 
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>

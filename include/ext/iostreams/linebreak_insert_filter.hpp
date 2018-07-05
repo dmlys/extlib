@@ -4,7 +4,7 @@
 #include <boost/numeric/conversion/cast.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/pipeline.hpp>
-#include <ext/iostreams/write.hpp>
+#include <ext/iostreams/utility.hpp>
 
 namespace ext {
 namespace iostreams
