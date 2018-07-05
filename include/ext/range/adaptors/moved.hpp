@@ -4,7 +4,7 @@
 
 namespace ext
 {
-	namespace detail
+	namespace range_detail
 	{
 		struct moved_t {};
 
@@ -39,9 +39,9 @@ namespace ext
 		}
 	}
 
-	using detail::moved_range;
+	using range_detail::moved_range;
 
 	/// rng | moved - makes moved range, same as
 	/// boost::make_iterator_range(std::make_move_iterator(rng.begin(), std::make_move_iterator(rng.end())
-	const detail::moved_t moved {};
+	const range_detail::moved_t moved {};
 }

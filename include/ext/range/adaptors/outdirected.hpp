@@ -4,7 +4,7 @@
 
 namespace ext
 {
-	namespace detail
+	namespace range_detail
 	{
 		struct outidrected_t {};
 
@@ -38,9 +38,9 @@ namespace ext
 		}
 	}
 
-	using detail::outdirected_range;
+	using range_detail::outdirected_range;
 
 	/// rng | outdirected - makes outdirected range, same as
 	/// boost::make_iterator_range(ext::make_outdirect_iterator(rng.begin(), ext::make_outdirect_iterator(rng.end())
-	const detail::outidrected_t outdirected {};
+	const range_detail::outidrected_t outdirected {};
 }

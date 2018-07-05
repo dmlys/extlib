@@ -1,11 +1,12 @@
 #pragma once
 #include <ciso646>
+#include <string>
 #include <cstddef>
 #include <stdexcept>
 #include <algorithm>
 #include <ext/range.hpp>
 #include <ext/type_traits.hpp>
-#include <ext/iostreams/write.hpp>
+#include <ext/iostreams/utils.hpp>
 
 namespace ext
 {
@@ -78,7 +79,7 @@ namespace ext
 
 
 	template <class RandomAccessIterator, class OutputIterator>
-	std::enable_if_t<ext::is_iterator<OutputIterator>::value, OutputIterator>
+	std::enable_if_t<ext::is_iterator_v<OutputIterator>, OutputIterator>
 	encode_base16(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
 		for (; first != last; ++first)
@@ -89,7 +90,7 @@ namespace ext
 
 	/// encodes text from range into container out
 	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range<OutputContainer>::value>
+	std::enable_if_t<ext::is_range_v<OutputContainer>>
 	encode_base16(const InputRange & input, OutputContainer & out)
 	{
 		auto inplit = ext::as_literal(input);
@@ -118,7 +119,7 @@ namespace ext
 
 
 	template <class RandomAccessIterator, class Sink>
-	std::enable_if_t<not ext::is_iterator<Sink>::value>
+	std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	encode_base16(RandomAccessIterator first, RandomAccessIterator last, Sink & sink)
 	{
 		// encoding produces more than input
@@ -133,20 +134,22 @@ namespace ext
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
+
+		return sink;
 	}
 
 	template <class InputRange, class Sink>
-	inline std::enable_if_t<not ext::is_range<Sink>::value>
+	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	encode_base16(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		ext::encode_base16(boost::begin(inplit), boost::end(inplit), out);
+		return ext::encode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 
 
 	template <class RandomAccessIterator, class OutputIterator>
-	std::enable_if_t<ext::is_iterator<OutputIterator>::value, OutputIterator>
+	std::enable_if_t<ext::is_iterator_v<OutputIterator>, OutputIterator>
 	decode_base16(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
 		if ((last - first) % 2) throw base16::not_enough_input();
@@ -158,7 +161,7 @@ namespace ext
 	}
 	
 	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range<OutputContainer>::value>
+	std::enable_if_t<ext::is_range_v<OutputContainer>>
 	decode_base16(const InputRange & input, OutputContainer & out)
 	{
 		auto inplit = ext::as_literal(input);
@@ -184,7 +187,7 @@ namespace ext
 	}
 
 	template <class RandomAccessIterator, class Sink>
-	std::enable_if_t<not ext::is_iterator<Sink>::value>
+	std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	decode_base16(RandomAccessIterator first, RandomAccessIterator last, Sink & sink)
 	{
 		// decoding never produces more than input
@@ -200,13 +203,15 @@ namespace ext
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
+
+		return sink;
 	}
 
 	template <class InputRange, class Sink>
-	inline std::enable_if_t<not ext::is_range<Sink>::value>
+	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	decode_base16(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		ext::decode_base16(boost::begin(inplit), boost::end(inplit), out);
+		return ext::decode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 }
