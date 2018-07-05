@@ -8,7 +8,7 @@
 
 namespace ext
 {
-	namespace detail
+	namespace range_detail
 	{
 		template <std::size_t Idx, class ForwardRange>
 		struct get_func_iterator_types
@@ -76,8 +76,8 @@ namespace ext
 	}
 
 	template <std::size_t Idx>
-	constexpr detail::getted_type_tag<Idx> getted {};
+	constexpr range_detail::getted_type_tag<Idx> getted {};
 
-	constexpr detail::getted_type_tag<0> firsts;
-	constexpr detail::getted_type_tag<1> seconds;
+	constexpr range_detail::getted_type_tag<0> firsts;
+	constexpr range_detail::getted_type_tag<1> seconds;
 }

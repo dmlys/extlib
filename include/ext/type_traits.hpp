@@ -32,7 +32,7 @@ namespace ext
 	using remove_cvref_t = typename remove_cvref<Type>::type;
 
 
-	namespace detail
+	namespace iterator_detail
 	{
 		template <class Type, class = void>
 		struct is_iterator : std::false_type {};
@@ -54,7 +54,7 @@ namespace ext
 	}
 
 	template <class Type>
-	struct is_iterator : detail::is_iterator<Type> {};
+	struct is_iterator : ext::iterator_detail::is_iterator<Type> {};
 
 	template <class Type>
 	constexpr bool is_iterator_v = is_iterator<Type>::value;

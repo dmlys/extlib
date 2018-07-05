@@ -104,32 +104,32 @@ namespace ext
 	/************************************************************************/
 	/*        range type traits                                             */
 	/************************************************************************/
-	namespace detail
+	namespace range_detail
 	{
 		template <class Type>
 		struct has_resize_method_test
 		{
 			template<class C>
-			static auto Test(int) -> decltype(std::declval<C>().resize(0), detail::Yes());
+			static auto Test(int) -> decltype(std::declval<C>().resize(0), ext::detail::Yes());
 			
 			template<class C>
-			static detail::No Test(...);
+			static ext::detail::No Test(...);
 
 			typedef typename std::decay<Type>::type DecayedType;
-			static const bool value = (sizeof(Test<DecayedType>(0)) == sizeof(detail::Yes));
+			static const bool value = (sizeof(Test<DecayedType>(0)) == sizeof(ext::detail::Yes));
 		};
 
 		template <typename Type>
 		struct is_contiguous_container_test
 		{
 			template <class C>
-			static auto Test(int) -> decltype(ext::data(std::declval<C>()), detail::Yes());
+			static auto Test(int) -> decltype(ext::data(std::declval<C>()), ext::detail::Yes());
 			
 			template <class C>
-			static detail::No Test(...);
+			static ext::detail::No Test(...);
 
 			typedef typename std::decay<Type>::type DecayedType;
-			static const bool value = (sizeof(Test<DecayedType>(0)) == sizeof(detail::Yes));
+			static const bool value = (sizeof(Test<DecayedType>(0)) == sizeof(ext::detail::Yes));
 		};
 
 		/// скорее всего теста boost::has_range_iterator<Type>::type должно быть достаточно
@@ -143,13 +143,13 @@ namespace ext
 		struct is_begin_expression_valid_test<Type, boost::mpl::true_>
 		{
 			template <class C, class = decltype(boost::begin(std::declval<C>()))>
-			static detail::Yes Test(int);
+			static ext::detail::Yes Test(int);
 
 			template <class C>
-			static detail::No Test(...);
+			static ext::detail::No Test(...);
 
 			typedef typename std::remove_cv<typename std::remove_reference<Type>::type>::type DecayedType;
-			static const bool value = sizeof(Test<DecayedType>(0)) == sizeof(detail::Yes);
+			static const bool value = sizeof(Test<DecayedType>(0)) == sizeof(ext::detail::Yes);
 		};
 
 		/// скорее всего теста boost::has_range_iterator<Type>::type должно быть достаточно
@@ -163,13 +163,13 @@ namespace ext
 		struct is_end_expression_valid_test<Type, boost::mpl::true_>
 		{
 			template <class C, class = decltype(boost::end(std::declval<C>()))>
-			static detail::Yes Test(int);
+			static ext::detail::Yes Test(int);
 
 			template <class C>
-			static detail::No Test(...);
+			static ext::detail::No Test(...);
 
 			typedef typename std::remove_cv<typename std::remove_reference<Type>::type>::type DecayedType;
-			static const bool value = sizeof(Test<DecayedType>(0)) == sizeof(detail::Yes);
+			static const bool value = sizeof(Test<DecayedType>(0)) == sizeof(ext::detail::Yes);
 		};
 	}
 
@@ -177,7 +177,7 @@ namespace ext
 	template <typename Type>
 	struct has_resize_method :
 		std::integral_constant<bool,
-			detail::has_resize_method_test<Type>::value
+			ext::range_detail::has_resize_method_test<Type>::value
 		>
 	{};
 
@@ -191,7 +191,7 @@ namespace ext
 	template <typename Type>
 	struct is_contiguous_container :
 		std::integral_constant<bool,
-			detail::is_contiguous_container_test<Type>::value
+			ext::range_detail::is_contiguous_container_test<Type>::value
 		>
 	{};
 
@@ -201,14 +201,14 @@ namespace ext
 	template <typename Type>
 	struct is_begin_expression_valid :
 		std::integral_constant<bool,
-			detail::is_begin_expression_valid_test<Type>::value
+			ext::range_detail::is_begin_expression_valid_test<Type>::value
 		>
 	{};
 
 	template <typename Type>
 	struct is_end_expression_valid :
 		std::integral_constant<bool,
-			detail::is_end_expression_valid_test<Type>::value
+			ext::range_detail::is_end_expression_valid_test<Type>::value
 		>
 	{};
 

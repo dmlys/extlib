@@ -1,9 +1,10 @@
 #pragma once
 #include <ciso646>
+#include <string>
 #include <algorithm>
 #include <ext/range.hpp>
 #include <ext/type_traits.hpp>
-#include <ext/iostreams/write.hpp>
+#include <ext/iostreams/utils.hpp>
 
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
@@ -41,10 +42,10 @@ namespace ext
 	}
 
 	template <class RandomAccessIterator, class OutputIterator>
-	std::enable_if_t<ext::is_iterator<OutputIterator>::value, OutputIterator>
+	std::enable_if_t<ext::is_iterator_v<OutputIterator>, OutputIterator>
 	encode_base64(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
-		using base64;
+		using namespace base64;
 
 		typedef encode_itearator<RandomAccessIterator> base64_iterator;
 		auto count = InputGroupSize - (last - first) % InputGroupSize;
@@ -57,7 +58,7 @@ namespace ext
 
 	/// encodes text from range into container out, the last group is padded with '='
 	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range<OutputContainer>::value>
+	std::enable_if_t<ext::is_range_v<OutputContainer>/*, OutputContainer &*/>
 	encode_base64(const InputRange & input, OutputContainer & out)
 	{
 		using namespace base64;
@@ -90,7 +91,7 @@ namespace ext
 
 
 	template <class RandomAccessIterator, class Sink>
-	std::enable_if_t<not ext::is_iterator<Sink>::value>
+	std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	encode_base64(RandomAccessIterator first, RandomAccessIterator last, Sink & sink)
 	{
 		// encoding produces more than input
@@ -106,20 +107,22 @@ namespace ext
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
+
+		return sink;
 	}
 
 	template <class InputRange, class Sink>
-	inline std::enable_if_t<not ext::is_range<Sink>::value>
+	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	encode_base64(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		ext::encode_base64(boost::begin(inplit), boost::end(inplit), out);
+		return ext::encode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 
 
 	template <class RandomAccessIterator, class OutputIterator>
-	std::enable_if_t<ext::is_iterator<OutputIterator>::value, OutputIterator>
+	std::enable_if_t<ext::is_iterator_v<OutputIterator>, OutputIterator>
 	decode_base64(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
 		using namespace base64;
@@ -129,7 +132,7 @@ namespace ext
 	}
 	
 	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range<OutputContainer>::value>
+	std::enable_if_t<ext::is_range_v<OutputContainer>/*, OutputContainer &*/>
 	decode_base64(const InputRange & input, OutputContainer & out)
 	{
 		using namespace base64;
@@ -159,7 +162,7 @@ namespace ext
 	}
 
 	template <class RandomAccessIterator, class Sink>
-	std::enable_if_t<not ext::is_iterator<Sink>::value>
+	std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	decode_base64(RandomAccessIterator first, RandomAccessIterator last, Sink & sink)
 	{
 		// decoding never produces more than input
@@ -175,13 +178,15 @@ namespace ext
 			ext::iostreams::write_all(sink, buffer, buf_end - buffer);
 			first = step_last;
 		}
+
+		return sink;
 	}
 
 	template <class InputRange, class Sink>
-	inline std::enable_if_t<not ext::is_range<Sink>::value>
+	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	decode_base64(const InputRange & input, Sink & out)
 	{
 		auto inplit = ext::as_literal(input);
-		ext::decode_base64(boost::begin(inplit), boost::end(inplit), out);
+		return ext::decode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 }
