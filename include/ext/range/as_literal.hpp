@@ -20,7 +20,7 @@ namespace ext
 	template <class String>
 	inline auto as_literal(String & str) ->
 		std::enable_if_t<
-			ext::is_contiguous_container<String>::value,
+			ext::is_contiguous_range<String>::value,
 			boost::iterator_range<typename boost::range_value<String>::type *>
 		>
 	{
@@ -31,7 +31,7 @@ namespace ext
 	template <class String>
 	inline auto as_literal(const String & str) ->
 		std::enable_if_t<
-			ext::is_contiguous_container<String>::value,
+			ext::is_contiguous_range<String>::value,
 			boost::iterator_range<typename boost::range_value<String>::type const *>
 		>
 	{
@@ -42,7 +42,7 @@ namespace ext
 	template <class String>
 	inline auto as_literal(String & str) ->
 		std::enable_if_t<
-			not ext::is_contiguous_container<String>::value,
+			not ext::is_contiguous_range<String>::value,
 			boost::iterator_range<typename boost::range_iterator<String>::type>
 		>
 	{
@@ -52,7 +52,7 @@ namespace ext
 	template <class String>
 	inline auto as_literal(const String & str) ->
 		std::enable_if_t<
-			not ext::is_contiguous_container<String>::value,
+			not ext::is_contiguous_range<String>::value,
 			boost::iterator_range<typename boost::range_iterator<const String>::type>
 		>
 	{

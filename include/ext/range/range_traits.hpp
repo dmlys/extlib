@@ -120,7 +120,7 @@ namespace ext
 		};
 
 		template <typename Type>
-		struct is_contiguous_container_test
+		struct is_contiguous_range_test
 		{
 			template <class C>
 			static auto Test(int) -> decltype(ext::data(std::declval<C>()), ext::detail::Yes());
@@ -182,21 +182,21 @@ namespace ext
 	{};
 
 	template <typename Type>
-	constexpr bool has_resize_method_v = has_resize_method<Type>::value;
+	constexpr auto has_resize_method_v = has_resize_method<Type>::value;
 
 
 	/// determines if container is contiguous
 	/// if expression: ext::data(declval<Type>()) is valid - it is contiguous container
 	/// examples of such containers is: vector, string, array. But not std::deque
 	template <typename Type>
-	struct is_contiguous_container :
+	struct is_contiguous_range :
 		std::integral_constant<bool,
-			ext::range_detail::is_contiguous_container_test<Type>::value
+			ext::range_detail::is_contiguous_range_test<Type>::value
 		>
 	{};
 
 	template <typename Type>
-	constexpr bool is_contiguous_container_v = is_contiguous_container<Type>::value;
+	constexpr auto is_contiguous_container_v = is_contiguous_range<Type>::value;
 
 	template <typename Type>
 	struct is_begin_expression_valid :
@@ -222,6 +222,15 @@ namespace ext
 
 	template <typename Type>
 	constexpr bool is_range_v = is_range<Type>::value;
+
+
+	template <class Type>
+	struct is_container
+		: std::conjunction<is_range<Type>, has_resize_method<Type>> {};
+
+	template <typename Type>
+	constexpr auto is_container_v = is_container<Type>::value;
+
 
 
 	template <typename Range, typename Default = void, bool = ext::is_range<Range>::value>
