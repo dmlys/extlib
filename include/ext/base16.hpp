@@ -89,23 +89,28 @@ namespace ext
 	}
 
 	/// encodes text from range into container out
-	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range_v<OutputContainer>>
-	encode_base16(const InputRange & input, OutputContainer & out)
+	template <class RandomAccessIterator, class OutputContainer>
+	std::enable_if_t<ext::is_container_v<OutputContainer>>
+	encode_base16(RandomAccessIterator first, RandomAccessIterator last, OutputContainer & out)
 	{
-		auto inplit = ext::as_literal(input);
-
 		// we are appending
-		auto out_size = base16::encode_estimation(boost::size(inplit));
+		auto out_size = base16::encode_estimation(last - first);
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
-		auto first = boost::begin(inplit);
-		auto last = boost::end(inplit);
 		auto out_beg = boost::begin(out) + old_size;
 		//auto out_end = boost::end(out);
 
 		ext::encode_base16(first, last, out_beg);
+	}
+
+	/// encodes text from range into container out
+	template <class InputRange, class OutputContainer>
+	inline std::enable_if_t<ext::is_container_v<OutputContainer>>
+	encode_base16(const InputRange & input, OutputContainer & out)
+	{
+		auto inplit = ext::as_literal(input);
+		return encode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 	/// encodes text from range into container out
@@ -160,22 +165,27 @@ namespace ext
 		return out;
 	}
 	
-	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range_v<OutputContainer>>
-	decode_base16(const InputRange & input, OutputContainer & out)
+	template <class RandomAccessIterator, class OutputContainer>
+	std::enable_if_t<ext::is_container_v<OutputContainer>>
+	decode_base16(RandomAccessIterator first, RandomAccessIterator last, OutputContainer & out)
 	{
-		auto inplit = ext::as_literal(input);
-		
 		// we are appending
-		auto out_size = base16::decode_estimation(boost::size(inplit));
+		auto out_size = base16::decode_estimation(last - first);
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
-		auto first = boost::begin(inplit);
-		auto last = boost::end(inplit);
 		auto out_beg = boost::begin(out) + old_size;
+		//auto out_end = boost::end(out);
 
 		ext::decode_base16(first, last, out_beg);
+	}
+
+	template <class InputRange, class OutputContainer>
+	inline std::enable_if_t<ext::is_container_v<OutputContainer>>
+	decode_base16(const InputRange & input, OutputContainer & out)
+	{
+		auto inplit = ext::as_literal(input);
+		return decode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 	template <class OutputContainer = std::string, class InputRange>

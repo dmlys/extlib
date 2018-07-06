@@ -30,12 +30,12 @@ namespace ext
 				boost::archive::iterators::binary_from_base64<Iterator>, 8, 6
 			>;
 
-		inline constexpr std::size_t encode_estimation(std::size_t size)
+		constexpr std::size_t encode_estimation(std::size_t size)
 		{
 			return (size + InputGroupSize - 1) / InputGroupSize * OutputGroupSize;
 		}
 
-		inline constexpr std::size_t decode_estimation(std::size_t size)
+		constexpr std::size_t decode_estimation(std::size_t size)
 		{
 			return (size + OutputGroupSize - 1) / OutputGroupSize * InputGroupSize;
 		}
@@ -57,27 +57,30 @@ namespace ext
 	}
 
 	/// encodes text from range into container out, the last group is padded with '='
-	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range_v<OutputContainer>/*, OutputContainer &*/>
-	encode_base64(const InputRange & input, OutputContainer & out)
+	template <class RandomAccessIterator, class OutputContainer>
+	std::enable_if_t<ext::is_container_v<OutputContainer>/*, OutputContainer &*/>
+	encode_base64(RandomAccessIterator first, RandomAccessIterator last, OutputContainer & out)
 	{
-		using namespace base64;
-		auto inplit = ext::as_literal(input);
+		typedef base64::encode_itearator<RandomAccessIterator> base64_itearator;
 
-		typedef typename boost::range_iterator<decltype(inplit)>::type input_iterator;
-		typedef encode_itearator<input_iterator> base64_itearator;
-
-		auto out_size = base64::encode_estimation(boost::size(inplit));
+		auto out_size = base64::encode_estimation(last - first);
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
-		base64_itearator first = boost::begin(inplit);
-		base64_itearator last = boost::end(inplit);
 		auto out_beg = boost::begin(out) + old_size;
 		auto out_end = boost::end(out);
 
-		auto stopped = std::copy(first, last, out_beg);
+		auto stopped = std::copy(base64_itearator(first), base64_itearator(last), out_beg);
 		std::fill(stopped, out_end, '=');
+	}
+
+	/// encodes text from range into container out, the last group is padded with '='
+	template <class InputRange, class OutputContainer>
+	inline std::enable_if_t<ext::is_container_v<OutputContainer>/*, OutputContainer &*/>
+	encode_base64(const InputRange & input, OutputContainer & out)
+	{
+		auto inplit = ext::as_literal(input);
+		return encode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 	/// encodes text from range into container out, the last group is padded with '='
@@ -125,32 +128,31 @@ namespace ext
 	std::enable_if_t<ext::is_iterator_v<OutputIterator>, OutputIterator>
 	decode_base64(RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 	{
-		using namespace base64;
-
-		typedef decode_itearator<RandomAccessIterator> base64_iterator;
+		typedef base64::decode_itearator<RandomAccessIterator> base64_iterator;
 		return std::copy(base64_iterator(first), base64_iterator(last), out);
 	}
 	
-	template <class InputRange, class OutputContainer>
-	std::enable_if_t<ext::is_range_v<OutputContainer>/*, OutputContainer &*/>
-	decode_base64(const InputRange & input, OutputContainer & out)
+	template <class RandomAccessIterator, class OutputContainer>
+	std::enable_if_t<ext::is_container_v<OutputContainer>/*, OutputContainer &*/>
+	decode_base64(RandomAccessIterator first, RandomAccessIterator last, OutputContainer & out)
 	{
-		using namespace base64;
-		auto inplit = ext::as_literal(input);
-
-		typedef typename boost::range_iterator<decltype(inplit)>::type input_iterator;
-		typedef decode_itearator<input_iterator> base64_itearator;
+		typedef base64::decode_itearator<RandomAccessIterator> base64_itearator;
 
 		// we are appending
-		auto out_size = base64::decode_estimation(boost::size(inplit));
+		auto out_size = base64::decode_estimation(last - first);
 		auto old_size = out.size();
 		out.resize(old_size + out_size);
 
-		base64_itearator first = boost::begin(inplit);
-		base64_itearator last = boost::end(inplit);
 		auto out_beg = boost::begin(out) + old_size;
+		std::copy(base64_itearator(first), base64_itearator(last), out_beg);
+	}
 
-		std::copy(first, last, out_beg);
+	template <class InputRange, class OutputContainer>
+	inline std::enable_if_t<ext::is_container_v<OutputContainer>/*, OutputContainer &*/>
+	decode_base64(const InputRange & input, OutputContainer & out)
+	{
+		auto inplit = ext::as_literal(input);
+		return decode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
 	template <class OutputContainer = std::string, class InputRange>
