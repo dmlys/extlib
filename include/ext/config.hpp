@@ -33,3 +33,7 @@
 #endif // EXT_UNREACHABLE
 
 #endif // ifndef EXT_UNREACHABLE
+
+
+#define EXT_NODISCARD [[nodiscard]]
+#define EXT_NORETURN  [[noreturn]]
