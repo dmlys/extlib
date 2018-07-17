@@ -48,7 +48,7 @@ namespace library_logger
 #define EXTLL_LOG(lg, log_level, expr)                                                  \
 EXTLL_SUPPRESS_DOWHILE_WARNING()                                                        \
 do {                                                                                    \
-	ext::library_logger::logger * ll = get_logger(lg);                                  \
+	ext::library_logger::logger * ll = ext::library_logger::get_logger(lg);             \
 	if (ll) {                                                                           \
 		auto rec = ll->open_record(log_level, __FILE__, __LINE__);                      \
 		if (rec)                                                                        \
