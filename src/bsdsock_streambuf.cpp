@@ -1,4 +1,4 @@
-// author: Dmitry Lysachenko
+﻿// author: Dmitry Lysachenko
 // date: Saturday 20 april 2016
 // license: boost software license
 //          http://www.boost.org/LICENSE_1_0.txt
@@ -46,8 +46,8 @@ namespace ext
 
 	struct gai_error_category_impl : public std::error_category
 	{
-		const char * name() const noexcept override { return "gai"; }
-		std::string message(int code) const override      { return ::gai_strerror(code); }
+		const char * name() const noexcept override  { return "gai"; }
+		std::string message(int code) const override { return ::gai_strerror(code); }
 	};
 
 	const gai_error_category_impl gai_error_category_instance;
@@ -847,13 +847,15 @@ namespace ext
 					err_code.assign(err, std::generic_category());
 					return true;
 				}
-				
+
 				// it was unexpected eof
 				if (ret == 0)
 				{
 					err_code = make_error_code(sock_errc::eof);
 					return true;
 				}
+
+				[[fallthrough]];
 
 			case SSL_ERROR_ZERO_RETURN:
 			case SSL_ERROR_WANT_X509_LOOKUP:

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <cassert>
 #include <memory>
 #include <utility>
@@ -227,9 +227,9 @@ namespace ext { namespace library_logger
 		simple_logger(std::locale loc = std::locale()) : loc(loc) {}
 
 	private:
-		record_context * do_open_record(int log_level, const char * source_file, int source_line) final;
-		void do_push_record(base_record_context * rctx) final;
-		void do_discard_record(base_record_context * rctx) final;
+		record_context * do_open_record(int log_level, const char * source_file, int source_line) override final;
+		void do_push_record(base_record_context * rctx) override final;
+		void do_discard_record(base_record_context * rctx) override final;
 
 	private:
 		/// включен ли логгер для заданного уровня логирования
@@ -285,9 +285,9 @@ namespace ext { namespace library_logger
 		}
 	
 	private:
-		record_context * do_open_record(int log_level, const char * source_file, int source_line) final;
-		void do_push_record(record_context * rctx) final;
-		void do_discard_record(record_context * rctx) final;
+		record_context * do_open_record(int log_level, const char * source_file, int source_line) override final;
+		void do_push_record(record_context * rctx) override final;
+		void do_discard_record(record_context * rctx) override final;
 
 	private:
 		/// включен ли логгер для заданного уровня логирования

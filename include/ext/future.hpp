@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // author: Dmitry Lysachenko
 // date: Saturday 20 august 2016
 // license: boost software license
@@ -640,7 +640,7 @@ namespace ext
 		void set_value(const value_type & val);
 		void set_value(std::remove_const_t<value_type> && val);
 		/// fulfills promise and sets exception result ex
-		void set_exception(std::exception_ptr ex);
+		void set_exception(std::exception_ptr ex) override;
 
 	public:
 		shared_state() noexcept;
@@ -680,7 +680,7 @@ namespace ext
 		/// fulfills promise and sets shared result val
 		void set_value(value_type & val);
 		/// fulfills promise and sets exception result ex
-		void set_exception(std::exception_ptr ex);
+		void set_exception(std::exception_ptr ex) override;
 
 	public:
 		shared_state() noexcept;
@@ -716,7 +716,7 @@ namespace ext
 		/// fulfills promise and sets shared result val
 		void set_value(void);
 		/// fulfills promise and sets exception result ex
-		void set_exception(std::exception_ptr ex);
+		void set_exception(std::exception_ptr ex) override;
 
 	public:
 		shared_state() noexcept;
@@ -853,7 +853,7 @@ namespace ext
 
 	public:
 		/// fires condition_variable, waking any waiting thread
-		virtual void continuate(shared_state_basic * caller) noexcept = 0;
+		virtual void continuate(shared_state_basic * caller) noexcept override = 0;
 		/// reset waiter, after that it can be used again
 		virtual void reset() noexcept = 0;
 	};
