@@ -1,4 +1,4 @@
-#ifdef EXT_ENABLE_CPPZLIB
+﻿#ifdef EXT_ENABLE_CPPZLIB
 #include <ext/cppzlib.hpp>
 #include <ext/Errors.hpp>
 #include <cstring> // for std::strlen
@@ -10,8 +10,8 @@ namespace zlib
 	/************************************************************************/
 	struct zlib_category_impl : std::error_category
 	{
-		virtual const char * name() const noexcept;
-		virtual std::string message(int val) const;
+		virtual const char * name() const noexcept override;
+		virtual std::string message(int val) const override;
 	};
 
 	const char * zlib_category_impl::name() const noexcept
