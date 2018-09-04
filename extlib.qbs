@@ -9,14 +9,14 @@ Project
 
     StaticLibrary
     {
-    
         Depends { name: "cpp" }
         cpp.cxxLanguageVersion : "c++17"
-        cpp.driverFlags : ["-pthread"]
 
-        //cpp.libraryPaths: project.additionalLibraryPaths
+        //cpp.defines: additionalDefines
         cpp.cxxFlags: project.additionalCxxFlags
-		
+        //cpp.includePaths: project.additionalIncludePaths
+        cpp.libraryPaths: project.additionalLibraryPaths
+        
         cpp.defines: {
             var defines = []
 
@@ -51,7 +51,6 @@ Project
         {
             Depends { name: "cpp" }
             cpp.cxxLanguageVersion : "c++17"
-            cpp.driverFlags : ["-pthread"]
             
             cpp.includePaths: ["include"]
             cpp.defines: {
