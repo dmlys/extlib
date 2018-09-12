@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // author: Dmitry Lysachenko
 // date: Saturday 20 april 2016
 // license: boost software license
@@ -13,71 +13,11 @@
 #include <system_error>
 
 #include <boost/config.hpp>
+#include <ext/iostreams/socket_base.hpp>
 #include <ext/iostreams/socket_streambuf_base.hpp>
-#include <ext/iostreams/bsdsock_config.hpp>
 
 namespace ext
 {
-	typedef addrinfo addrinfo_type;
-	typedef sockaddr sockaddr_type;
-	typedef int      socket_handle_type;
-
-	struct addrinfo_deleter
-	{
-		void operator()(addrinfo_type * ptr) const;
-	};
-
-	typedef std::unique_ptr<addrinfo_type, addrinfo_deleter> addrinfo_ptr;
-
-
-	/// производит инициализацию библиотек необходимых для использования bsdsock_streambuf.
-	/// это, если включен, OpenSSL. по факту ext::openssl_init()
-	void bsdsock_stream_init();
-
-	/// error category for network address and service translation.
-	/// EAI_* codes, gai_strerror
-	const std::error_category & gai_error_category();
-	
-	int last_socket_error() noexcept;
-	std::error_code last_socket_error_code() noexcept;
-	BOOST_NORETURN void throw_socket_error(int code, const char * errmsg);
-	BOOST_NORETURN void throw_socket_error(int code, const std::string & errmsg);
-	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg);
-
-	/// ::inet_ntop wrapper, все строки в utf8
-	/// @Throws std::system_error в случае системной ошибки
-	void inet_ntop(const sockaddr * addr, std::string & str, unsigned short & port);
-	auto inet_ntop(const sockaddr * addr) -> std::pair<std::string, unsigned short>;
-
-	/// ::inet_pton wrapper, все строки в utf8
-	/// @Return false если входная строка содержит не валидный адрес
-	/// @Throws std::system_error в случае системной ошибки
-	bool inet_pton(int family, const char * addr, sockaddr * out);
-	bool inet_pton(int family, const std::string & addr, sockaddr * out);
-
-	/// \{
-	/// 
-	/// ::getaddrinfo wrapper, все строки в utf8
-	/// hints.ai_family = AF_UNSPEC
-	/// hints.ai_protocol = IPPROTO_TCP
-	/// hints.ai_socktype = SOCK_STREAM
-	/// 
-	/// @Param host имя или адрес как в ::getaddrinfo
-	/// @Param service/port имя сервиса или номер порта как в ::getaddrinfo
-	/// @Param err для nothrow overload, out параметр, тут будет ошибка, а возвращаемое значение будет null
-	/// @Returns std::unique_ptr<addrinfo> resolved адрес, в случае ошибки - nullptr для error overloads
-	/// @Throws std::system_error в случае системной ошибки
-
-	addrinfo_ptr getaddrinfo(const char * host, const char * service);
-	addrinfo_ptr getaddrinfo(const char * host, const char * service, std::error_code & err);
-
-	inline addrinfo_ptr getaddrinfo(const std::string & host, const std::string & service, std::error_code & err) { return getaddrinfo(host.c_str(), service.c_str(), err); }
-	inline addrinfo_ptr getaddrinfo(const std::string & host, std::error_code & err)                              { return getaddrinfo(host.c_str(), nullptr, err); }
-	inline addrinfo_ptr getaddrinfo(const std::string & host, const std::string & service)                        { return getaddrinfo(host.c_str(), service.c_str()); }
-	inline addrinfo_ptr getaddrinfo(const std::string & host)                                                     { return getaddrinfo(host.c_str(), nullptr); }
-
-    /// \}
-
 	/// Реализация streambuf для сокета на berkley socket api.
 	/// Класс не thread-safe, кроме метода interrupt(не должен перемещаться/разрушаться во время вызова interrupt).
 	/// умеет:

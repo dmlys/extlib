@@ -1,6 +1,6 @@
-#pragma once
+﻿#pragma once
 #include <boost/predef.h>
-#include <ext/iostreams/socket_types.hpp>
+#include <ext/iostreams/socket_base.hpp>
 
 /// для windows у нас есть реализация на winsock2
 #if BOOST_OS_WINDOWS
@@ -14,9 +14,6 @@ namespace ext
 {
 	typedef ext::winsock2_streambuf socket_streambuf;
 	typedef ext::winsock2_stream    socket_stream;
-
-	/// инициализация библиотек для работы с socket_stream
-	inline void socket_stream_init() { ext::winsock2_stream_init(); }
 }
 
 
@@ -32,9 +29,6 @@ namespace ext
 {
 	typedef ext::bsdsock_streambuf   socket_streambuf;
 	typedef ext::bsdsock_stream      socket_stream;
-
-	/// инициализация библиотек для работы с socket_stream
-	inline void socket_stream_init() { bsdsock_stream_init(); }
 }
 
 #endif // BOOST_OS_WINDOWS
