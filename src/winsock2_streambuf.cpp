@@ -14,15 +14,8 @@
 #include <ext/codecvt_conv.hpp>
 #include <ext/Errors.hpp>  // for ext::FormatError
 
-#include <ext/iostreams/winsock2_inc.hpp>
-#include <ext/iostreams/winsock2_streambuf.hpp>
-#include <ext/iostreams/socket_types.hpp>
-
-#ifdef EXT_ENABLE_OPENSSL
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <ext/openssl.hpp>
-#endif // EXT_ENABLE_OPENSSL
+#include <ext/iostreams/bsdsock_streambuf.hpp>
+#include <ext/iostreams/socket_include.hpp>
 
 #ifdef _MSC_VER
 // warning C4244: '=' : conversion from '__int64' to 'long', possible loss of data

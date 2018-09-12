@@ -177,6 +177,9 @@ namespace ext
 	template <class Type>
 	future<std::decay_t<Type>> make_ready_future(Type && val);
 
+	template <class Type>
+	ext::future<Type &> make_ready_future(std::reference_wrapper<Type> ref);
+
 	/// returns immediately satisfied future holding exception
 	template <class Type, class Exception>
 	future<Type> make_exceptional_future(Exception ex);
@@ -1851,6 +1854,8 @@ namespace ext
 
 		future & operator =(future &&) = default;
 		future & operator =(const future &) = delete;
+
+		void swap(future & other) noexcept { std::swap(m_ptr, other.m_ptr); }
 	};
 
 
@@ -1908,6 +1913,8 @@ namespace ext
 
 		shared_future & operator =(shared_future &&) = default;
 		shared_future & operator =(const shared_future &) = default;
+
+		void swap(shared_future & other) noexcept { std::swap(m_ptr, other.m_ptr); }
 	};
 
 	template <>
@@ -2257,6 +2264,14 @@ namespace ext
 		ptr->set_value(std::forward<Type>(val));
 		return {ptr};
 	}
+
+	template <class Type>
+	ext::future<Type &> make_ready_future(std::reference_wrapper<Type> ref)
+	{
+		auto ptr = ext::make_intrusive<ext::shared_state_unexceptional<Type &>>();
+		ptr->set_value(ref.get());
+		return {ptr};
+	}
 	
 	inline ext::future<void> make_ready_future()
 	{
@@ -2488,15 +2503,15 @@ namespace ext
 	}
 
 	template <class Type>
-	inline void swap(promise<Type> & f1, promise<Type> & f2) noexcept
+	inline void swap(promise<Type> & p1, promise<Type> & p2) noexcept
 	{
-		f1.swap(f2);
+	    p1.swap(p2);
 	}
 
 	template <class Type>
-	inline void swap(packaged_task<Type> & f1, packaged_task<Type> & f2) noexcept
+	inline void swap(packaged_task<Type> & p1, packaged_task<Type> & p2) noexcept
 	{
-		f1.swap(f2);
+	    p1.swap(p2);
 	}
 }
 

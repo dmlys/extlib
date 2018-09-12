@@ -12,8 +12,8 @@
 #include <chrono>
 #include <system_error>
 
+#include <ext/iostreams/socket_base.hpp>
 #include <ext/iostreams/socket_streambuf_base.hpp>
-#include <boost/config.hpp> // for BOOST_NORETURN
 
 //#ifndef WIN32_LEAN_AND_MEAN
 //#define WIN32_LEAN_AND_MEAN
@@ -23,108 +23,8 @@
 // #include <WS2tcpip.h>
 // #include <Windows.h>
 
-// forward from WinSock2.h, used in private methods signatures
-struct addrinfoW;
-struct sockaddr;
-
-#ifdef EXT_ENABLE_OPENSSL
-/// forward some openssl types
-struct ssl_st;
-struct ssl_ctx_st;
-struct ssl_method_st;
-
-typedef struct ssl_st        SSL;
-typedef struct ssl_ctx_st    SSL_CTX;
-typedef struct ssl_method_st SSL_METHOD;
-#endif //EXT_ENABLE_OPENSSL
-
 namespace ext
 {
-	typedef	addrinfoW addrinfo_type;
-	typedef sockaddr sockaddr_type;
-	typedef std::uintptr_t socket_handle_type;
-
-	struct addrinfo_deleter
-	{
-		void operator()(addrinfo_type * ptr) const;
-	};
-
-	typedef std::unique_ptr<addrinfo_type, addrinfo_deleter> addrinfo_ptr;
-
-	/// функции инициализации winsock библиотеки, вынесены сюда для изоляции include'ов windows
-	/// вызывает WSAstartup и возвращает результат выполнения
-	int wsastartup(std::uint16_t version);
-	/// вызывает WSAstartup с версией 2.2.
-	/// если вызов завершился с неудачей, выводит сообщение в std::cerr и вызывает std::exit(EXIT_FAILURE).
-	/// для лучшего контроля - вызывайте WSAStartup напрямую или int wsastartup(std::uint16_t version)
-	void wsastartup();
-	/// вызывает WSACleanup
-	void wsacleanup();
-
-	/// производит инициализацию библиотек необходимых для использования winsock2_streambuf.
-	/// это winosock2 и, если включен, OpenSSL
-	/// по факту вызывает ext::wsastratup(); ext::openssl_init()
-	void winsock2_stream_init();
-
-	int last_socket_error() noexcept;
-	std::error_code last_socket_error_code() noexcept;
-	BOOST_NORETURN void throw_socket_error(int code, const char * errmsg);
-	BOOST_NORETURN void throw_socket_error(int code, const std::string & errmsg);
-	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg);
-
-	/// ::inet_ntop wrapper для winsock платформы, все строки в utf8(utf16 для wchar_t)
-	/// @Throws std::system_error в случае системной ошибки
-	///         ext::codecvt_convert::conversion_failure(std::runtime_error derived)
-	///              при ошибках конвертации utf-8 <-> utf-16 кидает
-	void inet_ntop(const sockaddr * addr, std::wstring & wstr, unsigned short & port);
-	void inet_ntop(const sockaddr * addr, std::string & str, unsigned short & port);
-	auto inet_ntop(const sockaddr * addr)->std::pair<std::string, unsigned short>;
-
-	/// ::inet_pton wrapper для winsock платформы, все строки в utf8(utf16 для wchar_t)
-	/// @Return false если входная строка содержит не валидный адрес
-	/// @Throws std::system_error в случае системной ошибки
-	///         ext::codecvt_convert::conversion_failure(std::runtime_error derived)
-	///              при ошибках конвертации utf-8 <-> utf-16 кидает
-	bool inet_pton(int family, const wchar_t * waddr, sockaddr * out);
-	bool inet_pton(int family, const char * addr, sockaddr * out);
-	bool inet_pton(int family, const std::wstring & waddr, sockaddr * out);
-	bool inet_pton(int family, const std::string & addr, sockaddr * out);
-
-	/// \{
-	/// 
-	/// ::getaddrinfo wrapper для winsock платформы, все строки в utf8(utf16 для wchar_t)
-	/// hints.ai_family = AF_UNSPEC
-	/// hints.ai_protocol = IPPROTO_TCP
-	/// hints.ai_socktype = SOCK_STREAM
-	/// 
-	/// @Param host имя или адрес как в ::getaddrinfo
-	/// @Param service/port имя сервиса или номер порта как в ::getaddrinfo
-	/// @Param err для nothrow overload, out параметр, тут будет ошибка, а возвращаемое значение будет null
-	/// @Returns std::unique_ptr<addrinfo> resolved адрес, в случае ошибки - nullptr для error overloads
-	/// @Throws std::system_error в случае системной ошибки
-	///         ext::codecvt_convert::conversion_failure(std::runtime_error derived)
-	///              при ошибках конвертации utf-8 <-> utf-16 кидает
-
-	addrinfo_ptr getaddrinfo(const wchar_t * host, const wchar_t * service);
-	addrinfo_ptr getaddrinfo(const wchar_t * host, const wchar_t * service, std::error_code & err);
-
-	addrinfo_ptr getaddrinfo(const char * host, const char * service);
-	addrinfo_ptr getaddrinfo(const char * host, const char * service, std::error_code & err);
-	
-
-	inline addrinfo_ptr getaddrinfo(const std::wstring & host, const std::wstring & service, std::error_code & err)  { return getaddrinfo(host.c_str(), service.c_str(), err); }
-	inline addrinfo_ptr getaddrinfo(const std::wstring & host, std::error_code & err)                                { return getaddrinfo(host.c_str(), nullptr, err); }
-	inline addrinfo_ptr getaddrinfo(const std::wstring & host, const std::wstring & service)                         { return getaddrinfo(host.c_str(), service.c_str()); }
-	inline addrinfo_ptr getaddrinfo(const std::wstring & host)                                                       { return getaddrinfo(host.c_str(), nullptr); }
-
-	inline addrinfo_ptr getaddrinfo(const std::string & host, const std::string & service, std::error_code & err) { return getaddrinfo(host.c_str(), service.c_str(), err); }
-	inline addrinfo_ptr getaddrinfo(const std::string & host, std::error_code & err)                              { return getaddrinfo(host.c_str(), nullptr, err); }
-	inline addrinfo_ptr getaddrinfo(const std::string & host, const std::string & service)                        { return getaddrinfo(host.c_str(), service.c_str()); }
-	inline addrinfo_ptr getaddrinfo(const std::string & host)                                                     { return getaddrinfo(host.c_str(), nullptr); }
-
-    /// \}
-
-
 	/// Реализация streambuf для сокета на winsock2 функциях(winsock < 2.0 не поддерживается).
 	/// Класс не thread-safe, кроме метода interrupt(не должен перемещаться/разрушаться во время вызова interrupt).
 	/// умеет:
@@ -150,8 +50,8 @@ namespace ext
 	class winsock2_streambuf :
 		public ext::socket_streambuf_base
 	{
-		typedef ext::socket_streambuf_base base_type;
-		typedef winsock2_streambuf self_type;
+		typedef ext::socket_streambuf_base  base_type;
+		typedef winsock2_streambuf          self_type;
 
 	public:
 		typedef std::error_code       error_code_type;
