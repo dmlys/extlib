@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <memory>
+#include <chrono>
 #include <type_traits>
 #include <system_error>
 
@@ -89,6 +90,10 @@ namespace ext
 	BOOST_NORETURN void throw_socket_error(int code, const char * errmsg);
 	BOOST_NORETURN void throw_socket_error(int code, const std::string & errmsg);
 	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg);
+
+	void set_port(addrinfo_type * addr, unsigned short port);
+	auto get_port(addrinfo_type * addr) -> unsigned short;
+	void make_timeval(std::chrono::steady_clock::duration val, timeval & tv);
 
 	/// ::inet_ntop wrapper, все строки в utf8
 	/// @Throws std::system_error в случае системной ошибки

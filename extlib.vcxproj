@@ -52,14 +52,13 @@
     <ClCompile Include="src\future.cpp" />
     <ClCompile Include="src\openssl.cpp" />
     <ClCompile Include="src\regex_utils.cpp" />
-    <ClCompile Include="src\socket_types.cpp" />
+    <ClCompile Include="src\socket_base.cpp" />
+    <ClCompile Include="src\socket_stream.cpp" />
     <ClCompile Include="src\socket_streambuf_base.cpp" />
     <ClCompile Include="src\string_interpolation.cpp" />
     <ClCompile Include="src\threaded_scheduler.cpp" />
     <ClCompile Include="src\thread_pool.cpp" />
     <ClCompile Include="src\time_fmt.cpp" />
-    <ClCompile Include="src\winsock2.cpp" />
-    <ClCompile Include="src\winsock2_stream.cpp" />
     <ClCompile Include="src\winsock2_streambuf.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -72,6 +71,11 @@
     <ClInclude Include="include\ext\algorithm\slide.hpp" />
     <ClInclude Include="include\ext\algorithm\tribool_compare.hpp" />
     <ClInclude Include="include\ext\base16.hpp" />
+    <ClInclude Include="include\ext\iostreams\bsdsock_streambuf.hpp" />
+    <ClInclude Include="include\ext\iostreams\socket_base.hpp" />
+    <ClInclude Include="include\ext\iostreams\socket_fwd.hpp" />
+    <ClInclude Include="include\ext\iostreams\socket_include.hpp" />
+    <ClInclude Include="include\ext\iostreams\socket_streambuf.hpp" />
     <ClInclude Include="include\ext\is_string.hpp" />
     <ClInclude Include="include\ext\iterator\append_iterator.hpp" />
     <ClInclude Include="include\ext\codecvt_conv.hpp" />
@@ -86,11 +90,8 @@
     <ClInclude Include="include\ext\future.hpp" />
     <ClInclude Include="include\ext\integer_sequence.hpp" />
     <ClInclude Include="include\ext\intrusive_ptr.hpp" />
-    <ClInclude Include="include\ext\iostreams\socket_types.hpp" />
     <ClInclude Include="include\ext\iostreams\streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\socket_streambuf_base.hpp" />
-    <ClInclude Include="include\ext\iostreams\winsock2_inc.hpp" />
-    <ClInclude Include="include\ext\iostreams\winsock2_stream.hpp" />
     <ClInclude Include="include\ext\iostreams\winsock2_streambuf.hpp" />
     <ClInclude Include="include\ext\iostreams\socket_stream.hpp" />
     <ClInclude Include="include\ext\iostreams\utility.hpp" />

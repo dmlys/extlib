@@ -24,6 +24,7 @@
     struct addrinfo;
     struct addrinfoW;
     struct sockaddr;
+	struct timeval;
 
     typedef std::uintptr_t   socket_handle_type;
     typedef int              socklen_t;
@@ -33,6 +34,7 @@
 
 	struct addrinfo;
 	struct sockaddr;
+	struct timeval;
 
 	typedef int              socket_handle_type;
 	typedef unsigned int     socklen_t;
@@ -42,6 +44,7 @@
 
 	struct addrinfo;
 	struct sockaddr;
+	struct timeval;
 
 	typedef int              socket_handle_type;
 	typedef int              socklen_t;
@@ -52,6 +55,7 @@
 	// hp-ux have 2 net libraries, standard libc and libxnet
 	struct addrinfo;
 	struct sockaddr;
+	struct timeval;
 
 	typedef int              socket_handle_type;
 	typedef std::size_t      socklen_t;
@@ -67,6 +71,7 @@
 
     struct addrinfo;
 	struct sockaddr;
+	struct timeval;
 
 	typedef int              socket_handle_type;
 	typedef unsigned int     socklen_t;
