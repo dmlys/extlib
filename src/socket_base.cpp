@@ -7,6 +7,11 @@
 #include <ext/iostreams/socket_base.hpp>
 #include <ext/iostreams/socket_include.hpp>
 
+#if BOOST_OS_WINDOWS
+#include <ext/codecvt_conv.hpp>
+#include <ext/Errors.hpp>
+#endif
+
 #ifdef _MSC_VER
 // warning C4244: '=' : conversion from '__int64' to 'long', possible loss of data
 // warning C4244: 'initializing' : conversion from '__int64' to 'long', possible loss of data
@@ -131,7 +136,7 @@ namespace ext
 
 	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg)
 	{
-		throw winsock2_streambuf::system_error_type(last_socket_error_code(), errmsg);
+		throw std::system_error(last_socket_error_code(), errmsg);
 	}
 
 	void addrinfo_deleter::operator ()(addrinfo_type * ptr) const
@@ -361,7 +366,7 @@ namespace ext
 	/************************************************************************/
 	/*                auxiliary functions                                   */
 	/************************************************************************/
-	void bsdsock_stream_init()
+	void socket_stream_init()
 	{
 #ifdef EXT_ENABLE_OPENSSL
 		ext::openssl_init();
@@ -404,6 +409,29 @@ namespace ext
 	BOOST_NORETURN void throw_last_socket_error(const std::string & errmsg)
 	{
 		throw std::system_error(last_socket_error_code(), errmsg);
+	}
+
+	void set_port(addrinfo_type * addr, unsigned short port)
+	{
+		static_assert(offsetof(sockaddr_in, sin_port) == offsetof(sockaddr_in6, sin6_port), "sin_port/sin6_port offset differs");
+		for (; addr; addr = addr->ai_next)
+			reinterpret_cast<sockaddr_in *>(addr->ai_addr)->sin_port = htons(port);
+	}
+
+	auto get_port(addrinfo_type * addr) -> unsigned short
+	{
+		// both sockaddr_in6 and sockaddr_in have port member on same offset
+		unsigned short port = reinterpret_cast<sockaddr_in6 *>(addr)->sin6_port;
+		return ntohs(port);
+	}
+
+	void make_timeval(std::chrono::steady_clock::duration val, timeval & tv)
+	{
+		long micro = std::chrono::duration_cast<std::chrono::microseconds>(val).count();
+		if (micro < 0) micro = 0;
+
+		tv.tv_sec  = micro / 1000000;
+		tv.tv_usec = micro % 1000000;
 	}
 
 	void inet_ntop(const sockaddr * addr, std::string & str, unsigned short & port)

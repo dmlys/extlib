@@ -68,8 +68,8 @@ namespace ext
 			fwritable = 2,  // wait writable
 		};
 
-		static const std::string empty;
-		static const std::wstring wempty;
+		static const std::string empty_str;
+		static const std::wstring wempty_str;
 
 	private:
 		/// внутреннее состояние класса, нужно для поддержки вызова interrupt.
@@ -210,13 +210,13 @@ namespace ext
 		/// при изменении свойств сокета - никаких гарантий работы класса,
 		/// можно использовать для получения свойств сокета, например local_endpoint/remove_endpoint.
 		/// 
-		/// socket != INVALID_SOCKET гарантируется только при is_open() == true
-		handle_type socket() { return m_sockhandle; }
+		/// handle != INVALID_SOCKET гарантируется только при is_open() == true
+		handle_type handle() { return m_sockhandle; }
 
-		/// вызов ::getpeername(socket(), addr, addrlen), + проверка результат
+		/// вызов ::getpeername(handle(), addr, addrlen), + проверка результат
 		/// в случае ошибок кидает исключение system_error_type
 		void getpeername(sockaddr_type * addr, int * addrlen);
-		/// вызов ::getsockname(socket(), addr, namelen), + проверка результат
+		/// вызов ::getsockname(handle(), addr, namelen), + проверка результат
 		/// в случае ошибок кидает исключение system_error_type
 		void getsockname(sockaddr_type * addr, int * addrlen);
 
@@ -293,7 +293,7 @@ namespace ext
 		/// создает сессию с заданным методом и servername, выполняет ssl соединение, в случае ошибок возвращает false.
 		/// servername - ::SSL_set_tlsext_host_name(ssl, servername), он же ключ -servername у openssl.exe
 		/// NOTE: метод не проверяет наличие активной сессии
-		bool start_ssl(const SSL_METHOD * sslmethod)     { return start_ssl(sslmethod, wempty); }
+		bool start_ssl(const SSL_METHOD * sslmethod)     { return start_ssl(sslmethod, wempty_str); }
 		bool start_ssl(const std::string & servername)   { return start_ssl(nullptr, servername); }
 		bool start_ssl(const std::wstring & wservername) { return start_ssl(nullptr, wservername); }
 		bool start_ssl(const SSL_METHOD * sslmethod, const std::string & servername);

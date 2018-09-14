@@ -70,7 +70,7 @@ namespace ext
 
 	public:
 		/// синхронизация входящего потока с исходящим, по умолчанию включена
-		bool self_tie() const { return m_tie_io; }
+		bool self_tie() const   { return m_tie_io; }
 		bool self_tie(bool tie) { return std::exchange(m_tie_io, tie); }
 
 	protected:

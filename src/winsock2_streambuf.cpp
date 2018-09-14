@@ -14,7 +14,7 @@
 #include <ext/codecvt_conv.hpp>
 #include <ext/Errors.hpp>  // for ext::FormatError
 
-#include <ext/iostreams/bsdsock_streambuf.hpp>
+#include <ext/iostreams/winsock2_streambuf.hpp>
 #include <ext/iostreams/socket_include.hpp>
 
 #ifdef _MSC_VER
@@ -26,15 +26,9 @@
 
 namespace ext
 {
-	/************************************************************************/
-	/*                   winsock2_streambuf                                 */
-	/************************************************************************/
-	static inline void make_timeval(timeval & tv, winsock2_streambuf::duration_type val)
-	{
-		long micro = std::chrono::duration_cast<std::chrono::microseconds>(val).count();
-		tv.tv_sec = micro / 1000000;
-		tv.tv_usec = micro % 1000000;
-	}
+	const std::string  winsock2_streambuf::empty_str;
+	const std::wstring winsock2_streambuf::wempty_str;
+
 
 	static void SockAddrToString(sockaddr * addr, int addrlen, std::string & out)
 	{
@@ -48,18 +42,6 @@ namespace ext
 		std::codecvt_utf8<wchar_t> cvt;
 		ext::codecvt_convert::to_bytes(cvt, boost::make_iterator_range_n(buffer, buflen), out);
 	}
-
-	static void set_port(addrinfo_type * addr, unsigned short port)
-	{
-		static_assert(offsetof(sockaddr_in, sin_port) == offsetof(sockaddr_in6, sin6_port), "sin_port/sin6_port offset differs");
-		for (; addr; addr = addr->ai_next)
-		{
-			reinterpret_cast<sockaddr_in *>(addr->ai_addr)->sin_port = ::htons(port);
-		}
-	}
-
-	const std::string winsock2_streambuf::empty;
-	const std::wstring winsock2_streambuf::wempty;
 
 	/************************************************************************/
 	/*                   connect/resolve helpers                            */
@@ -149,7 +131,7 @@ namespace ext
 		if (!pubres) goto intrreq;
 
 		timeval timeout;
-		make_timeval(timeout, until - time_point::clock::now());
+		make_timeval(until - time_point::clock::now(), timeout);
 
 		fd_set write_set, err_set;
 		FD_ZERO(&write_set);
@@ -437,7 +419,7 @@ namespace ext
 
 	again:
 		struct timeval timeout;
-		make_timeval(timeout, until - time_point::clock::now());
+		make_timeval(until - time_point::clock::now(), timeout);
 
 		fd_set read_set, write_set, err_set;
 		fd_set * pread_set = nullptr;

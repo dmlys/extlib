@@ -18,28 +18,7 @@
 
 namespace ext
 {
-	/************************************************************************/
-	/*                bsdsock_streambuf                                     */
-	/************************************************************************/
-	static inline void make_timeval(timeval & tv, bsdsock_streambuf::duration_type val)
-	{
-		long micro = std::chrono::duration_cast<std::chrono::microseconds>(val).count();
-		if (micro < 0) micro = 0;
-
-		tv.tv_sec = micro / 1000000;
-		tv.tv_usec = micro % 1000000;
-	}
-
-	static void set_port(addrinfo_type * addr, unsigned short port)
-	{
-		static_assert(offsetof(sockaddr_in, sin_port) == offsetof(sockaddr_in6, sin6_port), "sin_port/sin6_port offset differs");
-		for (; addr; addr = addr->ai_next)
-		{
-			reinterpret_cast<sockaddr_in *>(addr->ai_addr)->sin_port = htons(port);
-		}
-	}
-
-	const std::string bsdsock_streambuf::empty;
+	const std::string bsdsock_streambuf::empty_str;
 	
 	/************************************************************************/
 	/*                   connect/resolve helpers                            */
@@ -136,7 +115,7 @@ namespace ext
 		if (!pubres) goto intrreq;
 	
 		struct timeval timeout;
-		make_timeval(timeout, until - time_point::clock::now());
+		make_timeval(until - time_point::clock::now(), timeout);
 
 		fd_set write_set, read_set;
 		FD_ZERO(&write_set);
@@ -420,7 +399,7 @@ namespace ext
 
 	again:
 		struct timeval timeout;
-		make_timeval(timeout, until - time_point::clock::now());
+		make_timeval(until - time_point::clock::now(), timeout);
 
 		fd_set read_set, write_set;
 		fd_set * pread_set = nullptr;
@@ -948,7 +927,7 @@ namespace ext
 		auto res = ::getsockname(m_sockhandle, addr, so_addrlen);
 		if (res != 0)
 		{
-			throw_last_socket_error("bsdsock_streambuf::sock_name getsockname failed");
+			throw_last_socket_error("bsdsock_streambuf::getsockname failed");
 		}
 	}
 
@@ -963,7 +942,7 @@ namespace ext
 		unsigned short port;
 		ext::inet_ntop(addr, host, port);
 		
-		char buffer[std::numeric_limits<unsigned short>::digits10 + 2];
+		ext::itoa_buffer<unsigned short> buffer;
 		host += ':';
 		host += ext::itoa(port, buffer);
 		
