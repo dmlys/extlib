@@ -379,6 +379,41 @@ namespace ext
 		}
 	}
 	
+	void bsdsock_streambuf::init_handle(handle_type sock)
+	{
+		StateType prev;
+		bool pubres;
+
+		if (is_open())
+		{
+			m_lasterror = std::make_error_code(std::errc::already_connected);
+			goto error;
+		}
+
+		if (not do_setnonblocking(sock))
+			goto error;
+
+		// пытаемся опубликовать сокет, возможен interrupt
+		m_sockhandle = sock;
+		prev = Closed;
+		pubres = m_state.compare_exchange_strong(prev, Opened, std::memory_order_release);
+		if (pubres)
+		{
+			init_buffers();
+			return;
+		}
+
+	//interrupted:
+		m_lasterror = std::make_error_code(std::errc::interrupted);
+    error:
+		// нас interrupt'нули - выставляем соотвествующий код ошибки
+		int code = m_lasterror.value();
+		if (m_lasterror.category() != std::generic_category() || (code != EBADF and code != ENOTSOCK))
+			::close(sock);
+
+		throw std::system_error(m_lasterror, "bsdsock_streambuf::init_handle failed");
+	}
+
 	/************************************************************************/
 	/*                   read/write/others                                  */
 	/************************************************************************/
@@ -596,6 +631,13 @@ namespace ext
 	/*                     ssl stuff                                        */
 	/************************************************************************/
 #ifdef EXT_ENABLE_OPENSSL
+	static int fstate_from_ssl_result(int result)
+	{
+		if      (result == SSL_ERROR_WANT_READ)  return bsdsock_streambuf::freadable;
+		else if (result == SSL_ERROR_WANT_WRITE) return bsdsock_streambuf::fwritable;
+		else        /* ??? */                    return bsdsock_streambuf::freadable | bsdsock_streambuf::fwritable;
+	}
+
 	bool bsdsock_streambuf::ssl_rw_error(int & res, error_code_type & err_code)
 	{
 		int err;
@@ -719,10 +761,7 @@ namespace ext
 
 			if (ssl_rw_error(res, m_lasterror)) return false;
 
-			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
-			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
-			else        /* ??? */                 fstate = freadable | fwritable;
-
+			fstate = fstate_from_ssl_result(res);
 		} while (wait_state(until, fstate));
 		return false;
 	}
@@ -751,10 +790,7 @@ namespace ext
 
 			if (ssl_rw_error(res, m_lasterror)) return false;
 
-			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
-			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
-			else        /* ??? */                 fstate = freadable | fwritable;
-			
+			fstate = fstate_from_ssl_result(res);
 		} while (wait_state(until, fstate));
 
 		// second shutdown
@@ -765,10 +801,7 @@ namespace ext
 
 			if (ssl_rw_error(res, m_lasterror)) break;
 
-			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
-			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
-			else        /* ??? */                 fstate = freadable | fwritable;
-
+			fstate = fstate_from_ssl_result(res);
 		} while (wait_state(until, fstate));
 
 		// второй shutdown не получился, это может быть как ошибка,
@@ -1054,6 +1087,15 @@ namespace ext
 
 	bsdsock_streambuf::bsdsock_streambuf(socket_handle_type sock_handle)
 	{
+		if (not do_setnonblocking(sock_handle))
+		{
+			int code = m_lasterror.value();
+			if (m_lasterror.category() != std::generic_category() || (code != EBADF && code != ENOTCONN))
+				::close(sock_handle);
+
+			throw std::system_error(m_lasterror, "bsdsock_streambuf::setnonblocking failed");
+		}
+
 		m_sockhandle = sock_handle;
 		m_state.store(Opened, std::memory_order_relaxed);
 		init_buffers();

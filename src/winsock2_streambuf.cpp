@@ -399,6 +399,41 @@ namespace ext
 		}
 	}
 
+	void winsock2_streambuf::init_handle(handle_type sock)
+	{
+		StateType prev;
+		bool pubres;
+
+		if (is_open())
+		{
+			m_lasterror = std::make_error_code(std::errc::already_connected);
+			goto error;
+		}
+
+		if (not do_setnonblocking(sock))
+			goto error;
+
+		// пытаемся опубликовать сокет, возможен interrupt
+		m_sockhandle = sock;
+		prev = Closed;
+		pubres = m_state.compare_exchange_strong(prev, Opened, std::memory_order_release);
+		if (pubres)
+		{
+			init_buffers();
+			return;
+		}
+
+	//interrupted:
+		m_lasterror = std::make_error_code(std::errc::interrupted);
+	error:
+		// нас interrupt'нули - выставляем соотвествующий код ошибки
+		int code = m_lasterror.value();
+		if (m_lasterror.category() != std::generic_category() || (code != EBADF and code != ENOTSOCK))
+			::closesocket(sock);
+
+		throw std::system_error(m_lasterror, "winsock2_streambuf::init_handle failed");
+	}
+
 	/************************************************************************/
 	/*                   read/write/others                                  */
 	/************************************************************************/
@@ -1079,6 +1114,15 @@ namespace ext
 
 	winsock2_streambuf::winsock2_streambuf(socket_handle_type sock_handle)
 	{
+		if (not do_setnonblocking(sock_handle))
+		{
+			int code = m_lasterror.value();
+			if (m_lasterror.category() != std::generic_category() || (code != EBADF && code != ENOTCONN))
+				::closesocket(sock_handle);
+
+			throw std::system_error(m_lasterror, "winsock2_streambuf::setnonblocking failed");
+		}
+
 		m_sockhandle = sock_handle;
 		m_state.store(Opened, std::memory_order_relaxed);
 		init_buffers();
