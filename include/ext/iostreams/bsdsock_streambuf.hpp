@@ -107,7 +107,7 @@ namespace ext
 		/// переводит состояние в Opened.
 		/// returns true в случае успеха, false если был запрос на прерывание
 		bool publish_opened(handle_type sock, StateType & expected);
-		
+
 		/// выполняет resolve с помощью getaddrinfo
 		/// в случае ошибки - устанавливает m_lasterror и возвращает false
 		bool do_resolve(const char * host, const char * service, addrinfo_type ** result);
@@ -251,6 +251,12 @@ namespace ext
 		/// подключение открыто, если была успешная попытка подключения,
 		/// т.е. is_connected, по факту.
 		bool is_open() const;
+
+		/// инициализирует объект заданным socket handle'ом.
+		/// переводит сокет в не блокирующий режим.
+		/// если объект уже был открыт/инициализирован или возникли какие либо ошибки,
+		/// в том числе interrupt - бросает std::system_error с соотвествующей ошибкой.
+		void init_handle(handle_type handle);
 
 		/// выполняет подключение по заданным параметрам - в случае успеха возвращает true
 		/// если подключение уже было выполнено - немедленно возвращает false
