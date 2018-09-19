@@ -95,6 +95,14 @@ namespace ext
 	}
 #endif // BOOST_OS_WINDOWS
 
+	void socket_stream::accept_ssl(SSL_CTX * sslctx)
+	{
+		if (fail()) return;
+
+		if (!m_streambuf.accept_ssl(sslctx))
+			setstate(std::ios::badbit | std::ios::failbit);
+	}
+
 	void socket_stream::stop_ssl()
 	{
 		if (fail()) return;

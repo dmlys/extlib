@@ -667,6 +667,13 @@ namespace ext
 	/*                     ssl stuff                                        */
 	/************************************************************************/
 #ifdef EXT_ENABLE_OPENSSL
+	static int fstate_from_ssl_result(int result)
+	{
+		if      (result == SSL_ERROR_WANT_READ)  return winsock2_streambuf::freadable;
+		else if (result == SSL_ERROR_WANT_WRITE) return winsock2_streambuf::fwritable;
+		else        /* ??? */                    return winsock2_streambuf::freadable | winsock2_streambuf::fwritable;
+	}
+
 	bool winsock2_streambuf::ssl_started() const
 	{
 		return m_sslhandle != nullptr && ::SSL_get_session(m_sslhandle) != nullptr;
@@ -786,11 +793,32 @@ namespace ext
 
 			if (ssl_rw_error(res, m_lasterror)) return false;
 			
-			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
-			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
-			else        /* ??? */                 fstate = freadable | fwritable;
-
+			fstate = fstate_from_ssl_result(res);
 		} while (wait_state(until, fstate));
+		return false;
+	}
+
+	bool winsock2_streambuf::do_sslaccept(SSL * ssl)
+	{
+		int res = ::SSL_set_fd(ssl, m_sockhandle);
+		if (res <= 0)
+		{
+			m_lasterror = ssl_error(ssl, res);
+			return false;
+		}
+
+		auto until = time_point::clock::now() + m_timeout;
+		int fstate;
+
+		do {
+			res = ::SSL_accept(ssl);
+			if (res > 0) return true;
+
+			if (ssl_rw_error(res, m_lasterror)) return false;
+
+			fstate = fstate_from_ssl_result(res);
+		} while (wait_state(until, fstate));
+
 		return false;
 	}
 
@@ -818,10 +846,7 @@ namespace ext
 			
 			if (ssl_rw_error(res, m_lasterror)) return false;
 
-			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
-			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
-			else        /* ??? */                 fstate = freadable | fwritable;
-			
+			fstate = fstate_from_ssl_result(res);
 		} while (wait_state(until, fstate));
 		
 		// second shutdown
@@ -832,10 +857,7 @@ namespace ext
 
 			if (ssl_rw_error(res, m_lasterror)) break;
 
-			if      (res == SSL_ERROR_WANT_READ)  fstate = freadable;
-			else if (res == SSL_ERROR_WANT_WRITE) fstate = fwritable;
-			else        /* ??? */                 fstate = freadable | fwritable;
-
+			fstate = fstate_from_ssl_result(res);
 		} while (wait_state(until, fstate));
 		
 		// второй shutdown не получился, это может быть как ошибка,
@@ -871,7 +893,7 @@ namespace ext
 		m_sslhandle = ssl;
 	}
 
-	bool winsock2_streambuf::start_ssl_weak(SSL_CTX * sslctx)
+	bool winsock2_streambuf::start_ssl(SSL_CTX * sslctx)
 	{
 		if (!is_open())
 		{
@@ -890,13 +912,6 @@ namespace ext
 			       do_configuressl(m_sslhandle) &&
 			       do_sslconnect(m_sslhandle);
 		}
-	}
-
-	bool winsock2_streambuf::start_ssl(SSL_CTX * sslctx)
-	{
-		auto res = start_ssl_weak(sslctx);
-		::SSL_CTX_free(sslctx);
-		return res;
 	}
 
 	bool winsock2_streambuf::start_ssl(const SSL_METHOD * sslmethod, const std::string & servername)
@@ -949,6 +964,29 @@ namespace ext
 			const SSL_METHOD * sslm = nullptr;
 			return start_ssl(sslm);
 		}
+	}
+
+	bool winsock2_streambuf::accept_ssl(SSL_CTX * sslctx)
+	{
+		if (!is_open())
+		{
+			m_lasterror.assign(ENOTSOCK, std::system_category());
+			return false;
+		}
+
+		bool result;
+		if (m_sslhandle)
+		{
+			::SSL_set_SSL_CTX(m_sslhandle, sslctx);
+			result = do_configuressl(m_sslhandle);
+		}
+		else
+		{
+			result = do_createssl(m_sslhandle, sslctx) &&
+			         do_configuressl(m_sslhandle);
+		}
+
+		return result && do_sslaccept(m_sslhandle);
 	}
 
 	bool winsock2_streambuf::stop_ssl()
