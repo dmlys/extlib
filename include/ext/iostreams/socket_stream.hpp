@@ -94,6 +94,10 @@ namespace ext
 		void start_ssl(const SSL_METHOD * sslmethod, const std::wstring & wservername);
 #endif // BOOST_OS_WINDOWS
 
+		/// rdbuf()->accept_ssl(...)
+		/// в случае ошибки устанавливает failbit | badbit
+		void accept_ssl(SSL_CTX * sslctx);
+
 		/// rdbuf()->stop_ssl()
 		/// в случае ошибки устанавливает failbit | badbit
 		void stop_ssl();
