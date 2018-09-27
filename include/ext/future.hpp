@@ -41,7 +41,7 @@ namespace ext
 		timeout,   // the shared state did not become ready before specified timeout duration has passed
 	};
 
-	/// status of a promise, extension
+	/// status of a future/promise,   extension
 	enum class future_state : unsigned
 	{
 		unsatisfied,  // is unsatisfied, waiting for value
@@ -139,19 +139,19 @@ namespace ext
 	template <class Type>
 	struct future_unwrap
 	{
-		typedef Type type;
+		using type = Type;
 	};
 
 	template <class Type>
 	struct future_unwrap<ext::future<Type>>
 	{
-		typedef typename future_unwrap<Type>::type type;
+		using type = typename future_unwrap<Type>::type;
 	};
 
 	template <class Type>
 	struct future_unwrap<ext::shared_future<Type>>
 	{
-		typedef typename future_unwrap<Type>::type type;
+		using type = typename future_unwrap<Type>::type;
 	};
 
 	template <class Type>
@@ -167,7 +167,7 @@ namespace ext
 	};
 
 
-	
+
 	bool init_future_library(std::unique_ptr<continuation_waiters_pool> pool);
 	bool init_future_library(unsigned waiter_slots = 0);
 	void free_future_library();
@@ -190,11 +190,11 @@ namespace ext
 
 	template<class Function, class ... Args>
 	auto async(ext::launch policy, Function && f, Args && ... args) ->
-		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>;
+	    future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>;
 
 	template<class Function, class ... Args>
 	auto async(Function && f, Args && ... args) ->
-		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>
+	    future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>
 	{
 		constexpr ext::launch pol = static_cast<ext::launch>(
 			static_cast<int>(ext::launch::async) |
@@ -249,53 +249,61 @@ namespace ext
 		>;
 
 
-	/// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task.
-	/// ext::future, ext::promise, ext::packaged_task would be front-end classes used by clients.
-	/// This library would provide implementation of those interfaces via:
-	/// * shared_state_basic - type-independent implementation: refcount, wait, etc
-	/// * shared_state - type-dependent implementation: get, set_value, etc
-	/// but clients would be able to implement own if they need so.
-	/// 
-	/// It's very hard to specify future interface(ifuture) for 2 reasons:
-	/// * this one minor:
-	/// 
-	///   if ifuture is template of Type, then shared_state_basic parametrized by ifuture<Type>(or even other interface).
-	///   this would lead to duplication of type-independent methods for each specialization.
-	///   Another option - use multiple inheritance(possibly with virtual base classes) - this leads to slightly increased object size
-	/// 
-	///   ifuture could be not a template class -> and get method would return void *.
-	///   Parametrization would be done by front-end classes: future, shared_future.
-	///   While ifuture is loosly typed, ext::future, ext::shared_future takes care of this.
-	///   
-	/// * major:
-	/// 
-	///   it's hard to specify 'then' method:
-	///   it's takes some functor template as argument, and returns future of RetType,
-	///   where RetType is return type of argument-functor.
-	///   
-	///   What signature should method 'then' have?
-	///   It could return typeless ifuture, and ext::future, ext::shared_future takes care of typization.
-	///   But how functor should be passed? std::function<RetType()>? What RetType should be?
-	///   It could be std::function<void *()> -> now method 'then' could create packeged_task<void *()> and return it.
-	///   But it's state is of type void *, not Type. Where Type instance will be stored?
-	///   It can be placed into std::function<void *()>, but Type can be not default constactable - can be solved too by aligned staorage.
-	///  
-	///   At this point we need a special object which provides space for holding Type and type erasing for both: functor and Type instance.
-	/// 
-	/// For now implement without interfaces. ext::future would hold a pointer to shared_state<Type>.
-	/// Method 'then' will be template function -> thus can easily create packaged_task<RetType()>
+	// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task,
+	// and ext::future, ext::promise, ext::packaged_task would be front-end classes used by clients.
+	// This library would provide implementation of those interfaces via:
+	// * shared_state_basic - type-independent implementation: refcount, wait, etc
+	// * shared_state - type-dependent implementation: get, set_value, etc
+	// but clients would be able to implement own if they need so.
+	//
+	// It's very hard to specify future interface(ifuture) for 2 reasons:
+	// * this one minor:
+	//
+	//   If ifuture is template of Type, then shared_state_basic implements ifuture<Type>(or other template interface).
+	//   This would lead to duplication of type-independent methods for each specialization in objects files - code bloat.
+	//   Another option - use multiple inheritance(possibly with virtual base classes) - this leads to slightly increased object size, which is unwanted.
+	//
+	//   ifuture could be not a template class -> and get method would return void *.
+	//   Parametrization would be done by front-end classes: future, shared_future.
+	//   While ifuture is loosely typed, ext::future, ext::shared_future takes care of this.
+	//
+	// * major:
+	//
+	//   it's hard to specify/define 'then' method:
+	//   it's takes some functor template as argument, and returns future of RetType,
+	//   where RetType is return type of argument-functor.
+	//
+	//   What signature should method 'then' have? (it is in a interface and should be virtual)
+	//   It could return typeless ifuture, and ext::future, ext::shared_future takes care of typization.
+	//   But how functor should be passed? std::function<RetType()>? What RetType should be?
+	//
+	//      std::function<void *()> could be used -> now method 'then' could create packaged_task<void *()> and return it.
+	//      But it's state is of type void *, not Type. Where Type instance will be stored?
+	//      Implementation of then method cannot know origin type, so it cannot allocate some additional storage for it.
+	//
+	//      Special type erased object with virtual methods can be created, holding internally both space for return value and functor itself.
+	//      That object can be created on stack and pointer and it's size can be passed into then method,
+	//      implementation would create object based on that additional space and copy into it - this would avoid extra heap allocation.
+	//      Also there are would be some align caveats, but they are solvable.
+	//      That would work - but it's somewhat complicated, also incur some additional virtual calls.
+	//
+	// For now implement without interfaces. ext::future would hold a pointer to shared_state<Type>.
+	// Method 'then' will be template function -> thus can easily create packaged_task<RetType()>
 
-	/// Shared state implementation is divided between several classes:
-	/// * shared_state_basic - type independent part, implementation of promise state, continuations
-	/// * shared_state - type dependent part, have space for object, exception pointer
-	/// * shared_state_unexceptional - same as shared_state, but does not allow set_exception and thus not storing std::exception_ptr,
-	///                                can be used by asynchronous task not throwing exceptions
-	/// Other classes are:
-	/// * continuation_task        - shared_state derived class used for continuations
-	/// * continuation_waiter      - shared_state derived abstract class used as continuations which for wait functionality
-	/// * continuation_waiter_impl - implemntation of continuation_waiter using std::mutex and std::condition_variable
-	/// * packaged_task_impl       - packaged_task implementation
-	/// * when_any/all_task        - classes for implementing when_all/any functions
+	// Shared state implementation is divided between several classes:
+	// * shared_state_basic - type independent part, implementation of promise state, continuations
+	// * shared_state - type dependent part, have space for object, exception pointer
+	// * shared_state_unexceptional - same as shared_state, but does not allow set_exception and thus not storing std::exception_ptr,
+	//                                can be used by asynchronous task not throwing exceptions
+	// Some other classes are:
+	// * continuation_task        - shared_state derived class used for continuations
+	// * continuation_waiter      - shared_state derived abstract class used as continuations which for wait functionality
+	// * continuation_waiter_impl - implementation of continuation_waiter using std::mutex and std::condition_variable
+	// * packaged_task_base       - packaged_task implementation interface
+	// * packaged_task_impl       - packaged_task implementation
+	//
+	// * when_(any/all)_task               - classes for implementing when_all/any functions
+	// * when_(any/all)_task_continuation  - classes for implementing when_all/any functions
 
 	class shared_state_basic;
 	template <class Type> class shared_state;
@@ -317,8 +325,8 @@ namespace ext
 	template <class> class when_all_task;
 
 
-	
-	/// shared_state_basic type independent part, implementation of promise state, continuations
+
+	/// shared_state_basic type independent part, implementation of future/promise state, basic continuations support
 	/// 
 	/// Design goals:
 	/// * we must hold information of promise state to prevent multiple value submission.
@@ -329,26 +337,27 @@ namespace ext
 	///
 	/// Waiting means mutex and condition_variable.
 	/// On the other hand - I want this object to be as small as possible, with reasonable complexity.
-	/// I don't want it to always hold mutex and condition variable.
+	/// I don't want it to always hold mutex and condition variable, which are not trivial classes.
 	/// 
 	/// Also while future goal is to be used in multi-thread environment -
 	/// 'wait' and 'then' calls would not have big concurrency in normal program.
-	/// Normally user puts few continuations and that's all, wait calls also not so frequent.
+	/// Normally user adds few continuations and that's all, wait calls also usually not so frequent(not like call wait_for(10ms) in a loop).
 	///
-	/// To handle continuations we have sort of intrusive slist of continuations.
+	/// To handle continuations we have sort of intrusive single linked list of continuations.
 	/// We control implementation of 'then' method and how continuation are created.
 	/// Each continuation is heap-allocated object derived from us(shared_state_basic)
 	/// and holds atomic pointer to next continuation.
 	/// 
-	/// Waiting is also implemented as continuation object, thus avoiding holding of mutex and condition_variable in shared_state_basic itself.
+	/// Waiting is also implemented as continuation object, this allows avoiding holding of mutex and condition_variable
+	/// in shared_state_basic itself, and instead hold them in continuation object.
 	/// continuation_waiter is acquired from waiter pool, when wait request is issued.
-	/// It's shared if there multiple wait calls, and released when there are none.
-	/// There is always no more than 1 continuation_waiter,
+	/// It is shared between multiple wait calls, and released when there are none.
+	/// There is always no more than 1 continuation_waiter for given future(shared_state_basic) object,
 	/// and if it's present - it's always at the head of continuation chain.
 	/// This allows easy sharing on continuation_waiter and removing it, when not needed.
 	/// 
 	///
-	/// While atomic pointers are used, slist is NOT lock-free.
+	/// While atomic pointers are used, single linked list is NOT lock-free.
 	/// Lock-free implementation would be very hard, if possible.
 	/// 
 	/// Instead we use pointer locking:
@@ -356,7 +365,7 @@ namespace ext
 	/// Assuming not high concurrency(see above) it should posses no problems.
 	/// 
 	/// Also when shared_state become ready, all new submitted continuations must be executed immediately.
-	/// There is a race condition here. While we are adding new continuation - we can become ready.
+	/// There is a race condition here. While we are adding new continuation - we could become ready.
 	/// To prevent this, continuation submission and transition to fulfilled state must be done in single atomic step.
 	/// This is done by locking head and replacing it with special ready value.
 	/// 
@@ -364,7 +373,7 @@ namespace ext
 	/// Wherever there is a waiting request:
 	/// 1. lock slist head.
 	/// 2. if special ready value - waiting is not needed - return.
-	/// 3. head is a waiter continuation:
+	/// 3. if head is a waiter continuation:
 	///    * if so, it's refcount is increased and object returned to caller(caller waits on it).
 	///    * if not - waiter object is acquired from pool and placed as new head,
 	///      after that it's returned to caller.
@@ -379,7 +388,8 @@ namespace ext
 	/// 4. unlock head
 	/// 
 	/// we hold state as atomic std::uintptr_t:
-	/// * 0        - future_status::ready
+	/// * 0x0      - future_status::ready, unlocked
+	/// * 0x1      - future_status::ready, locked
 	/// * 0xFF..FF - waiting result and no continuations, locked
 	///   0xFF..FE - waiting result and no continuations, unlocked, also initial value
 	/// * other    - waiting result and this is head of slist(pointer to next continuation)
@@ -387,25 +397,31 @@ namespace ext
 	/// When shared_state becomes ready, state changes to future_status::ready
 	/// and previous val is head of continuation slist which must be executed.
 	///
-	/// promise state is only checked by set_value path -> we can use sort of hierarchical lock,
-	/// first change promise state, than change future state.
+	/// NOTE: promise state is only checked by set_value path -> we can use sort of hierarchical lock,
+	///       first change promise state -> than change future state.
 	class shared_state_basic
 	{
-		typedef shared_state_basic self_type;
+		using self_type = shared_state_basic;
 
 	protected:
-		typedef shared_state_basic continuation_type;
+		using continuation_type = shared_state_basic;
 
+		/// future already retrieved from this object
 		static constexpr unsigned future_retrived = 1u << (sizeof(unsigned) * CHAR_BIT - 1);
+		/// future/promise can not be cancelled anymore
 		static constexpr unsigned future_uncancellable = future_retrived >> 1u;
-		static constexpr unsigned promise_taken = future_uncancellable >> 1u;
-		static constexpr unsigned status_mask = ~(future_retrived | future_uncancellable | promise_taken);
+		/// future/promise is marked, this is more of convenience synchronization flag used by some methods
+		static constexpr unsigned future_marked = future_uncancellable >> 1u;
+		/// status mask for extracting promise_state without above flags
+		static constexpr unsigned status_mask = ~(future_retrived | future_uncancellable | future_marked);
 
-		// future state, see description above.
+		/// future ready state continuation marker, see description above.
 		static constexpr std::uintptr_t ready = 0;
-		// mask to extract lock state
+		/// mask to extract lock state
 		static constexpr std::uintptr_t lock_mask = 1;
-		// initial value of fsnext
+		/// special value indication this the end of continuation chain
+		static constexpr std::uintptr_t not_a_continuation = ~lock_mask;
+		/// initial value of fsnext
 		static constexpr std::uintptr_t fsnext_init = ~lock_mask;
 
 	protected:
@@ -416,23 +432,12 @@ namespace ext
 		/// state and head of continuations slist
 		std::atomic_uintptr_t m_fstnext = ATOMIC_VAR_INIT(fsnext_init);
 
-	protected:
-		static bool is_waiter(continuation_type * ptr) noexcept;
-		static bool is_continuation(std::uintptr_t fstate) noexcept { return fstate < ~lock_mask; }
-		static future_state pstatus(unsigned promise_state) noexcept { return static_cast<future_state>(promise_state & status_mask); }
-
-		/// re-inits this shared_state_basic as deferred, should be called from constructor of derived class.
-		/// NOTE: probably shared_state_basic constructor initializing this class as deferred is better,
-		///       but than it's must be forwarded by all derived classes...
-		void init_deferred() noexcept
-		{ this->m_promise_state.store(static_cast<unsigned>(future_state::deferred), std::memory_order_relaxed); }
-
 	public:
 		/// locks pointer by setting lowest bit in spin-lock loop.
-		/// returns value which pointer actually has.
+		/// returns value which pointer actually had.
 		/// has std::memory_order_acquire semantics.
 		static auto lock_ptr(std::atomic_uintptr_t & ptr) noexcept -> std::uintptr_t;
-		/// unlocks pointer, by reseting lowest bit, pointer must be locked before
+		/// unlocks pointer, by resetting lowest bit, pointer must be locked before
 		/// has std::memory_order_release semantics.
 		static void unlock_ptr(std::atomic_uintptr_t & ptr) noexcept;
 		/// unlocks pointer and sets it to newval, pointer must be locked before
@@ -442,21 +447,30 @@ namespace ext
 		/// set fstnext status to ready and returns continuation chain.
 		/// has std::memory_order_acq_rel semantics.
 		static std::uintptr_t signal_future(std::atomic_uintptr_t & fstnext) noexcept;
-		/// attaches continuation to a continuation list with head, increments refcount.
-		/// after continuation fires - refcount decrement.
-		/// returns false if shared_state was ready and continuation fired immediately
+		/// attaches continuation to a continuation list with head.
+		/// if successful(shared_state was not ready)           - increments continuation refcount and returns true.
+		/// if not(shared_state was or became ready in process) - fires continuation immediately, refcount is not incremented, returns false
 		static bool attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation, shared_state_basic * caller) noexcept;
-		/// runs continuations slist pointed by addr, checks if addr is_continuation.
-		/// typically should be called after signal_future.
+		/// runs continuations slist pointed by addr(checks if addr is_continuation - not ready val), typically should be called after signal_future.
 		/// for each item in list continuate and release are called, than next item is taken from m_fstnext.
-		/// if continuate some how affects item pointed by m_fstnext it probably should set it to ready or not_a_continuation.
+		/// if continuate some how affects item pointed by m_fstnext - it probably should set it to ready or not_a_continuation.
 		static void run_continuations(std::uintptr_t addr, shared_state_basic * caller) noexcept;
 		/// acquires waiter from continuation list, it it has it,
 		/// or acquires it from waiter objects pool and attaches it to continuation list.
-		static auto accquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *;
+		static auto acquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *;
 		/// release waiter, it there no more usages - detaches to from continuation list,
-		/// and release it to waiter objects pool. waiter must be acquired by accquire_waiter call.
+		/// and release it to waiter objects pool. waiter must be acquired by acquire_waiter call.
 		static void release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter);
+
+	protected:
+		static bool is_waiter(continuation_type * ptr) noexcept;
+		static bool is_continuation(std::uintptr_t fstate) noexcept { return fstate < ~lock_mask; }
+		static future_state pstatus(unsigned promise_state) noexcept { return static_cast<future_state>(promise_state & status_mask); }
+
+		/// re-inits this shared_state_basic as deferred, should be called from constructor of derived class.
+		/// NOTE: probably shared_state_basic constructor initializing this class as deferred is better,
+		///       but than it's must be forwarded by all derived classes...
+		void init_deferred() noexcept { m_promise_state.store(static_cast<unsigned>(future_state::deferred), std::memory_order_relaxed); }
 
 	public:
 		/// changes this state from unsatisfied/deferred to satisfied with reason.
@@ -470,13 +484,13 @@ namespace ext
 	public:
 		/// set future status to ready and runs continuations
 		virtual void set_future_ready() noexcept;
-		/// attaches continuation to the internal continuation, increments refcount.
-		/// after continuation fires - refcount decrement.
-		/// returns false if shared_state was ready and continuation fired immediately
+		/// attaches continuation to the internal continuation list.
+		/// if successful(shared_state was not ready)           - increments continuation refcount and returns true.
+		/// if not(shared_state was or became ready in process) - fires continuation immediately, refcount is not incremented, returns falsely
 		virtual bool add_continuation(continuation_type * continuation) noexcept;
 		/// acquires waiter from internal continuation list, it it has it,
 		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
-		virtual auto accquire_waiter() -> continuation_waiter *;
+		virtual auto acquire_waiter() -> continuation_waiter *;
 		/// release waiter, it there no more usages - detaches to from internal continuation list,
 		/// and release it to waiter objects pool
 		virtual void release_waiter(continuation_waiter * waiter);
@@ -486,7 +500,6 @@ namespace ext
 		/// Others - should ignore this method, default implementation calls std::terminate.
 		/// Currently those are: continuation_task and continuation_base derived classes.
 		virtual void continuate(shared_state_basic * caller) noexcept { std::terminate(); }
-
 		/// special method for when_all, when_any support
 		/// index - index of satisfied shared_state. Used only by when_any
 		virtual void notify_satisfied(std::size_t index) noexcept { std::terminate(); }
@@ -499,7 +512,7 @@ namespace ext
 		virtual unsigned use_count() const noexcept;
 		
 	public:
-		/// marks future retrieval from shared state
+		/// marks future retrieved from shared state
 		void mark_retrived();
 		/// marks future cannot be cancelled(cancel call would return false), but future is still not fulfilled.
 		/// returns true if successful(even if already was marked), false if shared_state already holds some result(cancellation, value, ...).
@@ -508,7 +521,7 @@ namespace ext
 		/// this is more of convenience synchronization flag. currently used only by packged_task/deferred_packaged_task.
 		/// returns true if marked successfully(there was no mark) and future was not cancelled,
 		///         false if either future was cancelled, or packaged task already started execution.
-		bool mark_taken() noexcept;
+		bool mark_marked() noexcept;
 
 		/// status of shared state
 		future_state status() const noexcept { return pstatus(m_promise_state.load(std::memory_order_relaxed)); }
@@ -529,7 +542,7 @@ namespace ext
 		virtual bool cancel() noexcept;
 
 		/// Called by ext::promise on destruction,
-		/// if value wasn't satisfied - set broken promise status
+		/// if value wasn't satisfied - set abandonned status(broken promise)
 		virtual void release_promise() noexcept;
 
 		/// Blocks until result becomes available,
@@ -548,6 +561,9 @@ namespace ext
 		/// Does not wait or checks for future become ready,
 		/// use get<Type>() instead - it waits for becoming ready
 		virtual void * get_ptr() = 0;
+		/// typed return, type is specified explicitly, it uses get_ptr internally and necessary casts
+		template <class Type> Type get();
+
 		/// Type-erased set_value method, fulfills promise and sets value result from ptr.
 		/// Implementation casts this pointer to a type of this shared_state<Type>.
 		/// Very type unsafe, use with care. You should probably use set_value methods.
@@ -557,9 +573,6 @@ namespace ext
 		virtual void set_exception(std::exception_ptr eptr) = 0;
 
 	public:
-		/// typed return, type is specified explicitly, it uses get_ptr internally and necessary casts
-		template <class Type> Type get();
-
 		/// Continuation support, when future becomes fulfilled,
 		/// either by result(normal or exception) becoming available,
 		/// or cancellation request was made on this future.
@@ -567,7 +580,7 @@ namespace ext
 		/// Continuation is executed in the context of this future, immediately after result becomes available
 		template <class Type, class Functor>
 		auto add_unique_continuation(Functor && continuation) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>;
+		    ext::future<std::invoke_result_t<std::decay_t<Functor>, ext::future<Type>>>;
 
 		/// Continuation support, when future becomes fulfilled,
 		/// either by result(normal or exception) becoming available,
@@ -576,7 +589,7 @@ namespace ext
 		/// Continuation is executed in the context of this future, immediately after result becomes available
 		template <class Type, class Functor>
 		auto add_shared_continuation(Functor && continuation) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>;
+		    ext::future<std::invoke_result_t<std::decay_t<Functor>, ext::shared_future<Type>>>;
 
 	public:
 		shared_state_basic() = default;
@@ -612,15 +625,15 @@ namespace ext
 
 	/// shared_state - type dependent part, have space for object, exception pointer.
 	/// implements get, set_value, set_exception methods, heavily based on shared_state_basic
-	/// @Param Type - type of channel, this shared state will hold value of this type
+	/// @Param Type - type of object, this shared state will hold value of this type
 	template <class Type>
 	class shared_state : public shared_state_basic
 	{
-		typedef shared_state_basic   base_type;
-		typedef shared_state<Type>   self_type;
+		using base_type = shared_state_basic;
+		using self_type = shared_state;
 
 	public:
-		typedef Type value_type;
+		using value_type = Type;
 
 	public:
 		using base_type::status;
@@ -657,11 +670,11 @@ namespace ext
 	template <class Type>
 	class shared_state<Type &> : public shared_state_basic
 	{
-		typedef shared_state_basic   base_type;
-		typedef shared_state<Type &> self_type;
+		using base_type = shared_state_basic;
+		using self_type = shared_state;
 
 	public:
-		typedef Type value_type;
+		using value_type = Type;
 
 	public:
 		using base_type::status;
@@ -697,11 +710,11 @@ namespace ext
 	template <>
 	class shared_state<void> : public shared_state_basic
 	{
-		typedef shared_state_basic   base_type;
-		typedef shared_state<void>   self_type;
+		using base_type = shared_state_basic;
+		using self_type = shared_state;
 
 	public:
-		typedef void value_type;
+		using value_type = void;
 
 	public:
 		using base_type::status;
@@ -732,15 +745,15 @@ namespace ext
 
 	/// shared_state - type dependent part, have space for object, but does not support setting exceptions.
 	/// implements get, set_value methods, heavily based on shared_state_basic
-	/// @Param Type - type of channel, this shared state will hold value of this type
+	/// @Param Type - type of object, this shared state will hold value of this type
 	template <class Type>
 	class shared_state_unexceptional : public shared_state_basic
 	{
-		typedef shared_state_basic                 base_type;
-		typedef shared_state_unexceptional<Type>   self_type;
+		using base_type = shared_state_basic;
+		using self_type = shared_state_unexceptional;
 
 	public:
-		typedef Type value_type;
+		using value_type = Type;
 
 	public:
 		using base_type::status;
@@ -778,11 +791,11 @@ namespace ext
 	template <class Type>
 	class shared_state_unexceptional<Type &> : public shared_state_basic
 	{
-		typedef shared_state_basic                  base_type;
-		typedef shared_state_unexceptional<Type &>  self_type;
+		using base_type = shared_state_basic;
+		using self_type = shared_state_unexceptional;
 
 	public:
-		typedef Type value_type;
+		using value_type = Type;
 
 	public:
 		using base_type::status;
@@ -815,11 +828,11 @@ namespace ext
 	template <>
 	class shared_state_unexceptional<void> : public shared_state_basic
 	{
-		typedef shared_state_basic                base_type;
-		typedef shared_state_unexceptional<void>  self_type;
+		using base_type = shared_state_basic;
+		using self_type = shared_state_unexceptional;
 
 	public:
-		typedef void value_type;
+		using value_type = void;
 
 	public:
 		using base_type::status;
@@ -845,7 +858,6 @@ namespace ext
 
 
 	/// abstract continuation used for waiting by shared_state_basic.
-	/// Derived from shared_state_basic, sort of recursion
 	class continuation_waiter : public continuation_base
 	{
 	public:
@@ -855,13 +867,13 @@ namespace ext
 		virtual bool wait_ready(std::chrono::steady_clock::duration   timeout_duration) noexcept = 0;
 
 	public:
-		/// fires condition_variable, waking any waiting thread
+		/// wakes any waiting threads
 		virtual void continuate(shared_state_basic * caller) noexcept override = 0;
 		/// reset waiter, after that it can be used again
 		virtual void reset() noexcept = 0;
 	};
 	
-	/// implemntation of continuation_waiter using std::mutex and std::condition_variable
+	/// implementation of continuation_waiter using std::mutex and std::condition_variable
 	class continuation_waiter_impl : public continuation_waiter
 	{
 	private:
@@ -888,8 +900,8 @@ namespace ext
 	template <class Ret, class ... Args>
 	class packaged_task_base<Ret(Args...)> : public shared_state<Ret>
 	{
-		typedef packaged_task_base           self_type;
-		typedef shared_state<Ret>            base_type;
+	    using self_type = packaged_task_base;
+	    using base_type = shared_state<Ret>;
 
 	public:
 		virtual bool valid() const noexcept = 0;
@@ -906,11 +918,11 @@ namespace ext
 	template <class Functor, class Ret, class ... Args>
 	class packaged_task_impl<Functor, Ret(Args...)> : public packaged_task_base<Ret(Args...)>
 	{
-		typedef packaged_task_impl                 self_type;
-		typedef packaged_task_base<Ret(Args...)>   base_type;
+		using self_type = packaged_task_impl;
+		using base_type = packaged_task_base<Ret(Args...)>;
 
 	public:
-		typedef Functor functor_type;
+		using functor_type = Functor;
 
 	protected:
 		functor_type m_functor;
@@ -931,8 +943,8 @@ namespace ext
 	template <class Functor, class Ret>
 	class deferred_task_impl<Functor, Ret()> : public packaged_task_impl<Functor, Ret()>
 	{
-		typedef deferred_task_impl                    self_type;
-		typedef packaged_task_impl<Functor, Ret()>    base_type;
+		using self_type = deferred_task_impl;
+		using base_type = packaged_task_impl<Functor, Ret()>;
 
 	public:
 		void wait() const override;
@@ -944,21 +956,21 @@ namespace ext
 		deferred_task_impl(Functor func) noexcept : base_type(std::move(func)) { this->init_deferred(); }
 	};
 
-	/// implements continuations(future::then, shread_future::then)
+	/// implements continuations(future::then, shared_future::then)
 	template <class Functor, class Type>
 	class continuation_task : public packaged_task_impl<Functor, Type(shared_state_basic *)>
 	{
-		typedef continuation_task                                        self_type;
-		typedef packaged_task_impl<Functor, Type(shared_state_basic *)>  base_type;
+		using self_type = continuation_task;
+		using base_type = packaged_task_impl<Functor, Type(shared_state_basic *)>;
 
 	protected:
-		typedef shared_state_basic continuation_type;
+		using continuation_type = shared_state_basic;
 		using base_type::lock_mask;
 		using base_type::fsnext_init;
 		
 		using base_type::signal_future;
 		using base_type::attach_continuation;
-		using base_type::accquire_waiter;
+		using base_type::acquire_waiter;
 		using base_type::release_waiter;
 		using base_type::run_continuations;
 
@@ -972,15 +984,15 @@ namespace ext
 	protected:
 		/// set future status to ready and runs continuations
 		void set_future_ready() noexcept override;
-		/// attaches continuation to the internal continuation, increments refcount.
-		/// after continuation fires - refcount decrement.
-		/// returns false if shared_state was ready and continuation fired immediately
+		/// attaches continuation to the internal continuation list.
+		/// if successful(shared_state was not ready)           - increments continuation refcount and returns true.
+		/// if not(shared_state was or became ready in process) - fires continuation immediately, refcount is not incremented, returns falsely
 		bool add_continuation(continuation_type * continuation) noexcept override
 		{ return attach_continuation(m_task_next, continuation, this); }
 		/// acquires waiter from internal continuation list, if has one,
 		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
-		auto accquire_waiter() -> continuation_waiter * override
-		{ return accquire_waiter(m_task_next); }
+		auto acquire_waiter() -> continuation_waiter * override
+		{ return acquire_waiter(m_task_next); }
 		/// release waiter, it there no more usages - detaches to from internal continuation list,
 		/// and release it to waiter objects pool
 		void release_waiter(continuation_waiter * waiter) noexcept override
@@ -994,13 +1006,13 @@ namespace ext
 		using base_type::base_type;
 	};
 
-	/// implements continuations(future::then, shread_future::then) for deferred futures
-	/// !!! Deferred continuations needs more work, do not use them for now(they are fired immediately for now)
+	/// implements continuations(future::then, shared_future::then) for deferred futures
+	/// !!! Deferred continuations needs more work, do not use them for now(they are fired immediately in then methods for now)
 	template <class Functor, class Type>
 	class deferred_continuation_task : public continuation_task<Functor, Type>
 	{
-		typedef deferred_continuation_task         self_type;
-		typedef continuation_task<Functor, Type>   base_type;
+		using self_type = deferred_continuation_task;
+		using base_type = continuation_task<Functor, Type>;
 
 	protected:
 		ext::intrusive_ptr<shared_state_basic> m_parent;
@@ -1011,7 +1023,7 @@ namespace ext
 		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
 
 	public:
-		deferred_continuation_task(Functor func, ext::intrusive_ptr<shared_state_basic> parent) noexcept 
+		deferred_continuation_task(Functor func, ext::intrusive_ptr<shared_state_basic> parent) noexcept
 			: base_type(std::move(func)), m_parent(std::move(parent))
 		{
 			assert(false);
@@ -1039,8 +1051,8 @@ namespace ext
 			>;
 
 	private:
-		typedef shared_state_unexceptional<Type>  base_type;
-		typedef when_any_task                     self_type;
+		using base_type = shared_state_unexceptional<Type>;
+		using self_type = when_any_task;
 
 	protected:
 		using typename base_type::value_type;
@@ -1077,8 +1089,8 @@ namespace ext
 			>;
 
 	private:
-		typedef shared_state_unexceptional<Type>  base_type;
-		typedef when_all_task                     self_type;
+		using base_type = shared_state_unexceptional<Type>;
+		using self_type = when_all_task;
 
 	protected:
 		using base_type::m_val;
@@ -1097,13 +1109,11 @@ namespace ext
 		~when_all_task() noexcept { m_promise_state.store(static_cast<unsigned>(future_state::value), std::memory_order_relaxed); }
 	};
 
-	/// special continuation task.
-	/// Used as continuation into argument future, notifies parent when_any_task
 	class when_any_task_continuation : public continuation_base
 	{
-		typedef continuation_base                 base_type;
-		typedef when_any_task_continuation        self_type;
-		typedef shared_state_basic                parent_task_type;
+		using base_type        = continuation_base;
+		using self_type        = when_any_task_continuation;
+		using parent_task_type = shared_state_basic;
 	
 	protected:
 		ext::intrusive_ptr<parent_task_type> m_parent;
@@ -1119,9 +1129,9 @@ namespace ext
 
 	class when_all_task_continuation : public continuation_base
 	{
-		typedef continuation_base                 base_type;
-		typedef when_all_task_continuation        self_type;
-		typedef shared_state_basic                parent_task_type;
+		using base_type        = continuation_base;
+		using self_type        = when_all_task_continuation;
+		using parent_task_type = shared_state_basic;
 
 	protected:
 		ext::intrusive_ptr<parent_task_type> m_parent;
@@ -1138,7 +1148,7 @@ namespace ext
 	/// unwrap_future continuation for implementing unwrap functionality.
 	class unwrap_continuation : public ext::continuation_base
 	{
-		typedef ext::continuation_base base_type;
+		using base_type = ext::continuation_base;
 
 	protected:
 		using base_type::lock_mask;
@@ -1146,7 +1156,7 @@ namespace ext
 
 		using base_type::signal_future;
 		using base_type::attach_continuation;
-		using base_type::accquire_waiter;
+		using base_type::acquire_waiter;
 		using base_type::release_waiter;
 		using base_type::run_continuations;
 
@@ -1162,15 +1172,15 @@ namespace ext
 	protected:
 		/// set future status to ready and runs continuations
 		void set_future_ready() noexcept override;
-		/// attaches continuation to the internal continuation, increments refcount.
-		/// after continuation fires - refcount decrement.
-		/// returns false if shared_state was ready and continuation fired immediately
+		/// attaches continuation to the internal continuation list.
+		/// if successful(shared_state was not ready)           - increments continuation refcount and returns true.
+		/// if not(shared_state was or became ready in process) - fires continuation immediately, refcount is not incremented, returns falsely
 		bool add_continuation(continuation_type * continuation) noexcept override
 		{ return attach_continuation(m_task_next, continuation, this); }
 		/// acquires waiter from internal continuation list, if has one,
 		/// or acquires it from waiter objects pool and attaches it to internal continuation list.
-		auto accquire_waiter() -> continuation_waiter * override
-		{ return accquire_waiter(m_task_next); }
+		auto acquire_waiter() -> continuation_waiter * override
+		{ return acquire_waiter(m_task_next); }
 		/// release waiter, it there no more usages - detaches to from internal continuation list,
 		/// and release it to waiter objects pool
 		void release_waiter(continuation_waiter * waiter) noexcept override
@@ -1254,17 +1264,17 @@ namespace ext
 		// to see m_val, we must synchromize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
 
-		typedef std::conditional_t<
+		using cast_type = std::conditional_t<
 			std::is_reference<Type>::value,
 			Type &,     // if reference return as from reference
 			Type &&     // if val, cast to rvalue, so we can move
-		> cast_type;
+		>;
 
-		typedef std::add_pointer_t<
+		using pointer_type = std::add_pointer_t<
 			std::remove_reference_t<Type>
-		> pointer_type;
+		>;
 
-		auto * val_ptr = reinterpret_cast<pointer_type>(get_ptr());
+		auto * val_ptr = static_cast<pointer_type>(get_ptr());
 		return static_cast<cast_type>(*val_ptr);
 	}
 
@@ -1281,9 +1291,9 @@ namespace ext
 
 	template <class Type, class Functor>
 	auto shared_state_basic::add_unique_continuation(Functor && continuation) ->
-		ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<Type>)>>
+	    ext::future<std::invoke_result_t<std::decay_t<Functor>, ext::future<Type>>>
 	{
-		typedef std::result_of_t<std::decay_t<Functor>(ext::future<Type>)> return_type;
+	    using return_type = std::invoke_result_t<std::decay_t<Functor>, ext::future<Type>>;
 		ext::intrusive_ptr<shared_state_basic> state;
 
 		auto wrapped = [continuation = std::forward<Functor>(continuation)]
@@ -1295,7 +1305,7 @@ namespace ext
 		// if we are deferred - become ready, defeats laziness, sadly :(
 		if (is_deferred()) wait();
 
-		typedef continuation_task<decltype(wrapped), return_type> ct_type;
+	    using ct_type = continuation_task<decltype(wrapped), return_type>;
 		state = make_intrusive<ct_type>(std::move(wrapped));
 
 		add_continuation(state.get());
@@ -1304,9 +1314,9 @@ namespace ext
 
 	template <class Type, class Functor>
 	auto shared_state_basic::add_shared_continuation(Functor && continuation) ->
-		ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)>>
+	    ext::future<std::invoke_result_t<std::decay_t<Functor>, ext::shared_future<Type>>>
 	{
-		typedef std::result_of_t<std::decay_t<Functor>(ext::shared_future<Type>)> return_type;
+	    using return_type = std::invoke_result_t<std::decay_t<Functor>, ext::shared_future<Type>>;
 		ext::intrusive_ptr<shared_state_basic> state;
 
 		auto wrapped = [continuation = std::forward<Functor>(continuation)]
@@ -1318,7 +1328,7 @@ namespace ext
 		// if we are deferred - become ready, defeats laziness, sadly :(
 		if (is_deferred()) wait();
 
-		typedef continuation_task<decltype(wrapped), return_type> ct_type;
+	    using ct_type = continuation_task<decltype(wrapped), return_type>;
 		state = make_intrusive<ct_type>(std::move(wrapped));
 
 		add_continuation(state.get());
@@ -1708,7 +1718,7 @@ namespace ext
 	template <class Functor, class Ret, class ... Args>
 	void packaged_task_impl<Functor, Ret(Args...)>::execute(Args ... args) noexcept
 	{
-		if (not this->mark_taken())
+		if (not this->mark_marked())
 			return;
 
 		try
@@ -1731,7 +1741,7 @@ namespace ext
 	template <class Functor, class Ret>
 	void deferred_task_impl<Functor, Ret()>::wait() const
 	{
-		if (not ext::unconst(this)->mark_taken())
+		if (not ext::unconst(this)->mark_marked())
 			return base_type::wait();
 
 		try
@@ -1763,7 +1773,7 @@ namespace ext
 	template <class Functor, class Type>
 	void deferred_continuation_task<Functor, Type>::wait() const
 	{
-		if (not ext::unconst(this)->mark_taken())
+		if (not ext::unconst(this)->mark_marked())
 			return base_type::wait();
 
 		try
@@ -1805,8 +1815,8 @@ namespace ext
 	class future
 	{
 	public:
-		typedef Type value_type;
-		typedef ext::intrusive_ptr<shared_state_basic> intrusive_ptr;
+		using value_type = Type;
+		using intrusive_ptr = ext::intrusive_ptr<shared_state_basic>;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -1863,8 +1873,8 @@ namespace ext
 	class shared_future
 	{
 	public:
-		typedef Type value_type;
-		typedef ext::intrusive_ptr<shared_state_basic> intrusive_ptr;
+		using value_type = Type;
+		using intrusive_ptr = ext::intrusive_ptr<shared_state_basic>;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -1931,8 +1941,8 @@ namespace ext
 	class promise
 	{
 	public:
-		typedef Type value_type;
-		typedef ext::intrusive_ptr<ext::shared_state<value_type>> intrusive_ptr;
+		using value_type = Type;
+		using intrusive_ptr = ext::intrusive_ptr<ext::shared_state<value_type>>;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -2025,8 +2035,8 @@ namespace ext
 	class promise<Type &>
 	{
 	public:
-		typedef Type value_type;
-		typedef ext::intrusive_ptr<ext::shared_state<value_type &>> intrusive_ptr;
+		using value_type = Type;
+		using intrusive_ptr = ext::intrusive_ptr<ext::shared_state<value_type &>>;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -2109,8 +2119,8 @@ namespace ext
 	class promise<void>
 	{
 	public:
-		typedef void value_type;
-		typedef ext::intrusive_ptr<ext::shared_state<value_type>> intrusive_ptr;
+		using value_type = void;
+		using intrusive_ptr = ext::intrusive_ptr<ext::shared_state<value_type>>;
 
 	private:
 		intrusive_ptr m_ptr;
@@ -2188,7 +2198,7 @@ namespace ext
 	template <class RetType, class ... Args>
 	class packaged_task<RetType(Args...)>
 	{
-		typedef ext::intrusive_ptr<packaged_task_base<RetType(Args...)>> intrusive_ptr;
+		using intrusive_ptr = ext::intrusive_ptr<packaged_task_base<RetType(Args...)>>;
 		template <class Functor> using impl_type = packaged_task_impl<Functor, RetType(Args...)>;
 
 	private:
@@ -2299,9 +2309,9 @@ namespace ext
 
 	template<class Function, class... Args>
 	auto async(ext::launch policy, Function && func, Args && ... args) ->
-		future<std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)>>
+	    future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>
 	{
-		typedef std::result_of_t<std::decay_t<Function>(std::decay_t<Args>...)> result_type;
+	    using result_type = std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>;
 
 		auto closure = [func = std::forward<Function>(func),
 		                args_tuple = std::make_tuple(std::forward<Args>(args)...)]() mutable -> result_type
@@ -2334,9 +2344,9 @@ namespace ext
 			ext::future<when_any_result<std::vector<typename std::iterator_traits<InputIterator>::value_type>>>
 		>
 	{
-		typedef typename std::iterator_traits<InputIterator>::value_type value_type;
-		typedef when_any_result<std::vector<value_type>> result_type;
-		typedef when_any_task<result_type> state_type;
+	    using value_type  = typename std::iterator_traits<InputIterator>::value_type;
+	    using result_type = when_any_result<std::vector<value_type>>;
+	    using state_type  = when_any_task<result_type>;
 
 		result_type result;
 		result.index = SIZE_MAX;
@@ -2374,9 +2384,9 @@ namespace ext
 			ext::future<when_any_result<std::tuple<std::decay_t<Futures>...>>>
 		>
 	{
-		typedef std::tuple<std::decay_t<Futures>...> tuple_type;
-		typedef when_any_result<tuple_type> result_type;
-		typedef when_any_task<result_type> state_type;
+	    using tuple_type  = std::tuple<std::decay_t<Futures>...>;
+	    using result_type = when_any_result<tuple_type>;
+	    using state_type  = when_any_task<result_type>;
 
 		std::initializer_list<ext::shared_state_basic *> handles = {futures.handle().get()...};
 		result_type result {SIZE_MAX, tuple_type {std::forward<Futures>(futures)...}};
@@ -2407,9 +2417,9 @@ namespace ext
 			ext::future<std::vector<typename std::iterator_traits<InputIterator>::value_type>>
 		>
 	{
-		typedef typename std::iterator_traits<InputIterator>::value_type value_type;
-		typedef std::vector<value_type> result_type;
-		typedef when_all_task<result_type> state_type;
+	    using value_type  = typename std::iterator_traits<InputIterator>::value_type;
+	    using result_type = std::vector<value_type>;
+	    using state_type  = when_all_task<result_type>;
 
 		result_type futures;
 		ext::try_reserve(futures, first, last);
@@ -2442,8 +2452,8 @@ namespace ext
 			ext::future<std::tuple<std::decay_t<Futures>...>>
 		>
 	{
-		typedef std::tuple<std::decay_t<Futures>...> result_type;
-		typedef when_all_task<result_type> state_type;
+	    using result_type = std::tuple<std::decay_t<Futures>...>;
+	    using state_type  = when_all_task<result_type>;
 
 		std::initializer_list<ext::shared_state_basic *> handles = {futures.handle().get()...};
 		result_type ftuple {std::forward<Futures>(futures)...};

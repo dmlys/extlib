@@ -65,13 +65,13 @@ namespace ext
 		{
 			void operator()() const noexcept
 			{
-				std::this_thread::yield(); // yield maybe not a good idea
+				std::this_thread::yield(); // there can be better options than yield
 			}
 		};
 	}
 
 
-	static continuation_waiter * accquire_waiter();
+	static continuation_waiter * acquire_waiter();
 	static void release_waiter(continuation_waiter * ptr);
 
 	std::uintptr_t shared_state_basic::lock_ptr(std::atomic_uintptr_t & ptr) noexcept
@@ -119,7 +119,7 @@ namespace ext
 		fstate &= ~lock_mask;
 
 		/// compare_exchange only not locked value.
-		/// release data set in promise, m_val, m_exception;
+		/// release data set in promise: m_val, m_exception;
 		/// acquire continuation list
 		while (not fstnext.compare_exchange_weak(fstate, ready, std::memory_order_acq_rel, std::memory_order_relaxed))
 		{
@@ -189,7 +189,7 @@ namespace ext
 		} while (is_continuation(addr));
 	}
 
-	auto shared_state_basic::accquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *
+	auto shared_state_basic::acquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *
 	{
 		auto fstate = lock_ptr(head);
 		if (fstate == ready) return nullptr;
@@ -204,11 +204,12 @@ namespace ext
 		else
 		{
 			auto_unlocker lock(head);
-			waiter = ext::accquire_waiter();
+			waiter = ext::acquire_waiter();
 			assert(waiter);
 			lock.release();
 			
-			// one for wait call, one for set_value call
+			// one for wait call, one for continuation chain running after set_value call.
+			// it will decrement refcount for all continuations in chain, so we must increment for them too
 			waiter->addref(2);
 			waiter->m_fstnext.store(fstate);
 			fstate = reinterpret_cast<std::uintptr_t>(waiter);
@@ -258,9 +259,9 @@ namespace ext
 		return attach_continuation(m_fstnext, continuation, this);
 	}
 
-	auto shared_state_basic::accquire_waiter() -> continuation_waiter *
+	auto shared_state_basic::acquire_waiter() -> continuation_waiter *
 	{
-		return accquire_waiter(m_fstnext);
+		return acquire_waiter(m_fstnext);
 	}
 
 	void shared_state_basic::release_waiter(continuation_waiter * waiter)
@@ -353,13 +354,13 @@ namespace ext
 		return true;
 	}
 
-	bool shared_state_basic::mark_taken() noexcept
+	bool shared_state_basic::mark_marked() noexcept
 	{
 		unsigned previous = m_promise_state.load(std::memory_order_relaxed);
 		unsigned newval;
 
 		do {
-			if (previous & promise_taken)
+			if (previous & future_marked)
 				return false;
 
 			switch (pstatus(previous))
@@ -378,7 +379,7 @@ namespace ext
 					break;
 			}
 
-			newval = previous | future_uncancellable | promise_taken;
+			newval = previous | future_uncancellable | future_marked;
 		} while (not m_promise_state.compare_exchange_weak(previous, newval, std::memory_order_relaxed));
 		return true;
 	}
@@ -425,7 +426,7 @@ namespace ext
 
 	void shared_state_basic::wait() const
 	{
-		auto waiter = ext::unconst(this)->accquire_waiter();
+		auto waiter = ext::unconst(this)->acquire_waiter();
 		if (not waiter) return; // became ready
 
 		waiter->wait_ready();
@@ -434,7 +435,7 @@ namespace ext
 
 	future_status shared_state_basic::wait_for(std::chrono::steady_clock::duration timeout_duration) const
 	{
-		auto waiter = ext::unconst(this)->accquire_waiter();
+		auto waiter = ext::unconst(this)->acquire_waiter();
 		if (not waiter) return future_status::ready;
 
 		auto res = waiter->wait_ready(timeout_duration) ?
@@ -447,7 +448,7 @@ namespace ext
 
 	future_status shared_state_basic::wait_until(std::chrono::steady_clock::time_point timeout_point) const
 	{
-		auto waiter = ext::unconst(this)->accquire_waiter();
+		auto waiter = ext::unconst(this)->acquire_waiter();
 		if (not waiter) return future_status::ready;
 
 		auto res = waiter->wait_ready(timeout_point) ?
@@ -469,13 +470,13 @@ namespace ext
 		// we add ourself as continuation only to one shared_state at once, so there is no concurrency,
 		// but continuate can run on different threads - we have to constraint memory access.
 		// 
-		// continuate is called after chain is accquired with std::memory_order_acquire semantics
+		// continuate is called after chain is acquired with std::memory_order_acquire semantics
 		// so std::atomic_thread_fence(std::memory_order_acquire) is already done
 		auto ptr = m_future_ptr.load(std::memory_order_relaxed);
 		auto state = reinterpret_cast<ext::shared_state_basic *>(ptr);
 
 		// either it was last future in future chain,
-		// or some result was different from value(exception, abandonned, ...)
+		// or some result was different from value(exception, abandoned, ...)
 		if (not m_unwrap_count.load(std::memory_order_relaxed) or not state->has_value())
 		{
 			// transfer future status into us and become ready
@@ -491,7 +492,7 @@ namespace ext
 		newstate->addref();
 
 		// set new current state, note that only continuate updates current state,
-		// and it does there are not concurrent continuate runs
+		// and it does it here, so there is no concurrency here
 		lock_ptr(m_future_ptr);
 		m_unwrap_count.fetch_sub(1, std::memory_order_relaxed);
 		unlock_ptr(m_future_ptr, newptr);
@@ -686,7 +687,7 @@ namespace ext
 		std::size_t first_avail, first_free, new_free;
 		std::size_t sz = m_objects.size();
 	
-		// accquire free cell, where to put ptr
+		// acquire free cell, where to put ptr
 		do {
 			first_avail = m_first_avail.load(std::memory_order_relaxed);
 			first_free = m_first_free.load(std::memory_order_relaxed);
@@ -713,7 +714,7 @@ namespace ext
 	static default_continuation_waiters_pool g_default_pool;
 	static continuation_waiters_pool * g_pool = &g_default_pool;
 
-	static continuation_waiter * accquire_waiter()
+	static continuation_waiter * acquire_waiter()
 	{
 		continuation_waiters_pool::waiter_ptr ptr;
 		g_pool->take(ptr);
