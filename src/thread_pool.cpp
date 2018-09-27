@@ -28,7 +28,7 @@ namespace ext
 		auto owner = m_owner;
 		bool notify;
 
-		if (not mark_taken())
+		if (not mark_marked())
 			// thread_pool is destructed or destructing
 			return;
 
@@ -178,7 +178,7 @@ namespace ext
 		assert(m_delayed_count == 0);
 		for (auto it = delayed.begin(); it != delayed.end();)
 		{
-			if (not it->mark_taken())
+			if (not it->mark_marked())
 				++m_delayed_count, ++it;
 			else
 			{
@@ -234,7 +234,7 @@ namespace ext
 		assert(m_delayed_count == 0);
 		for (auto it = delayed.begin(); it != delayed.end();)
 		{
-			if (not it->mark_taken())
+			if (not it->mark_marked())
 				++m_delayed_count, ++it;
 			else
 			{
