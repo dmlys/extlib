@@ -43,13 +43,6 @@ namespace ext
 
 #endif
 
-	struct addrinfo_deleter
-	{
-		void operator()(addrinfo_type * ptr) const;
-	};
-
-	using addrinfo_ptr = std::unique_ptr<addrinfo_type, addrinfo_deleter>;
-
 	/// socket error condition, this is NOT error codes,
 	/// this is convenience conditions socket can be tested on.
 	///
@@ -81,6 +74,17 @@ namespace std
 
 namespace ext
 {
+	struct addrinfo_deleter
+	{
+		void operator()(addrinfo_type * ptr) const;
+	};
+
+	using addrinfo_ptr = std::unique_ptr<addrinfo_type, addrinfo_deleter>;
+
+	/// on POSIX systems - return ::close(sock)
+	/// on WINDOWS       - return ::closesocket(sock);
+	int closesocket(socket_handle_type sock);
+
 	/// error category for network address and service translation.
 	/// EAI_* codes, gai_strerror
 	const std::error_category & gai_error_category();
