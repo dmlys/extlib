@@ -144,6 +144,11 @@ namespace ext
 		FreeAddrInfoW(ptr);
 	}
 
+	int closesocket(socket_handle_type sock)
+	{
+		return ::closesocket(sock);
+	}
+
 	void inet_ntop(const sockaddr * addr, std::wstring & wstr, unsigned short & port)
 	{
 		const wchar_t * res;
@@ -509,6 +514,11 @@ namespace ext
 	void addrinfo_deleter::operator ()(addrinfo_type * ptr) const
 	{
 		::freeaddrinfo(ptr);
+	}
+
+	int closesocket(socket_handle_type sock)
+	{
+		return ::close(sock);
 	}
 
 	addrinfo_ptr getaddrinfo(const char * host, const char * service)
