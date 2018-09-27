@@ -14,6 +14,7 @@ Project
 
 		//cpp.defines: additionalDefines
 		cpp.cxxFlags: project.additionalCxxFlags
+		//cpp.driverFlags: project.additionalDriverFlags
 		//cpp.includePaths: project.additionalIncludePaths
 		cpp.libraryPaths: project.additionalLibraryPaths
 
@@ -30,6 +31,17 @@ Project
 				defines = defines.uniqueConcat(project.additionalDefines)
 
 			return defines
+		}
+
+		cpp.driverFlags: {
+			var flags = []
+			if (qbs.toolchain.contains("gcc") || qbs.toolchain.contains("clang"))
+				flags.push("-pthread")
+
+			if (project.additionalDriverFlags)
+				flags = flags.uniqueConcat(project.additionalDriverFlags)
+				
+			return flags
 		}
 
 		cpp.includePaths: {
