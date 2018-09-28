@@ -17,22 +17,11 @@ project extlib
 	: requirements       $(requirements)
 	;
 	
-local src =         [ glob src/*.cpp : src/*zlib* src/*openssl* src/*winsock* src/*bsdsock* ] ;
+local src =         [ glob src/*.cpp : src/*zlib* ] ;
 local zlib_src =    [ glob src/*zlib* ] ;
-local openssl_src = [ glob src/*openssl* ] ;
 local tests_src =   [ glob tests/*cpp ] ;
 
-if [ os.name ] = NT
-{
-	src += [ glob src/*winsock* ] ;
-}
-else
-{
-	src += [ glob src/*bsdsock* ] ;
-}
-
-# optional features enabling ZLIB and OPENSSL
-feature.feature extlib-wopenssl : off on : optional ;
+# optional feature enabling ZLIB
 feature.feature extlib-wzlib    : off on : optional ;
 
 alias headers 
@@ -41,7 +30,6 @@ alias headers
 	: # defaults
 	: # usage-requirements
 	  <extlib-wzlib>on:<define>EXT_ENABLE_CPPZLIB
-	  <extlib-wopenssl>on:<define>EXT_ENABLE_OPENSSL
 	;
 
 lib extlib    # target name
@@ -54,12 +42,11 @@ lib extlib    # target name
 	  
 	: # requirements
 	  [ conditional <extlib-wzlib>on    : <define>EXT_ENABLE_CPPZLIB <source>$(zlib_src) ]
-	  [ conditional <extlib-wopenssl>on : <define>EXT_ENABLE_OPENSSL <source>$(openssl_src) ]	  
 	  <link>static
+
 	: # defaults
 	: # usage-requirements
 	  <extlib-wzlib>on:<define>EXT_ENABLE_CPPZLIB
-	  <extlib-wopenssl>on:<define>EXT_ENABLE_OPENSSL
 	;
 
 	

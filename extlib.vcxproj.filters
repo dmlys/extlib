@@ -54,19 +54,10 @@
     <ClCompile Include="src\regex_utils.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\socket_streambuf_base.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\string_interpolation.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\cppzlib.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\winsock2_streambuf.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\openssl.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\threaded_scheduler.cpp">
@@ -82,12 +73,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\basexx_coding_tables.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\socket_stream.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\socket_base.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -221,12 +206,6 @@
     <ClInclude Include="include\ext\type_traits.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ext\iostreams\socket_streambuf_base.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\socket_stream.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\config.hpp">
       <Filter>include</Filter>
     </ClInclude>
@@ -237,12 +216,6 @@
       <Filter>include\iostreams</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\cppzlib.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\winsock2_streambuf.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\openssl.hpp">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\strings\aci_string-yaml.hpp">
@@ -318,22 +291,6 @@
       <Filter>include\range\adaptors</Filter>
     </ClInclude>
     <ClInclude Include="include\ext\iostreams\utility.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\bsdsock_streambuf.hpp" />
-    <ClInclude Include="include\ext\iostreams\socket_base.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\socket_fwd.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\socket_include.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\socket_streambuf.hpp">
-      <Filter>include\iostreams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ext\iostreams\socket_types.hpp">
       <Filter>include\iostreams</Filter>
     </ClInclude>
   </ItemGroup>
