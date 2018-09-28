@@ -4,8 +4,7 @@ import qbs.Environment
 
 Project
 {
-	property bool with_openssl: false
-	property bool with_zlib:    false
+	property bool with_zlib: false
 
 	StaticLibrary
 	{
@@ -14,15 +13,12 @@ Project
 
 		//cpp.defines: additionalDefines
 		cpp.cxxFlags: project.additionalCxxFlags
-		//cpp.driverFlags: project.additionalDriverFlags
+		cpp.driverFlags: project.additionalDriverFlags
 		//cpp.includePaths: project.additionalIncludePaths
 		cpp.libraryPaths: project.additionalLibraryPaths
 
 		cpp.defines: {
 			var defines = []
-
-			if (project.with_openssl)
-				defines.push("EXT_ENABLE_OPENSSL")
 
 			if (project.with_zlib)
 				defines.push("EXT_ENABLE_CPPZLIB")
@@ -31,17 +27,6 @@ Project
 				defines = defines.uniqueConcat(project.additionalDefines)
 
 			return defines
-		}
-
-		cpp.driverFlags: {
-			var flags = []
-			if (qbs.toolchain.contains("gcc") || qbs.toolchain.contains("clang"))
-				flags.push("-pthread")
-
-			if (project.additionalDriverFlags)
-				flags = flags.uniqueConcat(project.additionalDriverFlags)
-				
-			return flags
 		}
 
 		cpp.includePaths: {
@@ -68,9 +53,6 @@ Project
 			cpp.defines: {
 				var defines = []
 
-				if (project.with_openssl)
-					defines.push("EXT_ENABLE_OPENSSL")
-
 				if (project.with_zlib)
 					defines.push("EXT_ENABLE_CPPZLIB")
 
@@ -82,21 +64,5 @@ Project
 			"include/ext/**",
 			"src/**",
 		]
-
-		excludeFiles: {
-			var excludes = [];
-			if (qbs.targetOS.contains("windows"))
-			{
-				excludes.push("include/ext/iostreams/bsdsock*")
-				excludes.push("src/bsdsock*")
-			}
-			else
-			{
-				excludes.push("include/ext/iostreams/winsock*")
-				excludes.push("src/winsock*")
-			}
-
-			return excludes
-		}
 	}
 }
