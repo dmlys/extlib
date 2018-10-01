@@ -50,9 +50,13 @@ namespace ext
 	template <class CharT, class traits, class allocator>
 	inline CharT * data(std::basic_string<CharT, traits, allocator> & str)
 	{
+#if __cplusplus >= 201703L
+		return str.data();
+#else
 		return str.empty() ? nullptr : &str[0];
+#endif // __cplusplus >= 201703L
 	}
-#endif
+#endif // BOOST_LIB_STD_DINKUMWARE
 
 	/// generic assign method, by default calls assign member function
 	/// can be specialized/overloaded for containers/ranges which do not provide assign memeber method, like boost::iterator_range
@@ -101,6 +105,7 @@ namespace ext
 		cont.clear();
 	}
 
+
 	/************************************************************************/
 	/*        range type traits                                             */
 	/************************************************************************/
@@ -123,23 +128,23 @@ namespace ext
 		struct is_contiguous_range_test
 		{
 			template <class C>
-			static auto Test(int) -> decltype(ext::data(std::declval<C>()), ext::detail::Yes());
+			static auto Test(int) -> decltype(ext::data(std::declval<C>()));
 			
 			template <class C>
 			static ext::detail::No Test(...);
 
 			typedef typename std::decay<Type>::type DecayedType;
-			static const bool value = (sizeof(Test<DecayedType>(0)) == sizeof(ext::detail::Yes));
+			static const bool value = std::is_pointer_v<decltype(Test<DecayedType>(0))>;
 		};
 
 		/// скорее всего теста boost::has_range_iterator<Type>::type должно быть достаточно
-		template <typename Type, class = typename boost::has_range_iterator<Type>::type>
+		template <class Type, class = typename boost::has_range_iterator<Type>::type>
 		struct is_begin_expression_valid_test
 		{
 			static const bool value = false;
 		};
 
-		template <typename Type>
+		template <class Type>
 		struct is_begin_expression_valid_test<Type, boost::mpl::true_>
 		{
 			template <class C, class = decltype(boost::begin(std::declval<C>()))>
@@ -153,13 +158,13 @@ namespace ext
 		};
 
 		/// скорее всего теста boost::has_range_iterator<Type>::type должно быть достаточно
-		template <typename Type, class = typename boost::has_range_iterator<Type>::type>
+		template <class Type, class = typename boost::has_range_iterator<Type>::type>
 		struct is_end_expression_valid_test
 		{
 			static const bool value = false;
 		};
 
-		template <typename Type>
+		template <class Type>
 		struct is_end_expression_valid_test<Type, boost::mpl::true_>
 		{
 			template <class C, class = decltype(boost::end(std::declval<C>()))>
@@ -174,45 +179,45 @@ namespace ext
 	}
 
 	/// checks is there is resize method on type Type
-	template <typename Type>
+	template <class Type>
 	struct has_resize_method :
 		std::integral_constant<bool,
 			ext::range_detail::has_resize_method_test<Type>::value
 		>
 	{};
 
-	template <typename Type>
+	template <class Type>
 	constexpr auto has_resize_method_v = has_resize_method<Type>::value;
 
 
 	/// determines if container is contiguous
 	/// if expression: ext::data(declval<Type>()) is valid - it is contiguous container
 	/// examples of such containers is: vector, string, array. But not std::deque
-	template <typename Type>
+	template <class Type>
 	struct is_contiguous_range :
 		std::integral_constant<bool,
 			ext::range_detail::is_contiguous_range_test<Type>::value
 		>
 	{};
 
-	template <typename Type>
-	constexpr auto is_contiguous_container_v = is_contiguous_range<Type>::value;
+	template <class Type>
+	constexpr auto is_contiguous_range_v = is_contiguous_range<Type>::value;
 
-	template <typename Type>
+	template <class Type>
 	struct is_begin_expression_valid :
 		std::integral_constant<bool,
 			ext::range_detail::is_begin_expression_valid_test<Type>::value
 		>
 	{};
 
-	template <typename Type>
+	template <class Type>
 	struct is_end_expression_valid :
 		std::integral_constant<bool,
 			ext::range_detail::is_end_expression_valid_test<Type>::value
 		>
 	{};
 
-	template <typename Type>
+	template <class Type>
 	struct is_range :
 		std::integral_constant<bool,
 			is_begin_expression_valid<Type>::value &&
@@ -220,39 +225,69 @@ namespace ext
 		>
 	{};
 
-	template <typename Type>
-	constexpr bool is_range_v = is_range<Type>::value;
+	template <class Type>
+	constexpr auto is_range_v = is_range<Type>::value;
 
 
 	template <class Type>
-	struct is_container
-		: std::conjunction<is_range<Type>, has_resize_method<Type>> {};
+	struct is_container : std::conjunction<is_range<Type>, has_resize_method<Type>> {};
 
-	template <typename Type>
+	template <class Type>
 	constexpr auto is_container_v = is_container<Type>::value;
 
+	template <class Type>
+	struct is_contiguous_container : std::conjunction<is_container<Type>, is_contiguous_range<Type>> {};
+
+	template <class Type>
+	constexpr auto is_contiguous_container_v = is_contiguous_container<Type>::value;
 
 
-	template <typename Range, typename Default = void, bool = ext::is_range<Range>::value>
+
+	template <class Range, class Default = void, bool = ext::is_range<Range>::value>
 	struct range_value
 	{
 		typedef Default type;
 	};
 
-	template <typename Range, typename Default>
+	template <class Range, class Default>
 	struct range_value<Range, Default, true>
 	{
 		typedef typename boost::range_value<Range>::type type;
 	};
 
-	template <typename Range, typename Default = void>
+	template <class Range, class Default = void>
 	using range_value_t = typename range_value<Range, Default>::type;
 
 
-	template <typename Range, typename Type>
+	template <class Range, class Type>
 	struct is_range_of :
 		std::is_same<range_value_t<Range>, Type> {};
 
-	template <typename Range, typename Type>
-	constexpr bool is_range_of_v = is_range_of<Range, Type>::value;
+	template <class Range, class Type>
+	constexpr auto is_range_of_v = is_range_of<Range, Type>::value;
+
+
+
+	/// some if_*_of shortcuts
+
+	template <class Range, class Type>
+	struct is_contiguous_range_of :
+	    std::conjunction<ext::is_contiguous_range<Range>, ext::is_range_of<Range, Type>> {};
+
+	template <class Range, class Type>
+	constexpr auto is_contiguous_range_of_v = is_contiguous_range_of<Range, Type>::value;
+
+	template <class Container, class Type>
+	struct is_container_of :
+	    std::conjunction<ext::is_container<Container>, ext::is_range_of<Container, Type>> {};
+
+	template <class Container, class Type>
+	constexpr auto is_container_of_v = is_container_of<Container, Type>::value;
+
+	template <class Container, class Type>
+	struct is_contiguous_container_of :
+	        std::conjunction<ext::is_contiguous_container<Container>, ext::is_range_of<Container, Type>> {};
+
+	template <class Container, class Type>
+	constexpr auto is_contiguous_container_of_v = is_contiguous_container_of<Container, Type>::value;
 }
