@@ -9,23 +9,23 @@ namespace ext
 		// следующие символы должны быть экранированы
 		// .[{}()\*+?|^$
 		// "[.\\[\\]{}()\\\\*+?|^$]"
-		const boost::regex escapeSymbols("[.\\[\\]{}()\\\\*+?|^$]");
+		static const boost::regex escape_symbols("[.\\[\\]{}()\\\\*+?|^$]");
 		// заменяем на \<найденное>
 		// $& - full expr match placeholder
-		const std::string format = "\\\\$&";
+		static const std::string format = "\\\\$&";
 	}
 
-	std::string escape_regex(std::string const & regx)
+	std::string escape_regex(const std::string & regx)
 	{
-		return boost::replace_all_regex_copy(regx, escapeSymbols, format);
+		return boost::replace_all_regex_copy(regx, escape_symbols, format);
 	}
 
-	bool is_wild_card(std::string const & wildCard)
+	bool is_wild_card(const std::string & wildCard)
 	{
 		return wildCard.find_first_of("?*") != std::string::npos;
 	}
 
-	std::string wildcard_to_regex(std::string const & wildcard)
+	std::string wildcard_to_regex(const std::string & wildcard)
 	{
 		using namespace boost;
 		std::string wild = escape_regex(wildcard);
