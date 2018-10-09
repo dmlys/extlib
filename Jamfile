@@ -52,12 +52,15 @@ lib extlib    # target name
 	
 
 local boost_libs = system filesystem regex unit_test_framework ;
+path-constant extlib-test-files : tests ;
 	
 unit-test extlib-tests
 	: $(tests_src) # sources 
 	  extlib
 	  /boost//headers
 	  /boost//$(boost_libs)
+	  /user-config//z
+	: <testing.arg>"-- $(extlib-test-files)"
 	;
 	
 explicit extlib-tests ;
