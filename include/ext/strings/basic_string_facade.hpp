@@ -13,6 +13,7 @@
 #include <iterator>  // for std::reverse_iterator
 #include <algorithm>
 #include <utility>   // for std::declval
+#include <string_view>
 
 #include <ext/type_traits.hpp>
 #include <boost/config.hpp>
@@ -78,18 +79,21 @@ namespace ext
 		typedef std::reverse_iterator<const_iterator>  const_reverse_iterator;
 
 		typedef char_traits traits_type;
+		typedef std::basic_string_view<value_type, traits_type> string_view_type;
 
 	public:
-		static const size_type npos = size_type(-1);
+		static constexpr size_type npos = size_type(-1);
 
 	private:
 		const self_type * as_const() noexcept { return this; }
 		static BOOST_NORETURN void throw_xpos() { throw std::out_of_range("out_of_range"); }
 		auto make_pointer(size_type pos) -> std::pair<value_type *, value_type *>;
 		auto make_pointer(size_type pos) const -> std::pair<const value_type *, const value_type *>;
-
 		static bool is_inside(const value_type * ptr, size_type count,
 		                      const value_type * first, const value_type * last);
+
+		static auto make_pointer(string_view_type sv, size_type pos, size_type count)
+		    -> std::pair<const value_type *, const value_type *>;
 
 	public:
 		// Workaround for boost::range. Somehow metacode that checks for member method "size" crashes msvs 2013
@@ -147,6 +151,9 @@ namespace ext
 		const_reverse_iterator crbegin() const noexcept    { return const_reverse_iterator(data_end()); }
 		const_reverse_iterator crend()   const noexcept    { return const_reverse_iterator(data()); }
 
+	public:
+		operator string_view_type() const noexcept;
+
 	public: // assign pack [done]
 		self_type & assign(size_type count, value_type ch);
 		self_type & assign(const self_type & str);
@@ -159,8 +166,13 @@ namespace ext
 		self_type & assign(const_iterator first, const_iterator last) { return assign(first, last - first); }
 		self_type & assign(iterator first, iterator last) { return assign(const_iterator(first), const_iterator(last)); }
 
-		template <class InputIterator, class = std::enable_if_t<ext::is_iterator<InputIterator>::value>>
-		self_type & assign(InputIterator first, InputIterator last);
+		template <class InputIterator>
+		auto assign(InputIterator first, InputIterator last) -> std::enable_if_t<ext::is_iterator<InputIterator>::value, self_type &>;
+
+		template <class Type> auto assign(const Type & str) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
+		template <class Type> auto assign(const Type & str, size_type pos, size_type count = npos) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
 
 	public: // insert pack [done]
 		self_type & insert(size_type index, size_type count, value_type ch);
@@ -178,6 +190,11 @@ namespace ext
 
 		template <class InputIterator>
 		iterator insert(const_iterator pos, InputIterator first, InputIterator last);
+
+		template <class Type> auto insert(size_type pos, const Type & str) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
+		template <class Type> auto insert(size_type pos, const Type & str, size_type index_str, size_type count = npos) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
 
 	public: // erase pack [done]
 		self_type & erase(size_type index = 0, size_type count = npos);
@@ -202,6 +219,15 @@ namespace ext
 		self_type & operator +=(value_type ch)                            { return append(1, ch); }
 		self_type & operator +=(const value_type * str)                   { return append(str); }
 		self_type & operator +=(std::initializer_list<value_type> ilist)  { return append(ilist); }
+
+
+		template <class Type> auto append(const Type & str) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
+		template <class Type> auto append(const Type & str, size_type pos, size_type count = npos) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
+		template <class Type> auto operator +=(const Type & str) // self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+		{ return append(str); }
 
 	public: // compare pack [done]
 		int compare(const self_type & str) const noexcept;
@@ -228,6 +254,13 @@ namespace ext
 
 		template <class InputIterator>
 		self_type & replace(const_iterator first, const_iterator last, InputIterator r_first, InputIterator r_last);
+
+		template <class Type> auto replace(const_iterator first, const_iterator last, const Type & str) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
+		template <class Type> auto replace(size_type pos, size_type count, const Type & str) // -> self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
+		template <class Type> auto replace(size_type pos, size_type count, const Type & str, size_type pos2, size_type count2 = npos) // self_type &
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>;
 
 	public: // search methods [done]
 		size_type find(const self_type & str, size_type pos = 0) const noexcept;
@@ -265,7 +298,8 @@ namespace ext
 		basic_string_facade(size_type count, value_type ch);
 		basic_string_facade(const value_type * str);
 		basic_string_facade(const value_type * str, size_type count);
-		basic_string_facade(const self_type & str, size_type pos, size_type count = basic_string_facade::npos);
+		basic_string_facade(const self_type & str, size_type pos) : basic_string_facade(str, pos, npos) {}
+		basic_string_facade(const self_type & str, size_type pos, size_type count);
 		
 		basic_string_facade(const value_type * first, const value_type * last) : basic_string_facade(first, last - first) {}
 		basic_string_facade(value_type * first, value_type * last)             : basic_string_facade(first, last - first) {}
@@ -274,10 +308,20 @@ namespace ext
 		template <class InputIt>
 		basic_string_facade(InputIt first, InputIt last) { assign(first, last); }
 
+		template <class Type, std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, int> = 0>
+		explicit basic_string_facade(const Type & str);
+
+		template <class Type, std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, int> = 0>
+		basic_string_facade(const Type & str, size_type pos, size_type count);
+
 	public: // operator =
 		basic_string_facade & operator=(const value_type * str)                  { assign(str);   return *this; }
 		basic_string_facade & operator=(value_type ch)                           { assign(1, ch); return *this; }
 		basic_string_facade & operator=(std::initializer_list<value_type> ilist) { assign(ilist); return *this; }
+
+		template <class Type> auto operator=(const Type & str)
+		    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+		{ return assign(str); }
 
 	public:
 		basic_string_facade()  noexcept(std::is_nothrow_default_constructible<base_type>::value) = default;
@@ -321,13 +365,25 @@ namespace ext
 
 	template <class storage, class char_traits>
 	BOOST_FORCEINLINE
+	auto basic_string_facade<storage, char_traits>::make_pointer(string_view_type sv, size_type pos, size_type count)
+	    -> std::pair<const value_type *, const value_type *>
+	{
+		const value_type * first = sv.data();
+		const value_type * last  = first + sv.size();
+
+		if (pos > static_cast<size_type>(last - first)) throw_xpos();
+		return {first + pos, last};
+	}
+
+	template <class storage, class char_traits>
+	BOOST_FORCEINLINE
 	bool basic_string_facade<storage, char_traits>::is_inside
 	(const value_type * ptr, size_type count, const value_type * first, const value_type * last)
 	{
 #ifdef NDEBUG
-		return ptr >= first && ptr <= last;
+		return first <= ptr && ptr < last;
 #else // NDEBUG
-		if (ptr >= first && ptr <= last)
+		if (first <= ptr && ptr < last)
 		{
 			assert(ptr + count <= last);
 			return true;
@@ -335,6 +391,14 @@ namespace ext
 		else
 			return false;
 #endif
+	}
+
+	template <class storage, class char_traits>
+	inline basic_string_facade<storage, char_traits>::operator string_view_type() const noexcept
+	{
+		const value_type * first, * last;
+		std::tie(first, last) = range();
+		return string_view_type(first, last - first);
 	}
 
 	/************************************************************************/
@@ -468,12 +532,12 @@ namespace ext
 	}
 
 	template <class storage, class char_traits>
-	template <class InputIterator, class /*= std::enable_if_t<ext::is_iterator<InputIterator>::value>*/>
-	basic_string_facade<storage, char_traits> &
-		basic_string_facade<storage, char_traits>::assign(InputIterator first, InputIterator last)
+	template <class InputIterator>
+	auto basic_string_facade<storage, char_traits>::assign(InputIterator first, InputIterator last) ->
+	    std::enable_if_t<ext::is_iterator<InputIterator>::value, self_type &>
 	{
 		typedef typename std::iterator_traits<InputIterator>::iterator_category cat;
-		if (!std::is_convertible<cat, std::random_access_iterator_tag>::value)
+		if constexpr (!std::is_convertible<cat, std::random_access_iterator_tag>::value)
 		{
 			clear();
 			for (; first != last; ++first)
@@ -1094,7 +1158,7 @@ namespace ext
 
 		// we handle overlapping only for overloads tacking value_type * and iterators
 		// (currently out iterators are value_type *)
-		// for other kind of iterators it's we do not handle overloads, even if they are random_access.
+		// for other kind of iterators - we do not handle overloads, even if they are random_access.
 		
 		// o_ - our, r_ - remote
 		value_type * first;
@@ -1141,6 +1205,143 @@ namespace ext
 	}
 
 	/************************************************************************/
+	/*                 string_view support block                            */
+	/************************************************************************/
+	template <class storage, class char_traits>
+	template <class Type>
+	inline auto basic_string_facade<storage, char_traits>::assign(const Type & str)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		return assign(sv.data(), sv.size());
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	auto basic_string_facade<storage, char_traits>::assign(const Type & str, size_type pos, size_type count /* = npos */)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		const value_type * first, * last;
+		std::tie(first, last) = make_pointer(sv, pos, count);
+		count = (std::min<size_type>)(last - first, count);
+		return assign(first, count);
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	inline auto basic_string_facade<storage, char_traits>::insert(size_type pos, const Type & str)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		return insert(pos, sv.data(), sv.size());
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	auto basic_string_facade<storage, char_traits>::insert(size_type pos, const Type & str, size_type index_str, size_type count /* = npos */)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		const value_type * first, * last;
+		std::tie(first, last) = make_pointer(sv, index_str, count);
+		count = (std::min<size_type>)(last - first, count);
+		return insert(pos, first, count);
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	inline auto basic_string_facade<storage, char_traits>::append(const Type & str)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		return append(sv.data(), sv.size());
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	auto basic_string_facade<storage, char_traits>::append(const Type & str, size_type pos, size_type count /* = npos */)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		const value_type * first, * last;
+		std::tie(first, last) = make_pointer(sv, pos, count);
+		count = (std::min<size_type>)(last - first, count);
+		return append(first, count);
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	inline auto basic_string_facade<storage, char_traits>::replace(const_iterator first, const_iterator last, const Type & str)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		return replace(first, last, str.data(), str.size());
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	inline auto basic_string_facade<storage, char_traits>::replace(size_type pos, size_type count, const Type & str)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		return replace(pos, count, sv.data(), sv.size());
+	}
+
+	template <class storage, class char_traits>
+	template <class Type>
+	auto basic_string_facade<storage, char_traits>::replace(size_type pos, size_type count, const Type & str, size_type pos2, size_type count2 /* = npos */)
+	    -> std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, self_type &>
+	{
+		string_view_type sv = str;
+		const value_type * first, * last;
+		std::tie(first, last) = make_pointer(sv, pos2, count2);
+		count2 = (std::min<size_type>)(last - first, count2);
+		return replace(pos, count, first, count2);
+	}
+
+	template <class storage, class char_traits>
+	template <
+	    class Type,
+	    std::enable_if_t<
+	                std::is_convertible_v<const Type &, std::basic_string_view<typename storage::value_type, char_traits>>
+	        and not std::is_convertible_v<const Type &, const typename storage::value_type *>
+	    , int
+	    > /* = 0*/
+	>
+	basic_string_facade<storage, char_traits>::basic_string_facade(const Type & str)
+	{
+		string_view_type sv = str;
+		auto count = sv.size();
+		auto first = sv.data();
+
+		value_type * out = this->grow_to(count);
+		traits_type::copy(out, first, count);
+		this->set_eos(out + count);
+	}
+
+	template <class storage, class char_traits>
+	template <
+	    class Type,
+	    std::enable_if_t<
+	                std::is_convertible_v<const Type &, std::basic_string_view<typename storage::value_type, char_traits>>
+	        and not std::is_convertible_v<const Type &, const typename storage::value_type *>
+	    , int
+	    > /* = 0*/
+	>
+	basic_string_facade<storage, char_traits>::basic_string_facade(const Type & str, size_type pos, size_type count)
+	{
+		string_view_type sv = str;
+		const value_type * first, *last;
+		std::tie(first, last) = str.make_pointer(pos);
+		count = (std::min<size_type>)(last - first, count);
+
+		value_type * out = this->grow_to(count);
+		traits_type::copy(out, first, count);
+		this->set_eos(out + count);
+	}
+
+	/************************************************************************/
 	/*                   compare block                                      */
 	/************************************************************************/
 	template <class storage, class char_traits>
@@ -1175,8 +1376,8 @@ namespace ext
 
 		return
 			answer != 0 ? answer :
-			sz1 == sz2 ? 0 :        // answer == 0, sizes deternine result
-			sz1 < sz2 ? -1 : +1;
+		    sz1 == sz2 ?  0 :       // answer == 0, sizes deternine result
+		    sz1 <  sz2 ? -1 : +1;
 	}
 
 	template <class storage, class char_traits>
@@ -1207,7 +1408,7 @@ namespace ext
 
 		return
 			answer != 0 ? answer :
-			sz1 == count2 ? 0 :        // answer == 0, sizes deternine result
+		    sz1 == count2 ? 0 :        // answer == 0, sizes determine result
 			sz1 < count2 ? -1 : +1;
 	}
 
@@ -1772,4 +1973,40 @@ namespace ext
 		return this_type(lhs) + rhs;
 	}
 	
+
+
+	template <class storage, class char_traits>
+	inline
+	basic_string_facade<storage, char_traits> operator +(basic_string_facade<storage, char_traits> && lhs,
+	                                                     std::basic_string_view<typename basic_string_facade<storage, char_traits>::value_type, char_traits> rhs)
+	{
+		return std::move(lhs.append(rhs));
+	}
+
+	template <class storage, class char_traits>
+	inline
+	basic_string_facade<storage, char_traits> operator +(const basic_string_facade<storage, char_traits> & lhs,
+	                                                     std::basic_string_view<typename basic_string_facade<storage, char_traits>::value_type, char_traits> rhs)
+	{
+		typedef basic_string_facade<storage, char_traits> this_type;
+		return this_type(lhs) + rhs;
+	}
+
+	template <class storage, class char_traits>
+	inline
+	basic_string_facade<storage, char_traits> operator +(std::basic_string_view<typename basic_string_facade<storage, char_traits>::value_type, char_traits> lhs,
+	                                                     basic_string_facade<storage, char_traits> && rhs)
+	{
+		return std::move(rhs.insert(0, lhs));
+	}
+
+	template <class storage, class char_traits>
+	inline
+	basic_string_facade<storage, char_traits> operator +(std::basic_string_view<typename basic_string_facade<storage, char_traits>::value_type, char_traits> lhs,
+	                                                     const basic_string_facade<storage, char_traits> & rhs)
+	{
+		typedef basic_string_facade<storage, char_traits> this_type;
+		return lhs + this_type(rhs);
+	}
+
 } // namespace ext
