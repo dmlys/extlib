@@ -93,6 +93,7 @@ namespace ext
 		class worker : public ext::shared_state_unexceptional<void>
 		{
 			typedef ext::shared_state_unexceptional<void> base_type;
+			friend thread_pool;
 
 		private:
 			thread_pool * m_parent;
@@ -159,7 +160,8 @@ namespace ext
 		mutable std::condition_variable m_event;
 
 	private:
-		static bool is_finished(const worker_ptr & wptr) { return wptr->is_ready(); }
+		static bool is_finished(const worker_ptr & wptr) noexcept { return wptr->is_ready(); }
+		static bool join_worker(worker_ptr & wptr);
 		void thread_func(std::atomic_bool & stop_request);
 
 	public: // execution control
@@ -175,7 +177,7 @@ namespace ext
 		/// stops all workers, returns future which become ready when all workers,
 		/// that were created in these thread pool at any time,
 		/// are completely stopped.
-		ext::future<void> stop();
+		ext::future<void> stop() { return set_nworkers(0); }
 
 	public: // job control
 		/// submits task for execution, returns future representing result of execution.
