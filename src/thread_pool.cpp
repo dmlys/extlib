@@ -8,7 +8,6 @@ namespace ext
 	{
 		m_parent = parent;
 		m_thread = std::thread(&worker::thread_func, worker_ptr(this));
-		m_thread.detach();
 	}
 	
 	void thread_pool::worker::thread_func(worker_ptr self)
@@ -65,6 +64,17 @@ namespace ext
 		return static_cast<unsigned>(m_pending);
 	}
 
+	bool thread_pool::join_worker(worker_ptr & wptr)
+	{
+		if (is_finished(wptr))
+		{
+			wptr->m_thread.join();
+			return true;
+		}
+		else
+			return false;
+	}
+
 	ext::future<void> thread_pool::set_nworkers(unsigned n)
 	{
 		std::unique_lock<std::mutex> lk(m_mutex);
@@ -76,7 +86,7 @@ namespace ext
 
 		if (n > old_size - m_pending)
 		{
-			first = std::remove_if(last - m_pending, last, is_finished);
+			first = std::remove_if(last - m_pending, last, join_worker);
 			m_pending = last - first;
 			m_workers.resize(n + m_pending);
 
@@ -110,30 +120,6 @@ namespace ext
 
 			return all.then([](auto) {});
 		}
-	}
-
-	ext::future<void> thread_pool::stop()
-	{
-		std::unique_lock<std::mutex> lk(m_mutex);
-		auto first = m_workers.begin();
-		auto last = m_workers.end();
-
-		// m_workers should not be cleared, so next call to stop will be aware of current workers
-		// strictly speaking only finished workers can be cleared.
-
-		auto func = [](const worker_ptr & wptr) { return ext::future<void>(wptr); };
-
-		auto all = ext::when_all(
-			boost::make_transform_iterator(first, func),
-			boost::make_transform_iterator(last, func));
-
-		for (auto it = first; it != last - m_pending; ++it)
-			(**it).stop_request();
-
-		lk.unlock();
-		m_event.notify_all();
-
-		return all.then([](auto) {});
 	}
 
 	void thread_pool::thread_func(std::atomic_bool & stop_request)
@@ -261,6 +247,10 @@ namespace ext
 
 		// wait until threads are stopped
 		for (auto it = first; it != last; ++it)
-			(**it).wait();
+		{
+			auto & worker = **it;
+			worker.wait();
+			worker.m_thread.join();
+		}
 	}
 }
