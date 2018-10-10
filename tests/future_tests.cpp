@@ -51,8 +51,8 @@ BOOST_AUTO_TEST_CASE(future_cancellation_tests)
 		bool cancelled = fs.cancel();
 		pi.set_value();
 
-		BOOST_CHECK(cancelled == true);
-		BOOST_CHECK(count == 1);
+		BOOST_CHECK_EQUAL(cancelled, true);
+		BOOST_CHECK_EQUAL(count, 1);
 		BOOST_CHECK(fs.is_cancelled());
 
 		BOOST_CHECK_EXCEPTION(
@@ -77,9 +77,9 @@ BOOST_AUTO_TEST_CASE(future_cancellation_tests)
 		
 		// currently continuations on deferred run immediately
 		auto res = fi.get();
-		BOOST_CHECK(res == 12);
-		BOOST_CHECK(uc1 == 2);
-		BOOST_CHECK(uc2 == 2);
+		BOOST_CHECK_EQUAL(res, 12);
+		BOOST_CHECK_EQUAL(uc1, 2);
+		BOOST_CHECK_EQUAL(uc2, 2);
 	}
 }
 
@@ -114,8 +114,8 @@ BOOST_AUTO_TEST_CASE(future_when_all_tests)
 		auto i = std::get<0>(tf).get();
 		auto s = std::get<1>(tf).get();
 
-		BOOST_CHECK(i == 12);
-		BOOST_CHECK(s == "12");
+		BOOST_CHECK_EQUAL(i, 12);
+		BOOST_CHECK_EQUAL(s, "12");
 	}
 
 	{
@@ -132,8 +132,8 @@ BOOST_AUTO_TEST_CASE(future_when_all_tests)
 		auto v1 = res[0].get();
 		auto v2 = res[1].get();
 
-		BOOST_CHECK(v1 == 12);
-		BOOST_CHECK(v2 == 24);
+		BOOST_CHECK_EQUAL(v1, 12);
+		BOOST_CHECK_EQUAL(v2, 24);
 	}
 }
 
@@ -151,10 +151,10 @@ BOOST_AUTO_TEST_CASE(future_when_any_tests)
 		BOOST_REQUIRE(fres.is_ready());
 
 		auto res = fres.get();
-		BOOST_CHECK(res.index == 0);
+		BOOST_CHECK_EQUAL(res.index, 0);
 
 		auto ready = ext::visit(res.futures, res.index, [](auto && f) { return f.is_ready(); });
-		BOOST_CHECK(ready);
+		BOOST_CHECK_EQUAL(ready, true);
 	}
 
 	{
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(future_when_any_tests)
 		BOOST_REQUIRE(fres.is_ready());
 
 		auto res = fres.get();
-		BOOST_CHECK(res.index == 0);
+		BOOST_CHECK_EQUAL(res.index, 0);
 
 		auto ready = res.futures[res.index].is_ready();
 		BOOST_CHECK(ready);
@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(future_deferred_tests)
 	//BOOST_CHECK(fc.is_deferred());
 	fc.wait();
 	BOOST_CHECK(fc.is_ready());
-	BOOST_CHECK(fc.get() == 24);
+	BOOST_CHECK_EQUAL(fc.get(), 24);
 	BOOST_CHECK(not fc.valid());
 
 	auto f1 = ext::async(ext::launch::deferred, [] { return 12u; });
@@ -193,7 +193,7 @@ BOOST_AUTO_TEST_CASE(future_deferred_tests)
 
 	BOOST_CHECK(fall.is_ready());
 	std::tie(f1, f2) = fall.get();
-	BOOST_CHECK(f1.get() + f2.get() == 24);
+	BOOST_CHECK_EQUAL(f1.get() + f2.get(), 24);
 }
 
 BOOST_AUTO_TEST_CASE(future_deferred_unwrap_tests)
@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_CASE(future_deferred_unwrap_tests)
 
 		auto fall = ext::when_all(f2.unwrap());
 		ext::future<int> fi = std::get<0>(fall.get());
-		BOOST_CHECK(fi.get() == 12 * 2 + 3);
+		BOOST_CHECK_EQUAL(fi.get(), 12 * 2 + 3);
 	}
 	
 	// deferred => async
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE(future_deferred_unwrap_tests)
 
 		auto fall = ext::when_all(f2.unwrap());
 		ext::future<int> fi = std::get<0>(fall.get());
-		BOOST_CHECK(fi.get() == 12 * 2 + 3);
+		BOOST_CHECK_EQUAL(fi.get(), 12 * 2 + 3);
 	}
 }
 
