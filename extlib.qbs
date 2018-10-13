@@ -11,8 +11,9 @@ Project
 		Depends { name: "cpp" }
 		cpp.cxxLanguageVersion : "c++17"
 
-		//cpp.defines: additionalDefines
+		//cpp.defines: project.additionalDefines
 		//cpp.includePaths: project.additionalIncludePaths
+		cpp.systemIncludePaths: project.additionalSystemIncludePaths
 		cpp.cxxFlags: project.additionalCxxFlags
 		cpp.driverFlags: project.additionalDriverFlags
 		cpp.libraryPaths: project.additionalLibraryPaths

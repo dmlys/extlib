@@ -1,6 +1,7 @@
 #pragma once
 #include <boost/predef.h>
 #include <boost/config.hpp>
+#include <boost/core/ignore_unused.hpp>
 
 /// EXT_UNREACHABLE - marks code as unreachable, allowing optimizations from compiler
 ///                   __assume(0) / __builtin_unreachable()
@@ -37,3 +38,6 @@
 
 #define EXT_NODISCARD [[nodiscard]]
 #define EXT_NORETURN  [[noreturn]]
+
+#define EXT_UNUSED(...) boost::ignore_unused(__VA_ARGS__)
+//#define EXT_UNUSED(...) ((void)(__VA_ARGS__))
