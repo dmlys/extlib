@@ -55,7 +55,7 @@ namespace ext
 /*                    Windows specific part                             */
 /************************************************************************/
 #if BOOST_OS_WINDOWS
-#include <Windows.h>
+#include <windows.h>
 #include <vector>
 #include <boost/locale.hpp>
 #include <boost/algorithm/string.hpp>
