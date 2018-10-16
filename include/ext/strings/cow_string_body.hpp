@@ -88,7 +88,7 @@ namespace ext
 		cow_string_body & operator =(const self_type &) = default;
 		cow_string_body & operator =(self_type &&) = default;
 
-		friend void swap(self_type & s1, self_type & s2) { swap(s1, s2); }
+		friend void swap(self_type & s1, self_type & s2) { swap(s1.m_body, s2.m_body); }
 	};
 
 	inline auto cow_string_body::data_end() noexcept -> value_type *
