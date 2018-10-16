@@ -13,11 +13,12 @@ namespace ext
 
 			int errc = err.value();
 			auto & cat = err.category();
+			int radix = BOOST_OS_WINDOWS && errc & 0x80000000 ? 16 : 10;
 
 			// +2 for sign and null terminator
 			const std::size_t bufsize = std::numeric_limits<int>::digits10 + 3;
 			char buffer[bufsize];
-			const char * start = ext::unsafe_itoa(errc, buffer, bufsize, errc & 0x80000000 ? 16 : 10);
+			const char * start = ext::unsafe_itoa(errc, buffer, bufsize, radix);
 			const char * end = buffer + bufsize - 1; // -1 to exclude null terminator
 
 			msg += cat.name();
