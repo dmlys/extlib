@@ -4,7 +4,7 @@
 #include <ext/is_string.hpp>
 #include <ext/range/range_traits.hpp>
 
-namespace ext { namespace pretty_printers
+namespace ext::pretty_printers
 {
 	/// декораторы по умолчанию
 	template <class CharType>
@@ -37,7 +37,7 @@ namespace ext { namespace pretty_printers
 	void print(std::basic_ostream<CharType> & os, const Range & rng,
 	           const Decorators & decorators = default_decorators<CharType> {})
 	{
-		auto it = boost::begin(rng);
+		auto it  = boost::begin(rng);
 		auto end = boost::end(rng);
 
 		os << decorators.prefix;
@@ -86,12 +86,10 @@ namespace ext { namespace pretty_printers
 	///    cout << ii << endl;
 	///    cout << arr << endl;
 	/// }
-	template <class CharType, class Range,
-	          typename std::enable_if<is_streamable<Range>::value, int>::type = 0
-	>
+	template <class CharType, class Range, std::enable_if_t<is_streamable<Range>::value, int> = 0>
 	std::basic_ostream<CharType> & operator <<(std::basic_ostream<CharType> & os, const Range & rng)
 	{
-		ext::print(os, rng);
+		ext::pretty_printers::print(os, rng);
 		return os;
 	}
-}}
+}
