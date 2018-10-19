@@ -34,7 +34,7 @@ namespace ext
 		fsmask(std::regex mask) : rx(std::move(mask)) {};
 		fsmask(const std::string & mask) : rx(mask) {};
 
-		bool operator ()(const std::filesystem::path & item)             const { return operator()(item.c_str()); }
+		bool operator ()(const std::filesystem::path & item)             const { return operator()(item.string().c_str()); }
 		bool operator ()(const std::filesystem::directory_entry & item)  const { return operator()(item.path()); }
 		bool operator ()(const char * str)                               const { return regex_match(str, rx); }
 

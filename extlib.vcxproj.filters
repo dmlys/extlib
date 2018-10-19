@@ -39,13 +39,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\FileSystemUtils.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\Errors.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\FileSystemGetExePath.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\time_fmt.cpp">
@@ -75,11 +69,14 @@
     <ClCompile Include="src\basexx_coding_tables.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\filesystem_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filesystem_getexepath.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\ext\FileSystemUtils.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="include\ext\string_interpolation.hpp">
       <Filter>include</Filter>
     </ClInclude>
@@ -292,6 +289,9 @@
     </ClInclude>
     <ClInclude Include="include\ext\iostreams\utility.hpp">
       <Filter>include\iostreams</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ext\filesystem_utils.hpp">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
