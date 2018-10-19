@@ -47,8 +47,8 @@
     <ClCompile Include="src\cow_string_body.cpp" />
     <ClCompile Include="src\cppzlib.cpp" />
     <ClCompile Include="src\Errors.cpp" />
-    <ClCompile Include="src\FileSystemGetExePath.cpp" />
-    <ClCompile Include="src\FileSystemUtils.cpp" />
+    <ClCompile Include="src\filesystem_getexepath.cpp" />
+    <ClCompile Include="src\filesystem_utils.cpp" />
     <ClCompile Include="src\future.cpp" />
     <ClCompile Include="src\regex_utils.cpp" />
     <ClCompile Include="src\string_interpolation.cpp" />
@@ -60,6 +60,7 @@
     <ClInclude Include="include\ext\base64.hpp" />
     <ClInclude Include="include\ext\config.hpp" />
     <ClInclude Include="include\ext\cppzlib.hpp" />
+    <ClInclude Include="include\ext\filesystem_utils.hpp" />
     <ClInclude Include="include\ext\functors\indirect_functor.hpp" />
     <ClInclude Include="include\ext\algorithm.hpp" />
     <ClInclude Include="include\ext\algorithm\binary_find.hpp" />
@@ -73,7 +74,6 @@
     <ClInclude Include="include\ext\codecvt_conv\generic_conv.hpp" />
     <ClInclude Include="include\ext\codecvt_conv\wbuffer_convert.hpp" />
     <ClInclude Include="include\ext\Errors.hpp" />
-    <ClInclude Include="include\ext\FileSystemUtils.hpp" />
     <ClInclude Include="include\ext\functors.hpp" />
     <ClInclude Include="include\ext\functors\ctpred.hpp" />
     <ClInclude Include="include\ext\functors\lcpred.hpp" />
