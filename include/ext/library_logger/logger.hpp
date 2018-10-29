@@ -2,6 +2,7 @@
 #include <cassert>
 #include <memory>
 #include <utility>
+#include <string>
 #include <iostream>
 #include <sstream>
 
@@ -14,7 +15,7 @@ namespace ext::library_logger
 	///
 	///   * использовать абстрактный интерфейс, который должен реализовать пользователь библиотеки.
 	///     в самом простом случае имеющий метод
-	///     log(int log_lvl, std::string msg, int souce_line, const char * soure_file).
+	///     log(int log_lvl, const std::string & msg, int souce_line, const char * soure_file).
 	///
 	///     данное решение имеет недостаток в том что, _каждая_ библиотека должна реализовать
 	///     несколько вспомогательных функций/макросов для адекватного использования этого интерфейса
@@ -24,7 +25,7 @@ namespace ext::library_logger
 	///     или используется библиотеки предоставляющая свой ostream, например boost.log
 	///
 	/// library_logger::logger предоставляет интерфейс и вспомогательные макросы позволяющие
-	/// эффективно и безопасно логировать в абстрактный ostream с поддержкой log_level, source_file, source_line.
+	/// эффективно и безопасно логировать как обычную строку, так и в абстрактный ostream с поддержкой log_level, source_file, source_line.
 	///     реализации logger могут быть как thread-safe, так и нет
 	///
 	///
@@ -34,12 +35,16 @@ namespace ext::library_logger
 	/// клиентская часть:
 	///   смотри так же макросы в ext/library_logger/logging_macros.hpp
 	///   шаблон использования:
-	///   record rec = logger->open_record(log_level);
-	///   if (rec)
-	///   {
-	///       rec.get_ostream() << ....;
-	///       rec.push();
-	///   }
+	///     if (logger->is_enabled_for(log_level)
+	///         logger->log(log_level, str, __FILE__, __LINE__);
+	///
+	///   или через ostream:
+	///     record rec = logger->open_record(log_level, __FILE__, __LINE__);
+	///     if (rec)
+	///     {
+	///         rec.get_ostream() << ....;
+	///         rec.push();
+	///     }
 	///
 	///   record - класс записи позволяет получить поток в который можно писать.
 	///            запись можно протолкнуть (push) или отбросить(discard), после чего запись становится недействительной
@@ -49,6 +54,9 @@ namespace ext::library_logger
 	///   отбрасывание подразумевает что в ходе формирование записи произошла ошибка, например bad_alloc
 	///   реализация вольна все равно залогировать такую запись, но она может быть не полной, или даже пустой
 	///   open_record может вернуть null запись - это флаг что увроень лоогирования ниже запрошенного
+	///
+	///   is_enabled_for(log_level) - проверяет что логгер включен для заданного уровня
+	///   log(log_level, str, source_file, source_line) - логирукт строку с заданным уровнем
 	///
 	///   open_record - открывает запись для заданного уровня логирования.
 	///   push_record/rec.push() - проталкивает запись
@@ -78,12 +86,18 @@ namespace ext::library_logger
 		};
 
 	protected:
+		virtual bool do_is_enabled_for(unsigned log_level) const = 0;
+		virtual void do_log(unsigned log_level, const std::string & str, const char * source_file, int source_line) = 0;
+
 		virtual record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) = 0;
 		virtual void do_push_record(record_context * rctx) = 0;
 		virtual void do_discard_record(record_context * rctx) = 0;
 
 	public:
 		class record;
+
+		bool is_enabled_for(unsigned log_level) const;
+		void log(unsigned log_level, const std::string & str, const char * source_file, int source_line);
 
 		record open_record(unsigned log_level, const char * source_file = nullptr, int source_line = -1);
 		void push_record(record & rec);
@@ -146,6 +160,16 @@ namespace ext::library_logger
 	/************************************************************************/
 	/*                  Logger methods                                      */
 	/************************************************************************/
+	inline bool logger::is_enabled_for(unsigned log_level) const
+	{
+		return do_is_enabled_for(log_level);
+	}
+
+	inline void logger::log(unsigned log_level, const std::string & str, const char * source_file, int source_line)
+	{
+		do_log(log_level, str, source_file, source_line);
+	}
+
 	inline logger::record logger::open_record(unsigned log_level, const char * source_file, int source_line)
 	{
 		auto ctx = do_open_record(log_level, source_file, source_line);
@@ -192,6 +216,9 @@ namespace ext::library_logger
 		unsigned lvl = Info;
 
 	protected:
+		bool do_is_enabled_for(unsigned log_level) const override { return log_level <= lvl; }
+		void do_log(unsigned log_level, const std::string & str, const char * source_file, int source_line) override;
+
 		record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) override;
 		void do_push_record(record_context * rctx) override { *rctx->os << std::endl; }
 		void do_discard_record(record_context * rctx) override {}
@@ -208,6 +235,11 @@ namespace ext::library_logger
 	inline auto stream_logger::do_open_record(unsigned log_level, const char * source_file, int source_line) -> record_context *
 	{
 		return log_level <= lvl ? &ctx : nullptr;
+	}
+
+	inline void stream_logger::do_log(unsigned log_level, const std::string & str, const char * source_file, int source_line)
+	{
+		*ctx.os << str << std::endl;
 	}
 
 	/// simple_logger/sequenced_simple_logger
@@ -235,12 +267,6 @@ namespace ext::library_logger
 		record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) override;
 		void do_push_record(base_record_context * rctx) override;
 		void do_discard_record(base_record_context * rctx) override;
-
-	protected:
-		/// включен ли логгер для заданного уровня логирования
-		virtual bool do_is_enabled_for(unsigned log_level) const = 0;
-		/// реализация собственно логирования
-		virtual void do_log(unsigned log_level, const std::string & log_str, const char * source_file, int source_line) = 0;
 
 	public:
 		simple_logger() = default;
@@ -294,12 +320,6 @@ namespace ext::library_logger
 		record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) override;
 		void do_push_record(record_context * rctx) override;
 		void do_discard_record(record_context * rctx) override;
-
-	private:
-		/// включен ли логгер для заданного уровня логирования
-		virtual bool do_is_enabled_for(unsigned log_level) const = 0;
-		/// реализация собственно логирования
-		virtual void do_log(unsigned log_level, std::string const & log_str, const char * source_file, int source_line) = 0;
 
 	public:
 		sequenced_simple_logger(const std::locale & loc = std::locale());
