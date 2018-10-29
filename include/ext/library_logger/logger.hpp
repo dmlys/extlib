@@ -91,7 +91,7 @@ namespace ext::library_logger
 
 		virtual record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) = 0;
 		virtual void do_push_record(record_context * rctx) = 0;
-		virtual void do_discard_record(record_context * rctx) = 0;
+		virtual void do_discard_record(record_context * rctx) noexcept = 0;
 
 	public:
 		class record;
@@ -101,7 +101,7 @@ namespace ext::library_logger
 
 		record open_record(unsigned log_level, const char * source_file = nullptr, int source_line = -1);
 		void push_record(record & rec);
-		void discard_record(record & rec);
+		void discard_record(record & rec) noexcept;
 
 	public:
 		virtual ~logger() = default;
@@ -129,18 +129,18 @@ namespace ext::library_logger
 
 	public:
 		/// проверяет валидность записи(null запись/активная)
-		explicit operator bool() { return rctx != nullptr; }
+		explicit operator bool() const noexcept { return rctx != nullptr; }
 		std::ostream & get_ostream();
 		/// аналогично logger->push_record(*this)
 		void push() { owner->push_record(*this); }
 		/// аналогично logger->discard_record(*this)
-		void discard() { owner->discard_record(*this);  }
+		void discard() noexcept { owner->discard_record(*this);  }
 
 	private:
 		record(record_context * rctx, logger * owner) : rctx(rctx), owner(owner) {}
 
 	public:
-		record() = default;
+		record() noexcept = default;
 		~record() noexcept { if (owner) owner->discard_record(*this); }
 
 		record(record && rec) noexcept : rctx(rec.rctx), owner(rec.owner)  { rec.rctx = nullptr; rec.owner = nullptr; }
@@ -182,7 +182,7 @@ namespace ext::library_logger
 		if (rctx) do_push_record(rctx);
 	}
 
-	inline void logger::discard_record(record & rec)
+	inline void logger::discard_record(record & rec) noexcept
 	{
 		auto rctx = std::exchange(rec.rctx, nullptr);
 		if (rctx) do_discard_record(rec.rctx);
@@ -221,12 +221,17 @@ namespace ext::library_logger
 
 		record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) override;
 		void do_push_record(record_context * rctx) override { *rctx->os << std::endl; }
-		void do_discard_record(record_context * rctx) override {}
+		void do_discard_record(record_context * rctx) noexcept override {}
+
+	public:
+		void flush() { ctx.os->flush(); }
+		auto stream() const noexcept { return ctx.os; }
+		auto log_level() const noexcept { return lvl; }
 
 	public:
 		stream_logger(std::ostream & os = std::clog, int lvl = Info)
 		    : lvl(lvl) { ctx.os = &os; }		
-		~stream_logger() { ctx.os->flush(); }
+		~stream_logger() noexcept;
 
 		stream_logger(const stream_logger & lg) = delete;
 		stream_logger & operator =(const stream_logger &) = delete;
@@ -240,6 +245,18 @@ namespace ext::library_logger
 	inline void stream_logger::do_log(unsigned log_level, const std::string & str, const char * source_file, int source_line)
 	{
 		*ctx.os << str << std::endl;
+	}
+
+	inline stream_logger::~stream_logger() noexcept
+	{
+		try
+		{
+			ctx.os->flush();
+		}
+		catch (...)
+		{
+			// nothing
+		}
 	}
 
 	/// simple_logger/sequenced_simple_logger
@@ -266,7 +283,7 @@ namespace ext::library_logger
 	protected:
 		record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) override;
 		void do_push_record(base_record_context * rctx) override;
-		void do_discard_record(base_record_context * rctx) override;
+		void do_discard_record(base_record_context * rctx) noexcept override;
 
 	public:
 		simple_logger() = default;
@@ -297,7 +314,7 @@ namespace ext::library_logger
 		do_log(rctx->log_level, rctx->ss.str(), rctx->source_file, rctx->source_line);
 	}
 
-	inline void simple_logger::do_discard_record(base_record_context * rctx_base)
+	inline void simple_logger::do_discard_record(base_record_context * rctx_base) noexcept
 	{
 		delete static_cast<record_context *>(rctx_base);
 	}
@@ -319,7 +336,7 @@ namespace ext::library_logger
 	private:
 		record_context * do_open_record(unsigned log_level, const char * source_file, int source_line) override;
 		void do_push_record(record_context * rctx) override;
-		void do_discard_record(record_context * rctx) override;
+		void do_discard_record(record_context * rctx) noexcept override;
 
 	public:
 		sequenced_simple_logger(const std::locale & loc = std::locale());
@@ -349,9 +366,9 @@ namespace ext::library_logger
 		do_discard_record(rctx);
 	}
 
-	inline void sequenced_simple_logger::do_discard_record(record_context * rctx)
+	inline void sequenced_simple_logger::do_discard_record(record_context * rctx) noexcept
 	{
-		ss.str("");
+		ss.str(std::string());
 		ss.clear();
 	}
 }
