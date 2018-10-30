@@ -57,19 +57,19 @@ namespace ext
 		template <>
 		struct boost_traversal_to_std_category<boost::iterators::forward_traversal_tag>
 		{
-			using type = std::random_access_iterator_tag;
+			using type = std::forward_iterator_tag;
 		};
 
 		template <>
 		struct boost_traversal_to_std_category<boost::iterators::single_pass_traversal_tag>
 		{
-			using type = std::random_access_iterator_tag;
+			using type = std::input_iterator_tag;
 		};
 
 		template <>
 		struct boost_traversal_to_std_category<boost::iterators::incrementable_traversal_tag>
 		{
-			using type = std::random_access_iterator_tag;
+			using type = std::output_iterator_tag;
 		};
 
 		template <>
@@ -81,32 +81,21 @@ namespace ext
 
 		template <class Iterator>
 		using get_category_t = typename boost_traversal_to_std_category<
-			typename boost::iterators::iterator_traversal<Iterator>::type
+			typename boost::iterators::pure_iterator_traversal<Iterator>::type
 		>::type;
 
 
 
 		template <class... Iterators>
-		struct deduce_common_category;
-
-		template <class... Iterators>
-		using deduce_common_category_t = typename deduce_common_category<Iterators...>::type;
-
-
-		template <class Iterator, class... Iterators>
-		struct deduce_common_category<Iterator, Iterators...>
+		struct deduce_common_category
 		{
 			using type = std::common_type_t<
-				get_category_t<Iterator>,
-				deduce_common_category_t<Iterators...>
+				get_category_t<Iterators>...
 			>;
 		};
 
-		template <class Iterator>
-		struct deduce_common_category<Iterator>
-		{
-			using type = get_category_t<Iterator>;
-		};
+		template <class... Iterators>
+		using deduce_common_category_t = typename deduce_common_category<Iterators...>::type;
 
 
 		template <class ... Types>
