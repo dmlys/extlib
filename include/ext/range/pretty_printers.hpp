@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <ostream>
 #include <string>
 #include <ext/is_string.hpp>
@@ -15,13 +15,13 @@ namespace ext::pretty_printers
 		static const CharType * postfix;
 	};
 
-	template <> const char * default_decorators<char>::prefix = "[";
-	template <> const char * default_decorators<char>::postfix = "]";
-	template <> const char * default_decorators<char>::delimeter = ", ";
+	template <> inline const char * default_decorators<char>::prefix = "[";
+	template <> inline const char * default_decorators<char>::postfix = "]";
+	template <> inline const char * default_decorators<char>::delimeter = ", ";
 
-	template <> const wchar_t * default_decorators<wchar_t >::prefix = L"[";
-	template <> const wchar_t * default_decorators<wchar_t>::postfix = L"]";
-	template <> const wchar_t * default_decorators<wchar_t>::delimeter = L", ";
+	template <> inline const wchar_t * default_decorators<wchar_t >::prefix = L"[";
+	template <> inline const wchar_t * default_decorators<wchar_t>::postfix = L"]";
+	template <> inline const wchar_t * default_decorators<wchar_t>::delimeter = L", ";
 
 	//template <> const char16_t * default_decorators<char16_t>::prefix = "[";
 	//template <> const char16_t * default_decorators<char16_t>::postfix = "]";
