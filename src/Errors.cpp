@@ -29,7 +29,60 @@ namespace ext
 
 			return msg;
 		}
-	}
+
+		template <class SystemError, class ErrorCode>
+		std::string FormatSystemError(SystemError & ex, ErrorCode code)
+		{
+			std::string result;
+			std::string_view msg = ex.what();
+
+			int errc = code.value();
+			auto code_msg = code.message();
+
+			int radix = BOOST_OS_WINDOWS && errc & 0x80000000 ? 16 : 10;
+			constexpr auto buffer_size = ext::itoa_required<int>();
+			char buffer[buffer_size];
+			auto * number_str = ext::unsafe_itoa(errc, buffer, buffer_size, radix);
+
+#if BOOST_OS_WINDOWS
+			// on windows what message will be localized, so we must search localized version of it
+			// and replace with utf-8 version
+			auto loc_msg = ex.code().message();
+			auto replace_size = loc_msg.size();
+			auto pos = msg.find(loc_msg);
+			
+			if (pos == msg.npos) pos = msg.find(code_msg), replace_size = code_msg.size();
+			if (pos == msg.npos) return std::string(msg);
+
+			result.append(msg, 0, pos);
+
+			result.append(code.category().name());
+			result.push_back(':');
+			result.append(number_str);
+			result.append(", ");
+
+			result.append(code_msg);
+			result.append(msg, pos + replace_size);
+#else
+			// find message substring
+			auto pos = msg.find(code_msg);
+			assert(pos != msg.npos);
+
+			// replace it with <category>:<code>, <message>
+			result.append(msg, 0, pos);
+
+			result.append(code.category().name());
+			result.push_back(':');
+			result.append(number_str);
+			result.append(", ");
+
+			result.append(msg, pos);
+#endif
+
+			return result;
+		}
+	} // 'anonymous' namespace
+
 
 	std::string FormatError(std::error_code err)
 	{
@@ -49,6 +102,30 @@ namespace ext
 #endif
 
 		return FormatErrorImpl(err);
+	}
+
+	std::string FormatError(std::system_error & err)
+	{
+		auto code = err.code();
+
+#if BOOST_OS_WINDOWS
+		if (code.category() == std::system_category())
+			code.assign(code.value(), ext::system_utf8_category());
+#endif
+
+		return FormatSystemError(err, code);
+	}
+
+	std::string FormatError(boost::system::system_error err)
+	{
+		auto code = err.code();
+
+#if BOOST_OS_WINDOWS
+		if (code.category() == boost::system::system_category())
+			code.assign(code.value(), ext::boost_system_utf8_category());
+#endif
+
+		return FormatSystemError(err, code);
 	}
 }
 
@@ -116,7 +193,7 @@ namespace ext
 			return std::system_category().default_error_condition(code);
 		}
 
-			std::string BoostSystemUtf8Category::message(int err) const
+		std::string BoostSystemUtf8Category::message(int err) const
 		{
 			return GetMessage(err);
 		}
