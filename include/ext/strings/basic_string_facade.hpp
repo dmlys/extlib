@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // author: Dmitry Lysachenko
 // date: Saturday 13 january 2016
 // license: boost software license
@@ -308,10 +308,26 @@ namespace ext
 		template <class InputIt>
 		basic_string_facade(InputIt first, InputIt last) { assign(first, last); }
 
-		template <class Type, std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, int> = 0>
+		// both clang and msvc have troubles matching declaration and definition of those constructors 
+		// if declarations is written as commented bellow. GCC is ok actually
+		template <
+			class Type,
+			std::enable_if_t<
+						std::is_convertible_v<const Type &, std::basic_string_view<typename storage::value_type, char_traits>>
+				and not std::is_convertible_v<const Type &, const typename storage::value_type *>
+			, int> = 0
+		>
+		//template <class Type, std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, int> = 0>
 		explicit basic_string_facade(const Type & str);
 
-		template <class Type, std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, int> = 0>
+		template <
+			class Type,
+			std::enable_if_t<
+						std::is_convertible_v<const Type &, std::basic_string_view<typename storage::value_type, char_traits>>
+				and not std::is_convertible_v<const Type &, const typename storage::value_type *>
+			, int> = 0
+		>
+		//template <class Type, std::enable_if_t<std::is_convertible_v<const Type &, string_view_type> and not std::is_convertible_v<const Type &, const value_type *>, int> = 0>
 		basic_string_facade(const Type & str, size_type pos, size_type count);
 
 	public: // operator =
