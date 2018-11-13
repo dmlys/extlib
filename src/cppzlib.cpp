@@ -1,4 +1,4 @@
-﻿#ifdef EXT_ENABLE_CPPZLIB
+#ifdef EXT_ENABLE_CPPZLIB
 #include <ext/cppzlib.hpp>
 #include <ext/Errors.hpp>
 #include <cstring> // for std::strlen

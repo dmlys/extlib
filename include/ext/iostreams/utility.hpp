@@ -74,7 +74,7 @@ namespace ext::iostreams
 	template <class Sink, class String>
 	inline void write_string(Sink & sink, const String & str)
 	{
-		auto str_lit = ext::as_literal(str);
+		auto str_lit = ext::str_view(str);
 		auto * ptr = ext::data(str_lit);
 		auto len = static_cast<std::streamsize>(str_lit.size());
 		

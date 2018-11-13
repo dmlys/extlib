@@ -79,7 +79,7 @@ namespace ext
 	inline std::enable_if_t<ext::is_container_v<OutputContainer>/*, OutputContainer &*/>
 	encode_base64(const InputRange & input, OutputContainer & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return encode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
@@ -118,7 +118,7 @@ namespace ext
 	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	encode_base64(const InputRange & input, Sink & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return ext::encode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
@@ -151,7 +151,7 @@ namespace ext
 	inline std::enable_if_t<ext::is_container_v<OutputContainer>/*, OutputContainer &*/>
 	decode_base64(const InputRange & input, OutputContainer & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return decode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 
@@ -188,7 +188,7 @@ namespace ext
 	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	decode_base64(const InputRange & input, Sink & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return ext::decode_base64(boost::begin(inplit), boost::end(inplit), out);
 	}
 }
