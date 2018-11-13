@@ -109,7 +109,7 @@ namespace ext
 	inline std::enable_if_t<ext::is_container_v<OutputContainer>>
 	encode_base16(const InputRange & input, OutputContainer & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return encode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 
@@ -147,7 +147,7 @@ namespace ext
 	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	encode_base16(const InputRange & input, Sink & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return ext::encode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 
@@ -184,7 +184,7 @@ namespace ext
 	inline std::enable_if_t<ext::is_container_v<OutputContainer>>
 	decode_base16(const InputRange & input, OutputContainer & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return decode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 
@@ -221,7 +221,7 @@ namespace ext
 	inline std::enable_if_t<ext::iostreams::is_device_v<Sink>, Sink &>
 	decode_base16(const InputRange & input, Sink & out)
 	{
-		auto inplit = ext::as_literal(input);
+		auto inplit = ext::str_view(input);
 		return ext::decode_base16(boost::begin(inplit), boost::end(inplit), out);
 	}
 }

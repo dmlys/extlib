@@ -1,7 +1,7 @@
 #pragma once
 #include <ext/type_traits.hpp>
 #include <ext/range/range_traits.hpp>
-#include <ext/range/as_literal.hpp>
+#include <ext/range/str_view.hpp>
 #include <boost/range/algorithm/copy.hpp>
 
 namespace ext
@@ -21,13 +21,17 @@ namespace ext
 		auto end = boost::end(input);
 		if (beg == end) return out;
 
-		out = boost::copy(boost::as_literal(*beg), out);
+		{
+			auto && val = *beg;
+			out = boost::copy(ext::str_view(val), out);
+		}
 
-		auto sepr = boost::as_literal(sep);
+		auto sepr = ext::str_view(sep);
 		for (auto it = ++beg; it != end; ++it)
 		{
+			auto && val = *it;
 			out = boost::copy(sepr, out);
-			out = boost::copy(ext::as_literal(*it), out);
+			out = boost::copy(ext::str_view(val), out);
 		}
 
 		return out;
@@ -44,7 +48,7 @@ namespace ext
 		auto && val = *beg;
 		ext::append(out, boost::begin(val), boost::end(val));
 
-		auto sepr = boost::as_literal(sep);
+		auto sepr = ext::str_view(sep);
 		for (auto it = ++beg; it != end; ++it)
 		{
 			auto && val = *it;
