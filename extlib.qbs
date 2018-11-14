@@ -9,13 +9,13 @@ Project
 	StaticLibrary
 	{
 		Depends { name: "cpp" }
-		cpp.cxxLanguageVersion : "c++17"
 
-		//cpp.defines: project.additionalDefines
-		//cpp.includePaths: project.additionalIncludePaths
-		cpp.systemIncludePaths: project.additionalSystemIncludePaths
+		cpp.cxxLanguageVersion : "c++17"
 		cpp.cxxFlags: project.additionalCxxFlags
 		cpp.driverFlags: project.additionalDriverFlags
+		//cpp.defines: project.additionalDefines
+		cpp.systemIncludePaths: project.additionalSystemIncludePaths
+		cpp.includePaths: ["include"].concat(project.additionalIncludePaths || [])
 		cpp.libraryPaths: project.additionalLibraryPaths
 
 		cpp.defines: {
@@ -28,14 +28,6 @@ Project
 				defines = defines.uniqueConcat(project.additionalDefines)
 
 			return defines
-		}
-
-		cpp.includePaths: {
-			var includes = ["include"]
-			if (project.additionalIncludePaths)
-				includes = includes.uniqueConcat(project.additionalIncludePaths)
-
-			return includes
 		}
 
 		Export
