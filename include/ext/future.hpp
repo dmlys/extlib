@@ -471,7 +471,7 @@ namespace ext
 		static auto acquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *;
 		/// release waiter, it there no more usages - detaches to from continuation list,
 		/// and release it to waiter objects pool. waiter must be acquired by acquire_waiter call.
-		static void release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter);
+		static void release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter) noexcept;
 
 	protected:
 		static bool is_waiter(continuation_type * ptr) noexcept;
@@ -504,7 +504,7 @@ namespace ext
 		virtual auto acquire_waiter() -> continuation_waiter *;
 		/// release waiter, it there no more usages - detaches to from internal continuation list,
 		/// and release it to waiter objects pool
-		virtual void release_waiter(continuation_waiter * waiter);
+		virtual void release_waiter(continuation_waiter * waiter) noexcept;
 
 	public:
 		/// continuation support, must be implemented only by classes used as continuations.

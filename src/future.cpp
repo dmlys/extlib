@@ -72,7 +72,7 @@ namespace ext
 
 
 	static continuation_waiter * acquire_waiter();
-	static void release_waiter(continuation_waiter * ptr);
+	static void release_waiter(continuation_waiter * ptr) noexcept;
 
 	std::uintptr_t shared_state_basic::lock_ptr(std::atomic_uintptr_t & ptr) noexcept
 	{
@@ -219,7 +219,7 @@ namespace ext
 		return waiter;
 	}
 
-	void shared_state_basic::release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter)
+	void shared_state_basic::release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter) noexcept
 	{
 		auto fstate = lock_ptr(head);
 		if (fstate == ready)
@@ -264,7 +264,7 @@ namespace ext
 		return acquire_waiter(m_fstnext);
 	}
 
-	void shared_state_basic::release_waiter(continuation_waiter * waiter)
+	void shared_state_basic::release_waiter(continuation_waiter * waiter) noexcept
 	{
 		return release_waiter(m_fstnext, waiter);
 	}
@@ -726,7 +726,7 @@ namespace ext
 		return ptr.release();
 	}
 
-	static void release_waiter(continuation_waiter * ptr)
+	static void release_waiter(continuation_waiter * ptr) noexcept
 	{
 		assert(ptr->use_count() == 1);
 		continuation_waiters_pool::waiter_ptr wptr {ptr, ext::noaddref};
