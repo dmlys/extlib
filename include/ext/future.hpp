@@ -249,6 +249,17 @@ namespace ext
 		>;
 
 
+	/// Attaches cancellation callback functor to given promise.
+	/// If promise/future is already cancelled(including concurrently) functor is run immediately,
+	/// otherwise it's run when cancellation occurs, from thread requesting cancellation.
+	/// If promise satisfied by other means callback is not called at all.
+	/// Multiple calls do not replace callback, but attach new one, so both will be called
+	template <class Type, class Functor>
+	void on_cancellation(ext::promise<Type> & promise, Functor functor);
+	
+	
+
+
 	// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task,
 	// and ext::future, ext::promise, ext::packaged_task would be front-end classes used by clients.
 	// This library would provide implementation of those interfaces via:
@@ -1197,6 +1208,20 @@ namespace ext
 	};
 
 
+	template <class Functor>
+	class cancellation_continuation : public continuation_base
+	{
+		Functor m_functor;
+
+	public:
+		virtual void continuate(shared_state_basic * caller) noexcept override;
+
+	public:
+		cancellation_continuation(Functor && functor)
+		    : m_functor(std::move(functor)) {}
+	};
+
+
 	/// abstract continuation_waiters_pool used to retrieve continuation waiters
 	class continuation_waiters_pool
 	{
@@ -1806,6 +1831,13 @@ namespace ext
 			this->m_val.index = index;
 			this->set_future_ready();
 		}
+	}
+
+	template <class Functor>
+	void cancellation_continuation<Functor>::continuate(shared_state_basic * caller) noexcept
+	{
+		if (caller->is_cancelled())
+			m_functor();
 	}
 
 	/************************************************************************/
@@ -2496,6 +2528,16 @@ namespace ext
 		return {std::move(unwrapper)};
 	}
 
+	template <class Type, class Functor>
+	void on_cancellation(ext::promise<Type> & promise, Functor functor)
+	{
+		using return_type = std::invoke_result_t<Functor>;
+		static_assert(std::is_same_v<return_type, void>);
+
+		using continuation_type = cancellation_continuation<Functor>;
+		auto cont = ext::make_intrusive<continuation_type>(std::move(functor));
+		promise.handle()->add_continuation(cont.get());
+	}
 
 	/************************************************************************/
 	/*                   swap non member functions                          */
