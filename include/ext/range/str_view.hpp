@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // author: Dmitry Lysachenko
 // date: Tuesday 07 February 2017
 // license: boost software license
@@ -63,21 +63,21 @@ namespace ext
 
 	// string literals overloads
 	template <class CharType, std::size_t N>
-	inline auto str_view(CharType (& str)[N]) -> boost::iterator_range<CharType *>
+	inline auto str_view(CharType (& str)[N]) -> std::basic_string_view<std::decay_t<CharType>>
 	{
 		assert(str[N - 1] == 0); // null terminated string
-		return {str, str + N - 1};
+		return std::basic_string_view(str, N - 1);
 	}
 	
 	template <class CharType>
-	inline auto str_view(CharType *& str) -> boost::iterator_range<CharType *>
+	inline auto str_view(CharType *& str) -> std::basic_string_view<std::decay_t<CharType>>
 	{
-		return {str, str + std::char_traits<std::decay_t<CharType>>::length(str)};
+		return std::basic_string_view(str, std::char_traits<std::decay_t<CharType>>::length(str));
 	}
 
 	template <class CharType>
-	inline auto str_view(CharType * const & str) -> boost::iterator_range<CharType *>
+	inline auto str_view(CharType * const & str) -> std::basic_string_view<std::decay_t<CharType>>
 	{
-		return {str, str + std::char_traits<std::decay_t<CharType>>::length(str)};
+		return std::basic_string_view(str, std::char_traits<std::decay_t<CharType>>::length(str));
 	}
 }
