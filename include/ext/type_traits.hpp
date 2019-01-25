@@ -1,4 +1,5 @@
 #pragma once
+#include <iterator>
 #include <type_traits>
 
 namespace ext
@@ -59,6 +60,29 @@ namespace ext
 	template <class Type>
 	constexpr bool is_iterator_v = is_iterator<Type>::value;
 
+
+
+	template <class Iterator, class Default = void, bool = ext::is_iterator<Iterator>::value>
+	struct iterator_value
+	{
+		using type = Default;
+	};
+
+	template <class Iterator, class Default>
+	struct iterator_value<Iterator, Default, true>
+	{
+		using type = typename std::iterator_traits<Iterator>::value_type;
+	};
+
+	template <class Iterator, class Default = void>
+	using iterator_value_t = typename iterator_value<Iterator, Default>::type;
+
+	template <class Iterator, class Type>
+	struct is_iterator_of :
+		std::is_same<iterator_value_t<Iterator>, Type> {};
+
+	template <class Iterator, class Type>
+	constexpr auto is_iterator_of_v = is_iterator_of<Iterator, Type>::value;
 
 
 	template <class From, class To, class = void>
