@@ -63,16 +63,16 @@ namespace ext
 				>,
 				boost::multi_index::sequenced<>
 			>
-		> cache_conatiner;
+		> cache_container;
 
 		static const std::size_t ByCode = 0;
 		static const std::size_t ByPos = 1;
 
-		typedef typename cache_conatiner::template nth_index<ByCode>::type  code_view;
-		typedef typename cache_conatiner::template nth_index<ByPos>::type   pos_view;
+		typedef typename cache_container::template nth_index<ByCode>::type  code_view;
+		typedef typename cache_container::template nth_index<ByPos>::type   pos_view;
 
 	private:
-		cache_conatiner m_cache;
+		cache_container m_cache;
 		std::size_t m_cache_maxsize;
 
 		void touch(typename code_view::iterator it)
