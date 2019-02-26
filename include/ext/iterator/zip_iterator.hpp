@@ -20,16 +20,16 @@ namespace ext
 		// zip_iterator must deduce_common_traversal for it's iterators,
 		// some can be std::*_iterator_tag, others boost::*_traversal_tag.
 		// 
-		// Implementation uses boost::iterator_facade<..., value_tye, traversal, reference, ...>,
+		// Implementation uses boost::iterator_facade<..., value_type, traversal, reference, ...>,
 		// which have following behavior: if traversal is from std::*_iterator_tag - use as is.
 		// Otherwise it's CategoryOrTraversal structure which is inherited both
 		// from std::*_iterator_tag, and boost::*_traversal_tag.
 		// 
 		// But if reference is not actually a reference,
-		// that std category whould be no higher than std::input_iterator_category,
+		// than std category would be no higher than std::input_iterator_category,
 		// even if traversal is boost::random_access_traversal_tag.
 		// 
-		// That ok for iterators such as transorm_iterator,
+		// That ok for iterators such as transform_iterator,
 		// but not for zip_iterator where reference = tuple<type &...> -
 		// std library will not work with those iterators.
 		// 
@@ -173,7 +173,7 @@ namespace ext
 	} //namespace zip_iterator_utils
 
 	/// zip_iterator, supports reposition algorithms such as sort, partition
-	/// at least n msvc 2013, gcc 4.8 ... 4.9+ , and probably others
+	/// at least on msvc 2017, gcc 8 , and probably others
 	/// 
 	/// it provides value_type as tuple<iterator::value_type...>,
 	/// reference as type inherited from tuple of references, which provides swap for rvalues,
