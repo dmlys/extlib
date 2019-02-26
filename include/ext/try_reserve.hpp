@@ -11,8 +11,8 @@ namespace ext
 	inline
 	typename std::enable_if<
 		std::is_convertible<
-			std::random_access_iterator_tag,
-			typename std::iterator_traits<Iterator>::iterator_category
+			typename std::iterator_traits<Iterator>::iterator_category,
+			std::random_access_iterator_tag
 		>::value
 	>::type
 	try_reserve(Container & container, Iterator first, Iterator last)
@@ -23,9 +23,9 @@ namespace ext
 	template <class Container, class Iterator>
 	inline
 	typename std::enable_if<
-		! std::is_convertible<
-			std::random_access_iterator_tag,
-			typename std::iterator_traits<Iterator>::iterator_category
+		not std::is_convertible<
+			typename std::iterator_traits<Iterator>::iterator_category,
+			std::random_access_iterator_tag
 		>::value
 	>::type
 	try_reserve(Container & container, Iterator first, Iterator last)
