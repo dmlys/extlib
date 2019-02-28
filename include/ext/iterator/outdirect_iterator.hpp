@@ -16,12 +16,12 @@ namespace ext
 				Iterator, // Base
 				typename std::conditional<
 					std::is_same<Value, boost::use_default>::value,
-					typename std::add_pointer<typename boost::iterator_reference<Iterator>::type>::type, Value
+					std::add_pointer_t<typename boost::iterator_reference<Iterator>::type>, Value
 				>::type,  // Value
 				Category, // Traversal
 				typename std::conditional<
 					std::is_same<Reference, boost::use_default>::value,
-					typename std::add_pointer<typename boost::iterator_reference<Iterator>::type>::type, Reference
+					std::add_pointer_t<typename boost::iterator_reference<Iterator>::type>, Reference
 				>::type,   // Reference
 				Difference // Difference
 			>;
@@ -51,6 +51,8 @@ namespace ext
 	private:
 		inline typename base_type::reference dereference() const
 		{
+			using ref_type = decltype(*this->base());
+			static_assert(std::is_reference_v<ref_type>, "base iterator does not return reference, can't outdirect, dangling reference would be introduced");
 			return &*this->base();
 		}
 
