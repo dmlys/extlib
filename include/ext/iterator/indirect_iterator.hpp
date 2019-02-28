@@ -12,23 +12,22 @@ namespace ext
 		template <class Iterator, class Value, class Category, class Reference, class Difference>
 		struct indirect_iterator_base
 		{
-			using dereferencable = typename boost::iterator_value<Iterator>::type;
 			using deduced_reference = decltype(*std::declval<typename boost::iterator_reference<Iterator>::type>());
 			using dedeuced_value_type = std::remove_reference_t<deduced_reference>;
 
 			using type = boost::iterator_adaptor<
 				indirect_iterator<Iterator, Value, Category, Reference, Difference>,
-				Iterator,
+				Iterator,  // Base
 				typename std::conditional<
 					std::is_same<Value, boost::use_default>::value,
 					dedeuced_value_type, Value
-				>::type,
-				Category,
+				>::type,   // Value
+				Category,  // Traversal
 				typename std::conditional<
 					std::is_same<Reference, boost::use_default>::value,
 					deduced_reference, Reference
-				>::type,
-				Difference
+				>::type,   // Reference
+				Difference // Difference
 			>;
 		};
 	}
