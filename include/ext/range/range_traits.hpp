@@ -1,6 +1,4 @@
 #pragma once
-#include <string>
-#include <string_view>
 #include <ext/type_traits.hpp>
 
 #include <boost/predef.h>
@@ -59,13 +57,6 @@ namespace ext
 #endif // __cplusplus >= 201703L
 	}
 #endif // BOOST_LIB_STD_DINKUMWARE
-
-	template <class CharT, class traits>
-	inline CharT * data(std::basic_string_view<CharT, traits> & str)
-	{
-		return const_cast<char *>(str.data());
-	}
-
 
 	/// generic assign method, by default calls assign member function
 	/// can be specialized/overloaded for containers/ranges which do not provide assign memeber method, like boost::iterator_range
