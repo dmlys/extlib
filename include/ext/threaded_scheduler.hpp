@@ -100,11 +100,11 @@ namespace ext
 	public:
 		template <class Functor>
 		auto submit(time_point tp, Functor && func) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>()>>;
+			ext::future<std::invoke_result_t<std::decay_t<Functor>>>;
 
 		template <class Functor>
 		auto submit(duration  rel, Functor && func) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>()>>;
+			ext::future<std::invoke_result_t<std::decay_t<Functor>>>;
 		
 		void clear();
 
@@ -121,9 +121,9 @@ namespace ext
 
 	template <class Functor>
 	auto threaded_scheduler::submit(time_point tp, Functor && func) ->
-		ext::future<std::result_of_t<std::decay_t<Functor>()>>
+		ext::future<std::invoke_result_t<std::decay_t<Functor>>>
 	{
-		typedef std::result_of_t<std::decay_t<Functor>()> result_type;
+		typedef std::invoke_result_t<std::decay_t<Functor>> result_type;
 		typedef task_impl<std::decay_t<Functor>, result_type> task_type;
 		typedef ext::future<result_type> future_type;
 
@@ -141,7 +141,7 @@ namespace ext
 
 	template <class Functor>
 	inline auto threaded_scheduler::submit(duration rel, Functor && func) ->
-		ext::future<std::result_of_t<std::decay_t<Functor>()>>
+		ext::future<std::invoke_result_t<std::decay_t<Functor>>>
 	{
 		return submit(rel + time_point::clock::now(), std::forward<Functor>(func));
 	}

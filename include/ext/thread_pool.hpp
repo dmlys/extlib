@@ -183,11 +183,11 @@ namespace ext
 		/// submits task for execution, returns future representing result of execution.
 		template <class Functor>
 		auto submit(Functor && func) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>()>>;
+			ext::future<std::invoke_result_t<std::decay_t<Functor>>>;
 		
 		template <class Future, class Functor>
 		auto submit(Future future, Functor && func) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>(Future)>>;
+			ext::future<std::invoke_result_t<std::decay_t<Functor>, Future>>;
 
 		/// clears all not already executed tasks.
 		/// Associated futures status become abandoned
@@ -207,9 +207,9 @@ namespace ext
 
 	template <class Functor>
 	auto thread_pool::submit(Functor && func) ->
-		ext::future<std::result_of_t<std::decay_t<Functor>()>>
+		ext::future<std::invoke_result_t<std::decay_t<Functor>>>
 	{
-		typedef std::result_of_t<std::decay_t<Functor>()> result_type;
+		typedef std::invoke_result_t<std::decay_t<Functor>> result_type;
 		typedef task_impl<std::decay_t<Functor>, result_type> task_type;
 		typedef ext::future<result_type> future_type;
 		
@@ -227,7 +227,7 @@ namespace ext
 
 	template <class Future, class Functor>
 	auto thread_pool::submit(Future future, Functor && func) ->
-		ext::future<std::result_of_t<std::decay_t<Functor>(Future)>>
+		ext::future<std::invoke_result_t<std::decay_t<Functor>, Future>>
 	{
 		auto handle = future.handle();
 		auto wrapped = [func = std::forward<Functor>(func), future = std::move(future)]() mutable
@@ -236,7 +236,7 @@ namespace ext
 		};
 
 		typedef decltype(wrapped) functor_type;
-		typedef std::result_of_t<functor_type()> result_type;
+		typedef std::invoke_result_t<functor_type> result_type;
 		typedef task_impl<functor_type, result_type> task_type;
 		typedef ext::future<result_type> future_type;
 

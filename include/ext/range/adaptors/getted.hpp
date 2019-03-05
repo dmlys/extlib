@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <type_traits>
 #include <tuple>
 
@@ -22,7 +22,7 @@ namespace ext
 			using range_iterator = typename boost::range_iterator<ForwardRange>::type;
 			using range_iterator_reference = typename boost::iterator_reference<range_iterator>::type;
 
-			using result_type = std::result_of_t<get_func<Idx>(range_iterator_reference)>;
+			using result_type = std::invoke_result_t<get_func<Idx>, range_iterator_reference>;
 			using element_type = std::tuple_element_t<Idx, std::decay_t<range_iterator_reference>>;
 			
 			// if tuple we have - is a tuple lreference or element is a lreference - we can pass as is,
