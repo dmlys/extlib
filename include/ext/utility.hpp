@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <cassert>
 #include <stdexcept>
 #include <type_traits>
@@ -13,16 +13,16 @@ namespace ext_detail_adl_helper
 {
 	using std::get;
 
-	template <class Type, std::size_t Index>
+	template <std::size_t Index, class Type>
 	struct adl_get_type
 	{
-		typedef decltype(get<Index>(std::declval<Type>())) type;
+		using type = decltype(get<Index>(std::declval<Type>()));
 	};
 
-	template <std::size_t Idx, class Type>
-	auto adl_get(Type && val) -> decltype( get<Idx>(std::forward<Type>(val)) )
+	template <std::size_t Index, class Type>
+	decltype(auto) adl_get(Type && val)
 	{
-		return get<Idx>(std::forward<Type>(val));
+		return get<Index>(std::forward<Type>(val));
 	}
 } // namespace ext_detail_adl_helper
 
@@ -38,6 +38,12 @@ namespace ext
 
 	template <class Type> constexpr inline std::remove_const_t<Type> & unconst(const Type & ref) noexcept { return const_cast<std::remove_const_t<Type> &>(ref); }
 	template <class Type> constexpr inline std::remove_const_t<Type> * unconst(const Type * ptr) noexcept { return const_cast<std::remove_const_t<Type> *>(ptr); }
+
+	// delete this function for temporary objects
+	template <class Type> constexpr inline void   unconst(const Type && ref) = delete;
+	// those overloads needed because of deleted overload above
+	template <class Type> constexpr inline Type & unconst(Type & ref) noexcept { return ref; }
+	template <class Type> constexpr inline Type * unconst(Type * ptr) noexcept { return ptr; }
 
 
 	namespace detail
@@ -66,10 +72,10 @@ namespace ext
 
 	/// test if type is a tuple like with size N, test is done via get function.
 	/// if get<N - 1>(val) valid - it's a tuple.
-	/// for testing use is_type trait, this trait is for extension/specialization.
+	/// for testing use is_tuple trait, this trait is for extension/specialization.
 	/// 
-	/// for std::tuple, boost::tuple - it's actually will not work,
-	/// because of how get function is defined for them - it's gives compilation error.
+	/// for std::tuple, boost::tuple - it actually will not work,
+	/// because of how get function is defined for them - it gives compilation error.
 	/// for those you can specialize this class.
 	template <class type, unsigned N>
 	struct is_decayed_type_tuplelike
@@ -207,29 +213,20 @@ namespace ext
 		template <class Tuple, class Functor, std::size_t ... Is>
 		struct tuple_visitation_result_type_impl<Tuple, Functor, std::index_sequence<Is...>>
 		{
-			typedef typename std::common_type
-			<
-				typename std::result_of<
-					Functor(typename ext_detail_adl_helper::adl_get_type<Tuple, Is>::type)
-				>::type...
-			>::type type;
+			using type = std::common_type_t<
+				std::invoke_result_t<Functor, typename ext_detail_adl_helper::adl_get_type<Is, Tuple>::type>...
+			>;
 		};
 
 		template <class Tuple, class Functor>
 		struct tuple_visitation_result_type
 		{
-			typedef typename tuple_visitation_result_type_impl<
-				Tuple, Functor,
-				typename std::make_index_sequence<
-					std::tuple_size<std::decay_t<Tuple>>::value
-				>::type
-			>::type type;
+			using type = typename tuple_visitation_result_type_impl<
+				Tuple, Functor, std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>
+			>::type;
 		};
 
-		template <
-			std::size_t I, class ReturnType,
-			class Tuple, class Functor
-		>
+		template <std::size_t I, class ReturnType, class Tuple, class Functor>
 		ReturnType tupple_applier(Tuple && tuple, Functor && func)
 		{
 			using std::get; using std::forward;
@@ -342,7 +339,7 @@ namespace ext
 	struct get_func
 	{
 		template <class Type>
-		auto operator()(Type && val) const -> decltype(ext_detail_adl_helper::adl_get<Idx>(std::forward<Type>(val)))
+		decltype(auto) operator()(Type && val) const
 		{
 			return ext_detail_adl_helper::adl_get<Idx>(std::forward<Type>(val));
 		}

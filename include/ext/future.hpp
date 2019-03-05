@@ -1880,7 +1880,7 @@ namespace ext
 
 		template <class Functor>
 		auto then(Functor && continuation) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>(ext::future<value_type>)>>
+			ext::future<std::invoke_result_t<std::decay_t<Functor>, ext::future<value_type>>>
 		{
 			assert(valid());
 			auto self = std::move(*this);
@@ -1937,7 +1937,7 @@ namespace ext
 
 		template <class Functor>
 		auto then(Functor && continuation) ->
-			ext::future<std::result_of_t<std::decay_t<Functor>(ext::shared_future<value_type>)>>
+			ext::future<std::invoke_result_t<std::decay_t<Functor>, ext::shared_future<value_type>>>
 		{
 			assert(valid());
 			return m_ptr->template add_shared_continuation<value_type>(std::forward<Functor>(continuation));
@@ -2238,7 +2238,7 @@ namespace ext
 
 	public:
 		// low-level accessors
-		const intrusive_ptr & handle() const noexcept  { return m_ptr; }
+		const intrusive_ptr & handle()  const noexcept { return m_ptr; }
 		      intrusive_ptr   release() const noexcept { return std::move(m_ptr); }
 
 	private:
@@ -2348,7 +2348,7 @@ namespace ext
 		auto closure = [func = std::forward<Function>(func),
 		                args_tuple = std::make_tuple(std::forward<Args>(args)...)]() mutable -> result_type
 		{
-			return ext::apply(func, std::move(args_tuple));
+			return ext::apply(std::move(func), std::move(args_tuple));
 		};
 
 		if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::async))
