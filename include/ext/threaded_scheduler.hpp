@@ -29,7 +29,7 @@ namespace ext
 		public:
 			virtual ~task_base() = default;
 
-			// note: addref, release are present in ext::packaged_task_impl, that can issue a conflict,
+			// note: addref, release are present in ext::packaged_once_task_impl, that can issue a conflict,
 			// if signature same, but return value different - it's a error.
 			// just name them differently, it's internal private class.
 			virtual void task_addref()   noexcept = 0;
@@ -46,9 +46,9 @@ namespace ext
 		template <class Functor, class ResultType>
 		class task_impl :
 			public task_base,
-			public ext::packaged_task_impl<Functor, ResultType()>
+			public ext::packaged_once_task_impl<Functor, ResultType()>
 		{
-			typedef ext::packaged_task_impl<Functor, ResultType()> base_type;
+			typedef ext::packaged_once_task_impl<Functor, ResultType()> base_type;
 
 		public:
 			void task_addref()   noexcept override { base_type::addref(); }

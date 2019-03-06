@@ -1,4 +1,7 @@
+#include <future>
 #include <ext/future.hpp>
+#include <ext/thread_pool.hpp>
+#include <ext/threaded_scheduler.hpp>
 #include <boost/test/unit_test.hpp>
 
 struct future_fixture
@@ -227,5 +230,120 @@ BOOST_AUTO_TEST_CASE(future_deferred_unwrap_tests)
 	}
 }
 
+// functor who return different types and values depending on how called:
+// * via const lvalue ref (const &)
+// * via       lvalue ref (      &)
+// * via       rvalue ref (     &&)
+struct tricky_functor
+{
+	   int operator()() const &  noexcept { return 1;   } // if called as const object
+	  long operator()()       &  noexcept { return 2;   } // if called as non const object
+	double operator()()       && noexcept { return 3.0; } // if called as tmp object
+
+	// for continuations
+	template <class Arg> 	int operator()(Arg && arg) const &  noexcept { return 1;   } // if called as const object
+	template <class Arg>   long operator()(Arg && arg)       &  noexcept { return 2;   } // if called as non const object
+	template <class Arg> double operator()(Arg && arg)       && noexcept { return 3.0; } // if called as tmp object
+};
+
+BOOST_AUTO_TEST_CASE(std_future_result_type_tests)
+{
+	tricky_functor func;
+	BOOST_CHECK_EQUAL(func(), 2);
+	BOOST_CHECK_EQUAL(std::as_const(func)(), 1);
+	BOOST_CHECK_EQUAL(tricky_functor()(), 3);
+
+	// No matter how functor was passed into packaged_task, by moving or just a copy,
+	// because of reset method/functionality packaged_task(functors must be copied/moved to a new task) functor is always called like functor(...).
+	// Note: return value_type is passed explicitly to pcakged_task.
+	std::packaged_task<double()> task(tricky_functor{});
+	auto ftask = task.get_future(); task();
+	BOOST_CHECK_EQUAL(ftask.get(), 2);
+
+	task = std::packaged_task<double()>(func);
+	ftask = task.get_future(); task();
+	BOOST_CHECK_EQUAL(ftask.get(), 2);
+
+	std::shared_future<double> fasync, fdeferred;
+
+	// Internally func will be copied/moved to async thread, and there will be called exactly once.
+	// As result it can and should be called like std::move(functor)(...)
+	fasync = std::async(std::launch::async, func);
+	BOOST_CHECK_EQUAL(fasync.get(), 3);
+	// even more reasons to call it like std::move(functor)(...)
+	fasync = std::async(std::launch::async, tricky_functor());
+	BOOST_CHECK_EQUAL(fasync.get(), 3);
+
+	// launch::deferred should behave like launch::async
+	fdeferred = std::async(std::launch::deferred, func);
+	BOOST_CHECK_EQUAL(fdeferred.get(), 3);
+	fdeferred = std::async(std::launch::deferred, tricky_functor());
+	BOOST_CHECK_EQUAL(fdeferred.get(), 3);
+}
+
+BOOST_AUTO_TEST_CASE(future_result_type_tests)
+{
+	tricky_functor func;
+	BOOST_CHECK_EQUAL(func(), 2);
+	BOOST_CHECK_EQUAL(ext::as_const(func)(), 1);
+	BOOST_CHECK_EQUAL(tricky_functor()(), 3);
+
+	// No matter how functor was passed into packaged_task, by moving or just a copy,
+	// because of reset method/functionality packaged_task(functors must be copied/moved to a new task) functor is always called like functor(...).
+	// Note: return value_type is passed explicitly to pcakged_task.
+	ext::packaged_task<double()> task(tricky_functor{});
+	auto ftask = task.get_future(); task();
+	BOOST_CHECK_EQUAL(ftask.get(), 2);
+
+	task = ext::packaged_task<double()>(func);
+	ftask = task.get_future(); task();
+	BOOST_CHECK_EQUAL(ftask.get(), 2);
+
+	ext::shared_future<double> fasync, fdeferred;
+
+	// Internally func will be copied/moved to async thread, and there will be called exactly once.
+	// As result it can and should be called like std::move(functor)(...)
+	fasync = ext::async(ext::launch::async, func);
+	BOOST_CHECK_EQUAL(fasync.get(), 3);
+	// even more reasons to call it like std::move(functor)(...)
+	fasync = ext::async(ext::launch::async, tricky_functor());
+	BOOST_CHECK_EQUAL(fasync.get(), 3);
+
+	// launch::deferred should behave like launch::async
+	fdeferred = ext::async(ext::launch::deferred, func);
+	BOOST_CHECK_EQUAL(fdeferred.get(), 3);
+	fdeferred = ext::async(ext::launch::deferred, tricky_functor());
+	BOOST_CHECK_EQUAL(fdeferred.get(), 3);
+
+	// same with continuations: they are copied/moved to a continuation and called exactly once -> should be called like std::move(functor)(...)
+	BOOST_CHECK_EQUAL(fasync.then(func).get(), 3);
+	BOOST_CHECK_EQUAL(fasync.then(tricky_functor()).get(), 3);
+}
+
+BOOST_AUTO_TEST_CASE(thread_pool_result_type_tests)
+{
+	tricky_functor func;
+
+	ext::thread_pool pool;
+	pool.set_nworkers(1);
+
+	BOOST_CHECK_EQUAL(pool.submit(func).get(), 3);
+	BOOST_CHECK_EQUAL(pool.submit(tricky_functor()).get(), 3);
+
+	ext::shared_future<int> f = ext::make_ready_future(12);
+	BOOST_CHECK_EQUAL(pool.submit(f, func).get(), 3);
+	BOOST_CHECK_EQUAL(pool.submit(f, tricky_functor()).get(), 3);
+}
+
+BOOST_AUTO_TEST_CASE(threaded_scheduler_result_type_tests)
+{
+	tricky_functor func;
+	ext::threaded_scheduler scheduler;
+
+	using namespace std::chrono_literals;
+
+	BOOST_CHECK_EQUAL(scheduler.submit(0s, func).get(), 3);
+	BOOST_CHECK_EQUAL(scheduler.submit(0s, tricky_functor()).get(), 3);
+}
 
 BOOST_AUTO_TEST_SUITE_END()
