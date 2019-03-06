@@ -325,7 +325,8 @@ namespace ext
 	class unwrap_continuation;
 	template <class>        class packaged_task_base;
 	template <class, class> class packaged_task_impl;
-	template <class, class> class deferred_task_impl;
+	template <class, class> class packaged_once_task_impl;
+	template <class, class> class deferred_once_task_impl;
 	template <class, class> class continuation_task;
 	template <class, class> class deferred_continuation_task;
 
@@ -949,13 +950,39 @@ namespace ext
 			: m_functor(std::move(f)) {}
 	};
 
-	/// deferred_task_impl is packaged_task_impl.
+	/// The packaged_once_task_impl is similar to packaged_task_impl, but allows invoking functor only once.
+	/// This allows more exact invocation of functor: with regular packaged_task_impl functor is not moved on call, so later it can be used in reset call.
+	/// This class forbids reset call
+	template <class Functor, class Ret, class ... Args>
+	class packaged_once_task_impl<Functor, Ret(Args...)> : public packaged_task_base<Ret(Args...)>
+	{
+		using self_type = packaged_once_task_impl;
+		using base_type = packaged_task_base<Ret(Args...)>;
+
+		public:
+			using functor_type = Functor;
+
+		protected:
+			functor_type m_functor;
+
+		public:
+			bool valid() const noexcept override { return true; /*static_cast<bool>(m_functor);*/ }
+			void execute(Args ... args) noexcept override;
+			self_type * reset() override { std::terminate(); }
+
+		public:
+			//packaged_once_task_impl() noexcept = default;
+			packaged_once_task_impl(functor_type f) noexcept
+				: m_functor(std::move(f)) {}
+	};
+
+	/// deferred_once_task_impl is packaged_task_impl.
 	/// It calls stored functor on first get/wait request, used in ext::async call.
 	template <class Functor, class Ret>
-	class deferred_task_impl<Functor, Ret()> : public packaged_task_impl<Functor, Ret()>
+	class deferred_once_task_impl<Functor, Ret()> : public packaged_once_task_impl<Functor, Ret()>
 	{
-		using self_type = deferred_task_impl;
-		using base_type = packaged_task_impl<Functor, Ret()>;
+		using self_type = deferred_once_task_impl;
+		using base_type = packaged_once_task_impl<Functor, Ret()>;
 
 	public:
 		void wait() const override;
@@ -963,16 +990,16 @@ namespace ext
 		future_status wait_until(std::chrono::steady_clock::time_point timeout_point) const override { return future_status::deferred; }
 
 	public:
-		deferred_task_impl() noexcept { this->init_deferred(); }
-		deferred_task_impl(Functor func) noexcept : base_type(std::move(func)) { this->init_deferred(); }
+		deferred_once_task_impl() noexcept { this->init_deferred(); }
+		deferred_once_task_impl(Functor func) noexcept : base_type(std::move(func)) { this->init_deferred(); }
 	};
 
 	/// implements continuations(future::then, shared_future::then)
 	template <class Functor, class Type>
-	class continuation_task : public packaged_task_impl<Functor, Type(shared_state_basic *)>
+	class continuation_task : public packaged_once_task_impl<Functor, Type(shared_state_basic *)>
 	{
 		using self_type = continuation_task;
-		using base_type = packaged_task_impl<Functor, Type(shared_state_basic *)>;
+		using base_type = packaged_once_task_impl<Functor, Type(shared_state_basic *)>;
 
 	protected:
 		using continuation_type = shared_state_basic;
@@ -1324,7 +1351,7 @@ namespace ext
 		auto wrapped = [continuation = std::forward<Functor>(continuation)]
 		                (shared_state_basic * caller) mutable -> return_type
 		{
-			return continuation(ext::future<Type>(ext::intrusive_ptr<shared_state_basic>(caller)));
+			return std::move(continuation)(ext::future<Type>(ext::intrusive_ptr<shared_state_basic>(caller)));
 		};
 
 		// if we are deferred - become ready, defeats laziness, sadly :(
@@ -1347,7 +1374,7 @@ namespace ext
 		auto wrapped = [continuation = std::forward<Functor>(continuation)]
 		                (shared_state_basic * caller) mutable -> return_type
 		{
-			return continuation(ext::shared_future<Type>(ext::intrusive_ptr<shared_state_basic>(caller)));
+			return std::move(continuation)(ext::shared_future<Type>(ext::intrusive_ptr<shared_state_basic>(caller)));
 		};
 
 		// if we are deferred - become ready, defeats laziness, sadly :(
@@ -1715,29 +1742,37 @@ namespace ext
 	/*              tasks implementation                                    */
 	/************************************************************************/
 	template <class Functor, class Ret, class ... Args>
-	inline void shared_state_execute(shared_state<Ret> & sh, Functor & functor, Args && ... args)
+	inline void shared_state_execute(shared_state<Ret> & sh, Functor && functor, Args && ... args)
 	{
-		sh.set_value(ext::invoke(functor, std::move(args)...));
+		sh.set_value(ext::invoke(std::forward<Functor>(functor), std::move(args)...));
 	}
 
 	template <class Functor, class ... Args>
-	inline void shared_state_execute(shared_state<void> & sh, Functor & functor, Args && ... args)
+	inline void shared_state_execute(shared_state<void> & sh, Functor && functor, Args && ... args)
 	{
-		ext::invoke(functor, std::forward<Args>(args)...);
+		ext::invoke(std::forward<Functor>(functor), std::forward<Args>(args)...);
 		sh.set_value();
 	}
 
 	template <class Functor, class Ret, class ... Args>
-	inline void shared_state_execute(shared_state_unexceptional<Ret> & sh, Functor & functor, Args && ... args)
+	inline void shared_state_execute(shared_state_unexceptional<Ret> & sh, Functor && functor, Args && ... args)
 	{
-		sh.set_value(ext::invoke(functor, std::move(args)...));
+		sh.set_value(ext::invoke(std::forward<Functor>(functor), std::move(args)...));
 	}
 
 	template <class Functor, class ... Args>
-	inline void shared_state_execute(shared_state_unexceptional<void> & sh, Functor & functor, Args && ... args)
+	inline void shared_state_execute(shared_state_unexceptional<void> & sh, Functor && functor, Args && ... args)
 	{
-		ext::invoke(functor, std::forward<Args>(args)...);
+		ext::invoke(std::forward<Functor>(functor), std::forward<Args>(args)...);
 		sh.set_value();
+	}
+
+
+	template <class Functor, class Ret, class ... Args>
+	auto packaged_task_impl<Functor, Ret(Args...)>::reset() -> self_type *
+	{
+		this->release_promise();
+		return new self_type(std::move(m_functor));
 	}
 
 	template <class Functor, class Ret, class ... Args>
@@ -1757,21 +1792,30 @@ namespace ext
 	}
 
 	template <class Functor, class Ret, class ... Args>
-	auto packaged_task_impl<Functor, Ret(Args...)>::reset() -> self_type *
+	void packaged_once_task_impl<Functor, Ret(Args...)>::execute(Args ... args) noexcept
 	{
-		this->release_promise();
-		return new self_type(std::move(m_functor));
+		if (not this->mark_marked())
+			return;
+
+		try
+		{
+			shared_state_execute(*this, std::move(m_functor), std::move(args)...);
+		}
+		catch (...)
+		{
+			this->set_exception(std::current_exception());
+		}
 	}
 
 	template <class Functor, class Ret>
-	void deferred_task_impl<Functor, Ret()>::wait() const
+	void deferred_once_task_impl<Functor, Ret()>::wait() const
 	{
 		if (not ext::unconst(this)->mark_marked())
 			return base_type::wait();
 
 		try
 		{
-			shared_state_execute(*ext::unconst(this), ext::unconst(this)->m_functor);
+			shared_state_execute(*ext::unconst(this), std::move(ext::unconst(this)->m_functor));
 		}
 		catch (...)
 		{
@@ -1804,7 +1848,7 @@ namespace ext
 		try
 		{
 			auto self = ext::unconst(this);
-			shared_state_execute(*self, self->m_functor, m_parent.get());
+			shared_state_execute(*self, std::move(self->m_functor), m_parent.get());
 		}
 		catch (...)
 		{
@@ -2353,18 +2397,16 @@ namespace ext
 
 		if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::async))
 		{
-			ext::packaged_task<result_type()> pt {std::move(closure)};
-			auto result = pt.get_future();
-
-			std::thread thx {std::move(pt)};
+			auto task = ext::make_intrusive<packaged_once_task_impl<decltype(closure), result_type()>>(std::move(closure));
+			std::thread thx([task] { task->execute(); });
 			thx.detach();
 
-			return result;
+			return ext::future<result_type>(std::move(task));
 		}
 		else //if (static_cast<unsigned>(policy) & static_cast<unsigned>(ext::launch::deferred))
 		{
-			auto pt = ext::make_intrusive<deferred_task_impl<decltype(closure), result_type()>>(std::move(closure));
-			return ext::future<result_type>(std::move(pt));
+			auto task = ext::make_intrusive<deferred_once_task_impl<decltype(closure), result_type()>>(std::move(closure));
+			return ext::future<result_type>(std::move(task));
 		}
 	}
 
