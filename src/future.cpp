@@ -1,4 +1,4 @@
-// author: Dmitry Lysachenko
+﻿// author: Dmitry Lysachenko
 // date: Saturday 20 august 2016
 // license: boost software license
 //          http://www.boost.org/LICENSE_1_0.txt
@@ -554,7 +554,11 @@ namespace ext
 
 	void continuation_waiter_impl::continuate(shared_state_basic * caller) noexcept
 	{
-		m_ready.store(true, std::memory_order_relaxed);
+		{
+			unique_lock lk(m_mutex);
+			m_ready.store(true, std::memory_order_relaxed);
+		}
+
 		m_var.notify_all();
 	}
 

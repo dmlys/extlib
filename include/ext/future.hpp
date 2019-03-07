@@ -891,7 +891,7 @@ namespace ext
 	private:
 		std::mutex m_mutex;
 		std::condition_variable m_var;
-		std::atomic_bool m_ready = ATOMIC_VAR_INIT(false);
+		std::atomic_bool m_ready = ATOMIC_VAR_INIT(false); // can and should be not atomic, but regular variable
 
 		using unique_lock = std::unique_lock<std::mutex>;
 
