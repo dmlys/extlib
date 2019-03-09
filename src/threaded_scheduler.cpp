@@ -1,4 +1,4 @@
-#include <ext/threaded_scheduler.hpp>
+﻿#include <ext/threaded_scheduler.hpp>
 #include <boost/thread/reverse_lock.hpp>
 
 namespace ext
@@ -18,7 +18,7 @@ namespace ext
 
 	bool threaded_scheduler::entry_comparer::operator()(const task_ptr & t1, const task_ptr & t2) const noexcept
 	{
-		// priority_queue with std::less provides constant lookup for greathest element, we need smallest
+		// priority_queue with std::less provides constant lookup for greatest element, we need smallest
 		return t1->point > t2->point;
 	}
 
@@ -36,7 +36,7 @@ namespace ext
 		for (;;)
 		{
 			{
-				std::lock_guard<std::mutex> lk(m_mutex);
+				std::lock_guard lk(m_mutex);
 				if (m_queue.empty()) return;
 
 				auto & top = m_queue.top();
@@ -56,7 +56,7 @@ namespace ext
 		{
 			run_passed_events();
 
-			std::unique_lock<std::mutex> lk(m_mutex);
+			std::unique_lock lk(m_mutex);
 			if (m_stopped) return;
 
 			auto wait = next_in(lk);
@@ -68,7 +68,7 @@ namespace ext
 	{
 		queue_type queue;
 		{
-			std::lock_guard<std::mutex> lk(m_mutex);
+			std::lock_guard lk(m_mutex);
 			queue = std::move(m_queue);
 		}
 
@@ -89,7 +89,7 @@ namespace ext
 	threaded_scheduler::~threaded_scheduler() noexcept
 	{
 		{
-			std::lock_guard<std::mutex> lk(m_mutex);
+			std::lock_guard lk(m_mutex);
 			m_stopped = true;
 			
 			while (!m_queue.empty())
