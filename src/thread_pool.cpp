@@ -1,4 +1,4 @@
-#include <algorithm>
+﻿#include <algorithm>
 #include <ext/thread_pool.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 
@@ -33,7 +33,7 @@ namespace ext
 
 		// remove ourself from m_delayed and add m_task to thread_pool tasks list
 		{
-			std::lock_guard<std::mutex> lk(owner->m_mutex);
+			std::lock_guard lk(owner->m_mutex);
 			
 			auto & list = owner->m_delayed;
 			auto & delayed_count = owner->m_delayed_count;
@@ -60,7 +60,7 @@ namespace ext
 
 	unsigned thread_pool::get_nworkers() const
 	{
-		std::lock_guard<std::mutex> lk(m_mutex);
+		std::lock_guard lk(m_mutex);
 		return static_cast<unsigned>(m_pending);
 	}
 
@@ -77,7 +77,7 @@ namespace ext
 
 	ext::future<void> thread_pool::set_nworkers(unsigned n)
 	{
-		std::unique_lock<std::mutex> lk(m_mutex);
+		std::unique_lock lk(m_mutex);
 		if (n == m_pending) return ext::make_ready_future();
 		unsigned old_size = static_cast<unsigned>(m_workers.size());
 
@@ -124,7 +124,7 @@ namespace ext
 
 	void thread_pool::thread_func(std::atomic_bool & stop_request)
 	{
-		std::unique_lock<std::mutex> lk(m_mutex, std::defer_lock);
+		std::unique_lock lk(m_mutex, std::defer_lock);
 
 		for (;;)
 		{
@@ -132,7 +132,7 @@ namespace ext
 			lk.lock();
 
 			if (stop_request.load(std::memory_order_relaxed)) return;
-			if (!m_tasks.empty()) goto avail;
+			if (not m_tasks.empty()) goto avail;
 
 		again:
 			m_event.wait(lk);
@@ -151,33 +151,27 @@ namespace ext
 	}
 
 	void thread_pool::clear()
-	{		
-		delayed_task_continuation_list delayed;
+	{
 		task_list_type tasks;
 
 		{
-			std::lock_guard<std::mutex> lk(m_mutex);
-			m_delayed.swap(delayed);
-		}
-
-		// cancel/take delayed tasks, see thread_pool body description
-		assert(m_delayed_count == 0);
-		for (auto it = delayed.begin(); it != delayed.end();)
-		{
-			if (not it->mark_marked())
-				++m_delayed_count, ++it;
-			else
+			// cancel/take delayed tasks, see thread_pool body description
+			std::unique_lock lk(m_mutex);
+			assert(m_delayed_count == 0);
+			for (auto it = m_delayed.begin(); it != m_delayed.end();)
 			{
-				auto & item = *it;
-				it = delayed.erase(it);
-				item.abandone();
-				item.release();
+				if (not it->mark_marked())
+					++m_delayed_count, ++it;
+				else
+				{
+					auto & item = *it;
+					it = m_delayed.erase(it);
+					item.abandone();
+					item.release();
+				}
 			}
-		}
-		
-		// wait until all delayed_tasks are finished, and take pending tasks
-		{
-			std::unique_lock<std::mutex> lk(m_mutex);
+
+			// wait until all delayed_tasks are finished, and take pending tasks
 			m_event.wait(lk, [this] { return m_delayed_count == 0; });
 			tasks.swap(m_tasks);
 		}
@@ -196,61 +190,35 @@ namespace ext
 
 	thread_pool::~thread_pool() noexcept
 	{
-		// can std::atomic_memory_fence(std::memory_order_seq_cst) used?
-		
-		std::vector<worker_ptr>::iterator first, last;
-		task_list_type tasks;
-		delayed_task_continuation_list delayed;
+		// First we should signal threads to stop.
+		// If this object is destroyed nobody should be invoking any methods of this class
+		// (with exception our internal classes, like delayed_task_continuation, worker).
+		// but those do not access m_workers, so accessing m_workers should be safe without locking mutex.
+		// We still need to enforce memory ordering through, for now do it via locking mutex
+		//
+		// TODO: can std::atomic_memory_fence(std::memory_order_acquire/std::memory_order_seq_cst) used?
 
+		decltype (m_workers) workers;
 		{
-			std::lock_guard<std::mutex> lk(m_mutex);
-			delayed.swap(m_delayed);
-			first = m_workers.begin();
-			last = m_workers.end();
+			std::lock_guard lk(m_mutex);
+			std::swap(m_workers, workers);
 		}
 
-		// stopping threads
-		for (auto it = first; it != last - m_pending; ++it)
-			(**it).stop_request();
+		// signal threads to stop
+		for (auto & worker_ptr : workers)
+			worker_ptr->stop_request();
 
 		// wake threads if they are sleeping/waiting
 		m_event.notify_all();
 
-		// cancel/take delayed tasks, see thread_pool body description
-		assert(m_delayed_count == 0);
-		for (auto it = delayed.begin(); it != delayed.end();)
-		{
-			if (not it->mark_marked())
-				++m_delayed_count, ++it;
-			else
-			{
-				auto & item = *it;
-				it = delayed.erase(it);
-				item.abandone();
-				item.release();
-			}
-		}
-
-		// wait until all delayed_tasks are finished, and take pending tasks
-		{
-			std::unique_lock<std::mutex> lk(m_mutex);
-			m_event.wait(lk, [this] { return m_delayed_count == 0; });
-			tasks.swap(m_tasks);
-		}
-
-		// abandone them
-		tasks.clear_and_dispose([](task_base * task)
-		{
-			task->task_abandone();
-			task->task_release();
-		});
+		// clear and abandon any tasks, including delayed ones
+		clear();
 
 		// wait until threads are stopped
-		for (auto it = first; it != last; ++it)
+		for (auto & worker_ptr : workers)
 		{
-			auto & worker = **it;
-			worker.wait();
-			worker.m_thread.join();
+			worker_ptr->wait();
+			worker_ptr->m_thread.join();
 		}
 	}
 }
