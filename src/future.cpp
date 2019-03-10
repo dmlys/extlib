@@ -61,13 +61,10 @@ namespace ext
 			auto_unlocker  & operator =(const auto_unlocker &) = delete;
 		};
 		
-		struct backoff_type
+		static void backoff() noexcept
 		{
-			void operator()() const noexcept
-			{
-				std::this_thread::yield(); // there can be better options than yield
-			}
-		};
+			std::this_thread::yield(); // there can be better options than yield
+		}
 	}
 
 
@@ -76,15 +73,14 @@ namespace ext
 
 	std::uintptr_t shared_state_basic::lock_ptr(std::atomic_uintptr_t & ptr) noexcept
 	{
-		backoff_type backoff;
 		// lock head
 		auto fstate = ptr.load(std::memory_order_relaxed);
 		if (fstate == ready) return ready;
 
 		fstate &= ~lock_mask;
 
-		/// std::memory_order_acquire - fstate is pointer to some continuation_type,
-		/// and it will be checked if it's a waiter - we need acquire changes
+		// std::memory_order_acquire - fstate is pointer to some continuation_type,
+		// and it will be checked if it's a waiter - we need acquire changes
 		while (not ptr.compare_exchange_weak(fstate, fstate | lock_mask,
 		                                     std::memory_order_acquire, std::memory_order_relaxed))
 		{
@@ -114,13 +110,12 @@ namespace ext
 
 	std::uintptr_t shared_state_basic::signal_future(std::atomic_uintptr_t & fstnext) noexcept
 	{
-		backoff_type backoff;
 		auto fstate = fstnext.load(std::memory_order_relaxed);
 		fstate &= ~lock_mask;
 
-		/// compare_exchange only not locked value.
-		/// release data set in promise: m_val, m_exception;
-		/// acquire continuation list
+		// compare_exchange only not locked value.
+		// release data set in promise: m_val, m_exception;
+		// acquire continuation list
 		while (not fstnext.compare_exchange_weak(fstate, ready, std::memory_order_acq_rel, std::memory_order_relaxed))
 		{
 			backoff();
@@ -647,11 +642,13 @@ namespace ext
 		for (auto & val : m_objects)
 			val = ext::make_intrusive<ext::continuation_waiter_impl>();
 	
+		// Strictly speaking lockfree_continuation_pool should be created and initiated before any thread are created,
+		// any new threads will happen later and see anything done here, without any memory_fence. so this one is unneeded.
+		std::atomic_thread_fence(std::memory_order_release);
+
 		m_first_avail.store(0, std::memory_order_relaxed);
 		m_last_avail.store(0, std::memory_order_relaxed);
 		m_first_free.store(0, std::memory_order_relaxed);
-	
-		std::atomic_thread_fence(std::memory_order_release);
 	}
 	
 	void lockfree_continuation_pool::free()
@@ -686,8 +683,6 @@ namespace ext
 
 	bool lockfree_continuation_pool::putback(waiter_ptr & ptr) noexcept
 	{
-		backoff_type backoff;
-
 		std::size_t first_avail, first_free, new_free;
 		std::size_t sz = m_objects.size();
 	
@@ -714,7 +709,7 @@ namespace ext
 		return true;
 	}
 
-	/// global object pool of continuation_waiters.
+	// global object pool of continuation_waiters.
 	static default_continuation_waiters_pool g_default_pool;
 	static continuation_waiters_pool * g_pool = &g_default_pool;
 

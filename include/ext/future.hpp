@@ -530,7 +530,7 @@ namespace ext
 		/// returns true if successful(even if already was marked), false if shared_state already holds some result(cancellation, value, ...).
 		bool mark_uncancellable() noexcept;
 		/// marks promise is taken by someone and also uncancellable,
-		/// this is more of convenience synchronization flag. currently used only by packged_task/deferred_packaged_task.
+		/// this is more of convenience synchronization flag. currently used only by packaged_task/deferred_packaged_task.
 		/// returns true if marked successfully(there was no mark) and future was not cancelled,
 		///         false if either future was cancelled, or packaged task already started execution.
 		bool mark_marked() noexcept;
@@ -892,6 +892,7 @@ namespace ext
 		std::mutex m_mutex;
 		std::condition_variable m_var;
 		std::atomic_bool m_ready = ATOMIC_VAR_INIT(false); // can and should be not atomic, but regular variable
+		                                                   // not sure about reset method
 
 		using unique_lock = std::unique_lock<std::mutex>;
 
@@ -1069,7 +1070,7 @@ namespace ext
 		}
 	};
 	
-	/// shared state returned by whan_any call.
+	/// shared state returned by when_any call.
 	/// Type is vector<future> or tuple<future...>
 	template <class Type>
 	class when_any_task : public shared_state_unexceptional<Type>
@@ -1279,6 +1280,23 @@ namespace ext
 	
 	inline unsigned shared_state_basic::release() noexcept
 	{
+		// https://www.boost.org/doc/libs/develop/doc/html/atomic/usage_examples.html#boost_atomic.usage_examples.example_reference_counters
+		// Discussion
+		// Increasing the reference counter can always be done with memory_order_relaxed:
+		//   New references to an object can only be formed from an existing reference,
+		//   and passing an existing reference from one thread to another must already provide any required synchronization.
+		//
+		// It is important to enforce any possible access to the object in one thread
+		// (through an existing reference) to happen before deleting the object in a different thread.
+		//
+		// This is achieved by a "release" operation after dropping a reference
+		// (any access to the object through this reference must obviously happened before),
+		// and an "acquire" operation before deleting the object.
+		//
+		// It would be possible to use memory_order_acq_rel for the fetch_sub operation,
+		// but this results in unneeded "acquire" operations
+		// when the reference counter does not yet reach zero and may impose a performance penalty.
+
 		auto ref = m_refs.fetch_sub(1, std::memory_order_release);
 		if (ref == 1)
 		{
@@ -1313,7 +1331,7 @@ namespace ext
 	{
 		wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
+		// to see m_val, we must synchronize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
 
 		using cast_type = std::conditional_t<
@@ -1335,7 +1353,7 @@ namespace ext
 	{
 		wait();
 		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchromize with release operation in set_* functions
+		// to see m_val, we must synchronize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
 
 		get_ptr();
@@ -1638,7 +1656,7 @@ namespace ext
 	template <class Type>
 	void shared_state_unexceptional<Type>::set_exception(std::exception_ptr ex)
 	{
-		throw std::logic_error("shared_state_unexceptional::set_exception unexpeceted");
+		throw std::logic_error("shared_state_unexceptional::set_exception unexpected");
 	}
 
 	template <class Type>
@@ -1699,7 +1717,7 @@ namespace ext
 	template <class Type>
 	void shared_state_unexceptional<Type &>::set_exception(std::exception_ptr ex)
 	{
-		throw std::logic_error("shared_state_unexceptional::set_exception unexpeceted");
+		throw std::logic_error("shared_state_unexceptional::set_exception unexpected");
 	}
 
 	/************************************************************************/
@@ -1735,7 +1753,7 @@ namespace ext
 
 	inline void shared_state_unexceptional<void>::set_exception(std::exception_ptr ex)
 	{
-		throw std::logic_error("shared_state_unexceptional::set_exception unexpeceted");
+		throw std::logic_error("shared_state_unexceptional::set_exception unexpected");
 	}
 	
 	/************************************************************************/
