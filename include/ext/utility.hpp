@@ -334,9 +334,9 @@ namespace ext
 
 	/// extracts element from tuple by idx, like get function,
 	/// except this is functor -> can be easier passed to functions.
-	/// for example: std::transform(vec.begin(), vec.end(), vecint.begin(), get_func<0>())
+	/// for example: std::transform(vec.begin(), vec.end(), vecint.begin(), get_functor<0>())
 	template <std::size_t Idx>
-	struct get_func
+	struct get_functor
 	{
 		template <class Type>
 		decltype(auto) operator()(Type && val) const
@@ -346,8 +346,8 @@ namespace ext
 	};
 
 	// like std::pair: first/second
-	typedef get_func<0> first_el;
-	typedef get_func<1> second_el;
+	typedef get_functor<0> first_el;
+	typedef get_functor<1> second_el;
 
 
 	/// находит элемент в карте по ключу и возвращает ссылку на него,
