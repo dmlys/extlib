@@ -11,9 +11,9 @@ namespace ext
 	namespace range_detail
 	{
 		template <std::size_t Idx, class ForwardRange>
-		struct get_func_iterator_types
+		struct get_functor_iterator_types
 		{
-			// The main problem here is that: get_func<Idx> behaves the same as get function call:
+			// The main problem here is that: get_functor<Idx> behaves the same as get function call:
 			// it always returns reference to a part of tuple-like object, which is ok.
 			//
 			// But in our case: if underlying iterator returns object by value -
@@ -22,7 +22,7 @@ namespace ext
 			using range_iterator = typename boost::range_iterator<ForwardRange>::type;
 			using range_iterator_reference = typename boost::iterator_reference<range_iterator>::type;
 
-			using result_type = std::invoke_result_t<get_func<Idx>, range_iterator_reference>;
+			using result_type = std::invoke_result_t<get_functor<Idx>, range_iterator_reference>;
 			using element_type = std::tuple_element_t<Idx, std::decay_t<range_iterator_reference>>;
 			
 			// if tuple we have - is a tuple lreference or element is a lreference - we can pass as is,
@@ -36,16 +36,16 @@ namespace ext
 			using value_type = std::remove_reference_t<reference>;
 
 			using iterator = boost::transform_iterator<
-				get_func<Idx>, range_iterator, reference, value_type
+				get_functor<Idx>, range_iterator, reference, value_type
 			>;
 		};
 
 
 		template <class ForwardRange, std::size_t Idx>
-		struct getted_range : boost::iterator_range<typename get_func_iterator_types<Idx, ForwardRange>::iterator>
+		struct getted_range : boost::iterator_range<typename get_functor_iterator_types<Idx, ForwardRange>::iterator>
 		{
 		private:
-			using base_type = boost::iterator_range<typename get_func_iterator_types<Idx, ForwardRange>::iterator>;
+			using base_type = boost::iterator_range<typename get_functor_iterator_types<Idx, ForwardRange>::iterator>;
 
 		public:
 			typedef typename base_type::iterator iterator;
