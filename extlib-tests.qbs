@@ -8,6 +8,7 @@ CppApplication
 
 	Depends { name: "cpp" }
 	Depends { name: "extlib" }
+	Depends { name: "ProjectSettings"; required: false }
 
 	cpp.cxxLanguageVersion : "c++17"
 	cpp.cxxFlags: project.additionalCxxFlags
