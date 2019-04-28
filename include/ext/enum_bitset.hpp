@@ -34,8 +34,8 @@ namespace ext
 
 	public:
 		constexpr std::size_t size() const noexcept { return m_bitset.size(); }
-		bool test(index_type pos) const { return m_bitset.test(static_cast<std::size_t>(pos)); }
-		bool test(enum_type pos)  const { return test(static_cast<index_type>(pos)); }
+		bool test(index_type pos) const noexcept { return m_bitset.test(static_cast<std::size_t>(pos)); }
+		bool test(enum_type pos)  const noexcept { return test(static_cast<index_type>(pos)); }
 
 		constexpr bool operator[](index_type pos) const noexcept { return m_bitset[static_cast<std::size_t>(pos)]; }
 		     reference operator[](index_type pos)       noexcept { return m_bitset[static_cast<std::size_t>(pos)]; }
@@ -44,10 +44,14 @@ namespace ext
 		     reference operator[](enum_type pos)       noexcept { return operator [](static_cast<index_type>(pos)); }
 
 	public:
-		self_type & set(index_type pos, bool val = true)  { m_bitset.set(static_cast<std::size_t>(pos), val); return *this; }
-		self_type & reset(index_type pos)                 { m_bitset.reset(static_cast<std::size_t>(pos)); return *this; }
-		self_type & flip(index_type pos)                  { m_bitset.flip(static_cast<std::size_t>(pos)); return *this; }
+		self_type & set(index_type pos, bool val = true) noexcept { m_bitset.set(static_cast<std::size_t>(pos), val); return *this; }
+		self_type & reset(index_type pos)                noexcept { m_bitset.reset(static_cast<std::size_t>(pos)); return *this; }
+		self_type & flip(index_type pos)                 noexcept { m_bitset.flip(static_cast<std::size_t>(pos)); return *this; }
 		
+		self_type & set(enum_type pos, bool val = true)  noexcept { m_bitset.set(static_cast<std::size_t>(pos), val); return *this; }
+		self_type & reset(enum_type pos)                 noexcept { m_bitset.reset(static_cast<std::size_t>(pos)); return *this; }
+		self_type & flip(enum_type pos)                  noexcept { m_bitset.flip(static_cast<std::size_t>(pos)); return *this; }
+
 		self_type & set()   noexcept { m_bitset.set(); return *this; }
 		self_type & reset() noexcept { m_bitset.reset(); return *this; }
 		self_type & flip()  noexcept { m_bitset.flip(); return *this; }
@@ -76,13 +80,15 @@ namespace ext
 		std::basic_string<Char, CharTraits, Alloc> to_string(Char zero = Char('0'), Char one = Char('1')) const
 		{ return m_bitset.template to_string<Char, CharTraits, Alloc>(zero, one); }
 
-		unsigned long to_ulong()  const { return m_bitset.to_ulong(); }
-		unsigned long to_ullong() const { return m_bitset.to_ullong(); }
+		unsigned long      to_ulong()  const noexcept { return m_bitset.to_ulong(); }
+		unsigned long long to_ullong() const noexcept { return m_bitset.to_ullong(); }
+
+		index_type to_index_type() const noexcept { return static_cast<index_type>(m_bitset.to_ullong()); }
 
 	public:
-		constexpr enum_bitset() = default;
-		constexpr enum_bitset(bitset_type bitset) : m_bitset(bitset) {}
-		constexpr enum_bitset(unsigned long long val) : m_bitset(val) {}
+		constexpr enum_bitset() noexcept = default;
+		constexpr enum_bitset(bitset_type bitset) noexcept : m_bitset(bitset) {}
+		constexpr enum_bitset(unsigned long long val) noexcept : m_bitset(val) {}
 
 
 		template <class Char, class Traits, class Alloc>
@@ -104,43 +110,43 @@ namespace ext
 	};
 
 	template <class Enum, std::size_t Size>
-	inline auto operator &(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs)
+	inline auto operator &(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs) noexcept
 	{
 		return enum_bitset<Enum, Size>(lhs) &= rhs;
 	}
 
 	template <class Enum, std::size_t Size>
-	inline auto operator |(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs)
+	inline auto operator |(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs) noexcept
 	{
 		return enum_bitset<Enum, Size>(lhs) |= rhs;
 	}
 
 	template <class Enum, std::size_t Size>
-	inline auto operator ^(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs)
+	inline auto operator ^(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs) noexcept
 	{
 		return enum_bitset<Enum, Size>(lhs) ^= rhs;
 	}
 
 	template <class Enum, std::size_t Size>
-	inline auto operator <<(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs)
+	inline auto operator <<(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs) noexcept
 	{
 		return enum_bitset<Enum, Size>(lhs) <<= rhs;
 	}
 
 	template <class Enum, std::size_t Size>
-	inline auto operator >>(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs)
+	inline auto operator >>(const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs) noexcept
 	{
 		return enum_bitset<Enum, Size>(lhs) >>= rhs;
 	}
 
 	template <class Enum, std::size_t Size>
-	inline bool operator == (const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs)
+	inline bool operator == (const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs) noexcept
 	{
 		return lhs.underlaying() == rhs.underlaying();
 	}
 
 	template <class Enum, std::size_t Size>
-	inline bool operator != (const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs)
+	inline bool operator != (const enum_bitset<Enum, Size> & lhs, const enum_bitset<Enum, Size> & rhs) noexcept
 	{
 		return lhs.underlaying() != rhs.underlaying();
 	}
