@@ -1479,7 +1479,7 @@ namespace ext
 	{
 		const value_type * first;
 		const value_type * last;
-		std::tie(first, last) = this->range();
+		std::tie(first, last) = str.range();
 
 		return find(first, pos, last - first);
 	}
@@ -1487,6 +1487,8 @@ namespace ext
 	template <class storage, class char_traits>
 	auto basic_string_facade<storage, char_traits>::find(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
+		if (pos < 0) return pos;
+
 		const value_type * first;
 		const value_type * last;
 		std::tie(first, last) = this->range();
@@ -1520,6 +1522,8 @@ namespace ext
 	template <class storage, class char_traits>
 	auto basic_string_facade<storage, char_traits>::find(value_type ch, size_type pos /* = 0 */) const noexcept -> size_type
 	{
+		if (pos < 0) return pos;
+
 		const value_type * first;
 		const value_type * last;
 		std::tie(first, last) = this->range();
@@ -1538,7 +1542,7 @@ namespace ext
 	{
 		const value_type * first;
 		const value_type * last;
-		std::tie(first, last) = this->range();
+		std::tie(first, last) = str.range();
 
 		return rfind(first, pos, last - first);
 	}
@@ -1546,6 +1550,8 @@ namespace ext
 	template <class storage, class char_traits>
 	auto basic_string_facade<storage, char_traits>::rfind(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
+		if (pos < 0) return pos;
+
 		const value_type * first;
 		const value_type * last;
 		std::tie(first, last) = this->range();
@@ -1598,6 +1604,8 @@ namespace ext
 	template <class storage, class char_traits>
 	auto basic_string_facade<storage, char_traits>::find_first_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
+		if (pos < 0) return pos;
+
 		const value_type * first;
 		const value_type * last;
 		std::tie(first, last) = this->range();
@@ -1640,6 +1648,8 @@ namespace ext
 	template <class storage, class char_traits>
 	auto basic_string_facade<storage, char_traits>::find_first_not_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
+		if (pos < 0) return pos;
+
 		const value_type * first;
 		const value_type * last;
 		std::tie(first, last) = this->range();
@@ -1682,6 +1692,8 @@ namespace ext
 	template <class storage, class char_traits>
 	auto basic_string_facade<storage, char_traits>::find_last_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
+		if (pos < 0) return pos;
+
 		const value_type * first;
 		const value_type * last;
 		std::tie(first, last) = this->range();
@@ -1725,6 +1737,8 @@ namespace ext
 	template <class storage, class char_traits>
 	auto basic_string_facade<storage, char_traits>::find_last_not_of(const value_type * str, size_type pos, size_type count) const noexcept -> size_type
 	{
+		if (pos < 0) return pos;
+
 		const value_type * first;
 		const value_type * last;
 		std::tie(first, last) = this->range();
