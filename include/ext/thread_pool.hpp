@@ -1,7 +1,5 @@
-#pragma once
+﻿#pragma once
 #include <memory>
-#include <vector>
-
 #include <mutex>
 #include <condition_variable>
 #include <thread>
@@ -131,15 +129,15 @@ namespace ext
 		// delayed tasks are little tricky, for every one - we create a service continuation,
 		// which when fired, adds task to task_list.
 		// Those can work and fire when we are being destructed,
-		// thred_pool lifetime should not linger on delayed_task - they should become abandoned.
+		// thread_pool lifetime should not linger on delayed_task - they should become abandoned.
 		// Nevertheless we have lifetime problem.
 		//
 		// so we store those active service continuations in a list:
-		//  - When continuation is fired it checks if it's taken:
+		//  - When continuation is fired it checks if it's taken(future internal helper flag):
 		//    * if yes - thread_pool is gone, nothing to do;
 		//    * if not - thread_pool is still there and we should add task to a list;
 		// 
-		//  - When continuation is fired it checks if it's taken(future internal helper flag):
+		//  - When destructing where are checking each continuation if it's taken(future internal helper flag):
 		//   * if successful - service continuation is sort of cancelled and it will not access thread_pool
 		//   * if not - continuation is firing right now somewhere in the middle,
 		//     so destructor must wait until it finishes and then complete destruction.
@@ -191,7 +189,7 @@ namespace ext
 
 		/// clears all not already executed tasks.
 		/// Associated futures status become abandoned
-		void clear();
+		void clear() noexcept;
 
 	public:
 		// 0 means 0, no workers at all, you must explicitly set number you want
@@ -217,7 +215,7 @@ namespace ext
 		future_type fut {task};
 
 		{
-			std::lock_guard<std::mutex> lk(m_mutex);
+			std::lock_guard lk(m_mutex);
 			m_tasks.push_back(*task.release());
 		}
 
@@ -229,6 +227,8 @@ namespace ext
 	auto thread_pool::submit(Future future, Functor && func) ->
 		ext::future<std::invoke_result_t<std::decay_t<Functor>, Future>>
 	{
+		static_assert(ext::is_future_type_v<Future>);
+
 		auto handle = future.handle();
 		auto wrapped = [func = std::forward<Functor>(func), future = std::move(future)]() mutable
 		{
@@ -241,14 +241,14 @@ namespace ext
 		typedef ext::future<result_type> future_type;
 
 		auto task = ext::make_intrusive<task_type>(std::move(wrapped));
-		future_type fut {std::move(task)};
+		future_type fut {task};
 
 		if (handle->is_deferred())
 		{	// make it ready
 			handle->wait();
 
 			{
-				std::lock_guard<std::mutex> lk(m_mutex);
+				std::lock_guard lk(m_mutex);
 				m_tasks.push_back(*task.release());
 			}
 
@@ -256,10 +256,10 @@ namespace ext
 		}
 		else
 		{
-			auto cont = ext::make_intrusive<delayed_task_continuation>(this, task);
+			auto cont = ext::make_intrusive<delayed_task_continuation>(this, std::move(task));
 
 			{
-				std::lock_guard<std::mutex> lk(m_mutex);
+				std::lock_guard lk(m_mutex);
 				m_delayed.push_back((cont.addref(), *cont.get()));
 			}
 

@@ -1,4 +1,4 @@
-#include <future>
+﻿#include <future>
 #include <ext/future.hpp>
 #include <ext/thread_pool.hpp>
 #include <ext/threaded_scheduler.hpp>
@@ -344,6 +344,21 @@ BOOST_AUTO_TEST_CASE(threaded_scheduler_result_type_tests)
 
 	BOOST_CHECK_EQUAL(scheduler.submit(0s, func).get(), 3);
 	BOOST_CHECK_EQUAL(scheduler.submit(0s, tricky_functor()).get(), 3);
+}
+
+
+
+BOOST_AUTO_TEST_CASE(thread_pool_tests)
+{
+	using namespace std::chrono_literals;
+	ext::thread_pool pool(std::thread::hardware_concurrency());
+
+	auto f1 = pool.submit([] { return 100; });
+	auto f2 = ext::async(ext::launch::async, [] { std::this_thread::sleep_for(10ms); return 12;});
+	auto f3 = pool.submit(std::move(f2), [](auto f) { return f.get() + 10; });
+
+	int result = f1.get() + f3.get();
+	BOOST_CHECK_EQUAL(result, 122);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
