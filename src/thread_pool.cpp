@@ -150,7 +150,7 @@ namespace ext
 		}
 	}
 
-	void thread_pool::clear()
+	void thread_pool::clear() noexcept
 	{
 		task_list_type tasks;
 

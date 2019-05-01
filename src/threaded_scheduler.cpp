@@ -23,7 +23,7 @@ namespace ext
 	}
 
 	template <class Lock>
-	inline auto threaded_scheduler::next_in(Lock & lk) const -> time_point
+	inline auto threaded_scheduler::next_in(Lock & lk) const noexcept -> time_point
 	{
 		return m_queue.empty() ? max_timepoint() : m_queue.top()->point;
 	}
@@ -64,7 +64,7 @@ namespace ext
 		}
 	}
 
-	void threaded_scheduler::clear()
+	void threaded_scheduler::clear() noexcept
 	{
 		queue_type queue;
 		{

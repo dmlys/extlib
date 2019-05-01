@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <queue>
 #include <atomic>
 #include <mutex>
@@ -95,7 +95,7 @@ namespace ext
 		void run_passed_events();
 
 		template <class Lock>
-		time_point next_in(Lock & lk) const;
+		time_point next_in(Lock & lk) const noexcept;
 
 	public:
 		template <class Functor>
@@ -106,7 +106,7 @@ namespace ext
 		auto submit(duration  rel, Functor && func) ->
 			ext::future<std::invoke_result_t<std::decay_t<Functor>>>;
 		
-		void clear();
+		void clear() noexcept;
 
 	public:
 		threaded_scheduler();
@@ -131,7 +131,7 @@ namespace ext
 		future_type fut {task};
 
 		{
-			std::lock_guard<std::mutex> lk(m_mutex);
+			std::lock_guard lk(m_mutex);
 			m_queue.push(std::move(task));
 		}
 		
