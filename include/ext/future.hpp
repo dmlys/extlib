@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // author: Dmitry Lysachenko
 // date: Saturday 20 august 2016
 // license: boost software license
@@ -736,7 +736,12 @@ namespace ext
 	protected:
 		/// shared data, type or exception
 		/// type is held in m_promise_state
-		std::exception_ptr m_exptr;
+
+		/// union is important, destructor explicitly destroys this exception_ptr
+		union
+		{
+			std::exception_ptr m_exptr;
+		};
 
 	public:
 		void * get_ptr() override;
@@ -1582,7 +1587,8 @@ namespace ext
 	{
 		if (not satisfy_check_promise(future_state::exception)) return;
 
-		m_exptr = std::move(ex);
+		// construct in uninitialized memory
+		new (&m_exptr) std::exception_ptr(std::move(ex));
 		set_future_ready();
 	}
 
@@ -2119,7 +2125,7 @@ namespace ext
 	inline void promise<Type>::set_exception(std::exception_ptr ex)
 	{
 		check_state();
-		m_ptr->set_exception(ex);
+		m_ptr->set_exception(std::move(ex));
 	}
 
 
@@ -2205,7 +2211,7 @@ namespace ext
 	inline void promise<Type &>::set_exception(std::exception_ptr ex)
 	{
 		check_state();
-		m_ptr->set_exception(ex);
+		m_ptr->set_exception(std::move(ex));
 	}
 
 	/// promise<void>
@@ -2283,7 +2289,7 @@ namespace ext
 	inline void promise<void>::set_exception(std::exception_ptr ex)
 	{
 		check_state();
-		m_ptr->set_exception(ex);
+		m_ptr->set_exception(std::move(ex));
 	}
 
 	/************************************************************************/
