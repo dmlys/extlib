@@ -255,7 +255,7 @@ BOOST_AUTO_TEST_CASE(std_future_result_type_tests)
 
 	// No matter how functor was passed into packaged_task, by moving or just a copy,
 	// because of reset method/functionality packaged_task(functors must be copied/moved to a new task) functor is always called like functor(...).
-	// Note: return value_type is passed explicitly to pcakged_task.
+	// Note: return value_type is passed explicitly to packaged_task.
 	std::packaged_task<double()> task(tricky_functor{});
 	auto ftask = task.get_future(); task();
 	BOOST_CHECK_EQUAL(ftask.get(), 2);
