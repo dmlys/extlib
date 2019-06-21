@@ -1,6 +1,5 @@
 #pragma once
-#include <type_traits>
-#include <iterator>
+#include <ext/type_traits.hpp>
 
 namespace ext
 {
@@ -8,28 +7,28 @@ namespace ext
 	/// вычисляет дистанцию между итераторами и вызывает reserve у container,
 	/// иначе не делает ничего
 	template <class Container, class Iterator>
-	inline
-	typename std::enable_if<
-		std::is_convertible<
-			typename std::iterator_traits<Iterator>::iterator_category,
-			std::random_access_iterator_tag
-		>::value
-	>::type
+	inline std::enable_if_t<ext::is_iterator_category_v<Iterator, std::random_access_iterator_tag>>
 	try_reserve(Container & container, Iterator first, Iterator last)
 	{
 		container.reserve(last - first);
 	}
 
 	template <class Container, class Iterator>
-	inline
-	typename std::enable_if<
-		not std::is_convertible<
-			typename std::iterator_traits<Iterator>::iterator_category,
-			std::random_access_iterator_tag
-		>::value
-	>::type
+	inline std::enable_if_t<not ext::is_iterator_category_v<Iterator, std::random_access_iterator_tag>>
 	try_reserve(Container & container, Iterator first, Iterator last)
 	{
 	
+	}
+
+	template <class Iterator>
+	inline auto try_distance(Iterator first, Iterator last) -> std::enable_if_t<ext::is_iterator_category_v<Iterator, std::random_access_iterator_tag>, decltype(last - first)>
+	{
+		return last - first;
+	}
+
+	template <class Iterator>
+	inline auto try_distance(Iterator first, Iterator last) -> std::enable_if_t<not ext::is_iterator_category_v<Iterator, std::random_access_iterator_tag>, std::ptrdiff_t>
+	{
+		return 0;
 	}
 }

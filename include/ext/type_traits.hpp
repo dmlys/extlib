@@ -85,6 +85,29 @@ namespace ext
 	constexpr auto is_iterator_of_v = is_iterator_of<Iterator, Type>::value;
 
 
+	template <class Iterator, class Default = void, bool = ext::is_iterator<Iterator>::value>
+	struct iterator_category
+	{
+		using type = Default;
+	};
+
+	template <class Iterator, class Default>
+	struct iterator_category<Iterator, Default, true>
+	{
+		using type = typename std::iterator_traits<Iterator>::iterator_category;
+	};
+
+	template <class Iterator, class Default = void>
+	using iterator_category_t = typename iterator_category<Iterator, Default>::type;
+
+	template <class Iterator, class Category>
+	struct is_iterator_category :
+		std::is_convertible<ext::iterator_category_t<Iterator>, Category> {};
+
+	template <class Iterator, class Category>
+	constexpr auto is_iterator_category_v = is_iterator_category<Iterator, Category>::value;
+
+
 	template <class From, class To, class = void>
 	struct static_castable : std::false_type {};
 
