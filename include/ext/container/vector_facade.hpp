@@ -13,11 +13,16 @@
 
 #include <ext/type_traits.hpp>
 #include <ext/config.hpp>
+
 #include <ext/container/uninitialized_algo.hpp>
 #include <ext/container/container_iterator.hpp>
+#include <ext/container/vector_storage_traits.hpp>
 
 namespace ext::container
 {
+	template <class storage_type>
+	class vector_facade_traits;
+
 	/// A Policy-based std::vector facade.
 	///
 	/// It provides all additional operation like begin, end, insert, erase, etc
@@ -50,9 +55,12 @@ namespace ext::container
 	template <class storage>
 	class vector_facade
 	{
-		typedef storage           storage_type;
-		typedef storage_type      base_type;
-		typedef vector_facade     self_type;
+		using storage_type = storage;
+		using storage_traits = vector_storage_traits<storage_type>;
+		using self_type  = vector_facade;
+
+		friend storage_type;
+		friend storage_traits;
 
 	public:
 		using value_type      = typename storage_type::value_type;
@@ -95,6 +103,13 @@ namespace ext::container
 		storage_type m_storage;
 
 	private:
+		static       storage_type & storage_cast(      self_type & self) { return reinterpret_cast<      storage_type &>(self); }
+		static const storage_type & storage_cast(const self_type & self) { return reinterpret_cast<const storage_type &>(self); }
+
+		static       self_type & vector_cast(      storage_type & self) { return reinterpret_cast<      self_type &>(self); }
+		static const self_type & vector_cast(const storage_type & self) { return reinterpret_cast<const self_type &>(self); }
+
+	private:
 		static constexpr bool use_relloc() { return std::is_nothrow_move_constructible_v<value_type> or not std::is_copy_constructible_v<value_type>; }
 
 		static constexpr bool is_nothrow_move_constructable() { return typename allocator_traits::is_always_equal(); }
@@ -120,12 +135,19 @@ namespace ext::container
 		static constexpr pointer extract_pointer(      iterator it) noexcept { return it.base(); }
 
 	private:
-		auto allocate(allocator_type & alloc, size_type cap, const_pointer hint) -> std::pair<pointer, pointer>;
-		void deallocate(allocator_type & alloc, pointer ptr, size_type cap) noexcept;
-		auto allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newsize, const_pointer hint) -> std::pair<pointer, pointer>;
+		auto default_allocate(allocator_type & alloc, size_type cap, const_pointer hint) -> std::pair<pointer, pointer>;
+		void default_deallocate(allocator_type & alloc, pointer ptr, size_type cap) noexcept;
+		auto default_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newcap, const_pointer hint) -> std::pair<pointer, pointer>;
 
-		auto checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newsize, const_pointer hint) -> std::pair<pointer, pointer>;
-		auto checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type cursize, size_type increment, const_pointer hint) -> std::pair<pointer, pointer>;
+		auto default_checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newsize, const_pointer hint) -> std::pair<pointer, pointer>;
+		auto default_checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type cursize, size_type increment, const_pointer hint) -> std::pair<pointer, pointer>;
+
+		auto allocate(allocator_type & alloc, size_type cap, const_pointer hint) -> std::pair<pointer, pointer> { return storage_traits::allocate(m_storage, alloc, cap, hint); }
+		void deallocate(allocator_type & alloc, pointer ptr, size_type cap) noexcept { return storage_traits::deallocate(m_storage, alloc, ptr, cap); }
+		auto allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newcap, const_pointer hint) -> std::pair<pointer, pointer> { return storage_traits::allocate_adjusted(m_storage, alloc, curcap, newcap, hint); }
+
+		auto checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newsize, const_pointer hint) { return storage_traits::checked_allocate_adjusted(m_storage, alloc, curcap, newsize, hint); }
+		auto checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type cursize, size_type increment, const_pointer hint) { return storage_traits::checked_allocate_adjusted(m_storage, alloc, curcap, cursize, increment, hint); }
 
 	private:
 		template <class Iterator>
@@ -223,6 +245,13 @@ namespace ext::container
 		iterator erase(const_iterator pos);
 		iterator erase(const_iterator first, const_iterator last);
 
+	private:
+		void destruct() noexcept;
+		void copy_construct(const vector_facade & other);
+		void move_construct(vector_facade && other) noexcept;
+		void copy_assign(const vector_facade & other);
+		void move_assign(vector_facade && other) noexcept;
+
 	public:
 		vector_facade()  noexcept = default;
 		~vector_facade() noexcept;
@@ -279,20 +308,20 @@ namespace ext::container
 	}
 
 	template <class storage>
-	inline auto vector_facade<storage>::allocate(allocator_type & alloc, size_type cap, const_pointer hint) -> std::pair<pointer, pointer>
+	inline auto vector_facade<storage>::default_allocate(allocator_type & alloc, size_type cap, const_pointer hint) -> std::pair<pointer, pointer>
 	{
 		auto ptr = allocator_traits::allocate(alloc, cap, hint);
 		return {ptr, ptr + cap};
 	}
 
 	template <class storage>
-	inline void vector_facade<storage>::deallocate(allocator_type & alloc, pointer ptr, size_type cap) noexcept
+	inline void vector_facade<storage>::default_deallocate(allocator_type & alloc, pointer ptr, size_type cap) noexcept
 	{
 		allocator_traits::deallocate(alloc, ptr, cap);
 	}
 
 	template <class storage>
-	auto vector_facade<storage>::allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newcap, const_pointer hint) -> std::pair<pointer, pointer>
+	auto vector_facade<storage>::default_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newcap, const_pointer hint) -> std::pair<pointer, pointer>
 	{
 		auto cap = (curcap / 2 <= newcap / 3) ? newcap : curcap + curcap / 2;
 		//if (cap >= max_size()) cap = newcap;
@@ -308,14 +337,14 @@ namespace ext::container
 	}
 
 	template <class storage>
-	inline auto vector_facade<storage>::checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type cursize, size_type increment, const_pointer hint) -> std::pair<pointer, pointer>
+	inline auto vector_facade<storage>::default_checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type cursize, size_type increment, const_pointer hint) -> std::pair<pointer, pointer>
 	{
 		auto newsize = check_newsize(cursize, increment);
 		return allocate_adjusted(alloc, curcap, newsize, hint);
 	}
 
 	template <class storage>
-	inline auto vector_facade<storage>::checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newsize, const_pointer hint) -> std::pair<pointer, pointer>
+	inline auto vector_facade<storage>::default_checked_allocate_adjusted(allocator_type & alloc, size_type curcap, size_type newsize, const_pointer hint) -> std::pair<pointer, pointer>
 	{
 		check_newsize(newsize);
 		return allocate_adjusted(alloc, curcap, newsize, hint);
@@ -325,7 +354,7 @@ namespace ext::container
 	/*             constructor/destructor stuff                             */
 	/************************************************************************/
 	template <class storage>
-	vector_facade<storage>::~vector_facade() noexcept
+	void vector_facade<storage>::destruct() noexcept
 	{
 		pointer first, last, end;
 		std::tie(first, last, end) = m_storage.get_storage_pointers();
@@ -336,37 +365,22 @@ namespace ext::container
 	}
 
 	template <class storage>
-	inline vector_facade<storage>::vector_facade(const allocator_type & alloc) noexcept
-	    : m_storage(alloc)
-	{
-
-	}
-
-	template <class storage>
-	inline vector_facade<storage>::vector_facade(const vector_facade & other)
-	    : vector_facade(other, allocator_traits::select_on_container_copy_construction(m_storage.get_allocator()))
-	{
-
-	}
-
-	template <class storage>
-	vector_facade<storage>::vector_facade(const vector_facade & other, const allocator_type & alloc)
-	    : vector_facade(alloc)
+	void vector_facade<storage>::copy_construct(const vector_facade & other)
 	{
 		pointer first, last, end;
 		pointer newfirst, newlast, newend;
 
-		decltype(auto) alloc_ = m_storage.get_allocator();
+		decltype(auto) alloc = m_storage.get_allocator();
 		std::tie(first, last, end) = other.m_storage.get_storage_pointers();
-		std::tie(newfirst, newend) = allocate(alloc_, end - first, nullptr);
+		std::tie(newfirst, newend) = allocate(alloc, end - first, nullptr);
 
 		try
 		{
-			newlast = uninitialized_copy(alloc_, first, last, newfirst);
+			newlast = uninitialized_copy(alloc, first, last, newfirst);
 		}
 		catch (...)
 		{
-			deallocate(alloc_, newfirst, end - first);
+			deallocate(alloc, newfirst, end - first);
 			throw;
 		}
 
@@ -374,37 +388,7 @@ namespace ext::container
 	}
 
 	template <class storage>
-	vector_facade<storage> & vector_facade<storage>::operator =(const vector_facade<storage> & other)
-	{
-		if (this == &other) return *this;
-
-		if constexpr(typename allocator_traits::is_always_equal() or not typename allocator_traits::propagate_on_container_copy_assignment())
-			assign(other.begin(), other.end());
-		else
-		{
-			decltype(auto) this_alloc = m_storage.get_allocator();
-			decltype(auto) other_alloc = other.get_allocator();
-
-			if (this_alloc != other_alloc)
-			{
-				pointer first, last, end;
-				std::tie(first, last, end) = m_storage.get_storage_pointers();
-				destroy(this_alloc, first, last);
-				deallocate(this_alloc, first, last - first);
-				first = last = end = nullptr;
-				m_storage.set_storage_pointers({first, last, end});
-				m_storage.set_allocator(other_alloc);
-			}
-
-			assign(other.begin(), other.end());
-		}
-
-		return *this;
-	}
-
-	template <class storage>
-	vector_facade<storage>::vector_facade(vector_facade && other, const allocator_type & alloc) noexcept( noexcept(is_nothrow_move_constructable()) )
-	    : vector_facade(alloc)
+	void vector_facade<storage>::move_construct(vector_facade && other) noexcept
 	{
 		if constexpr(typename allocator_traits::is_always_equal())
 			m_storage = std::move(other.m_storage);
@@ -429,10 +413,33 @@ namespace ext::container
 	}
 
 	template <class storage>
-	vector_facade<storage> & vector_facade<storage>::operator =(vector_facade && other) noexcept( noexcept(is_nothrow_move_assignable()) )
+	void vector_facade<storage>::copy_assign(const vector_facade & other)
 	{
-		if (this == &other) return *this;
+		 if constexpr(typename allocator_traits::is_always_equal() or not typename allocator_traits::propagate_on_container_copy_assignment())
+				assign(other.begin(), other.end());
+		 else
+		 {
+			 decltype(auto) this_alloc = m_storage.get_allocator();
+			 decltype(auto) other_alloc = other.get_allocator();
 
+			 if (this_alloc != other_alloc)
+			 {
+				 pointer first, last, end;
+				 std::tie(first, last, end) = m_storage.get_storage_pointers();
+				 destroy(this_alloc, first, last);
+				 deallocate(this_alloc, first, last - first);
+				 first = last = end = nullptr;
+				 m_storage.set_storage_pointers({first, last, end});
+				 m_storage.set_allocator(other_alloc);
+			 }
+
+			 assign(other.begin(), other.end());
+		 }
+	}
+
+	template <class storage>
+	void vector_facade<storage>::move_assign(vector_facade && other) noexcept
+	{
 		if constexpr(typename allocator_traits::is_always_equal() or not typename allocator_traits::propagate_on_container_move_assignment())
 			m_storage = std::move(other.m_storage);
 		else
@@ -453,6 +460,58 @@ namespace ext::container
 				other.m_storage.set_storage_pointers({first, last, end});
 			}
 		}
+	}
+
+
+
+	template <class storage>
+	vector_facade<storage>::~vector_facade() noexcept
+	{
+		storage_traits::destruct(m_storage);
+	}
+
+	template <class storage>
+	inline vector_facade<storage>::vector_facade(const allocator_type & alloc) noexcept
+	    : m_storage(alloc)
+	{
+
+	}
+
+	template <class storage>
+	inline vector_facade<storage>::vector_facade(const vector_facade & other)
+	    : vector_facade(other, allocator_traits::select_on_container_copy_construction(m_storage.get_allocator()))
+	{
+
+	}
+
+	template <class storage>
+	vector_facade<storage>::vector_facade(const vector_facade & other, const allocator_type & alloc)
+	    : vector_facade(alloc)
+	{
+		storage_traits::copy_construct(m_storage, other.m_storage);
+	}
+
+	template <class storage>
+	vector_facade<storage> & vector_facade<storage>::operator =(const vector_facade<storage> & other)
+	{
+		if (this != &other)
+			storage_traits::copy_assign(m_storage, other.m_storage);
+
+		return *this;
+	}
+
+	template <class storage>
+	vector_facade<storage>::vector_facade(vector_facade && other, const allocator_type & alloc) noexcept( noexcept(is_nothrow_move_constructable()) )
+	    : vector_facade(alloc)
+	{
+		storage_traits::move_construct(m_storage, std::move(other).m_storage);
+	}
+
+	template <class storage>
+	vector_facade<storage> & vector_facade<storage>::operator =(vector_facade && other) noexcept( noexcept(is_nothrow_move_assignable()) )
+	{
+		if (this != &other)
+			storage_traits::move_assign(m_storage, std::move(other).m_storage);
 
 		return *this;
 	}
