@@ -23,19 +23,21 @@ namespace ext::container
 		unsigned refs = 1;
 		unsigned size, capacity;
 		Type elements[];
+
+
+		static void destruct(cow_heap_body * ptr);
+		static auto init_shared_null() -> ext::intrusive_cow_ptr<cow_heap_body>;
+
+		static std::aligned_storage_t<sizeof(Type), alignof(Type)> ms_storage;
+		static ext::intrusive_cow_ptr<cow_heap_body<Type>> ms_shared_null;
 	};
 
 	template <class Type>
-	ext::intrusive_cow_ptr<cow_heap_body<Type>> init_shared_null();
+	std::aligned_storage_t<sizeof(Type), alignof(Type)> cow_heap_body<Type>::ms_storage;
 
 	template <class Type>
-	std::aligned_storage_t<sizeof(Type), alignof(Type)> ms_storage;
+	ext::intrusive_cow_ptr<cow_heap_body<Type>> cow_heap_body<Type>::ms_shared_null = init_shared_null();
 
-	template <class Type>
-	ext::intrusive_cow_ptr<cow_heap_body<Type>> ms_shared_null = init_shared_null<Type>();
-
-	template <class Type>
-	void destruct(cow_heap_body<Type> * ptr);
 
 
 
@@ -235,10 +237,12 @@ namespace ext::container
 		return allocate_adjusted(alloc, curcap, newsize, hint);
 	}
 
+
+
 	template <class Type>
-	auto init_shared_null() -> ext::intrusive_cow_ptr<cow_heap_body<Type>>
+	auto cow_heap_body<Type>::init_shared_null() -> ext::intrusive_cow_ptr<cow_heap_body<Type>>
 	{
-		auto * ptr = reinterpret_cast<cow_heap_body<Type> *>(&ms_storage<Type>);
+		auto * ptr = reinterpret_cast<cow_heap_body<Type> *>(&ms_storage);
 
 		ptr->refs = 1;
 		ptr->capacity = ptr->size = 0;
@@ -250,7 +254,7 @@ namespace ext::container
 	template <class Type> inline void intrusive_ptr_add_ref(cow_heap_body<Type> * ptr) noexcept   { ++ptr->refs; }
 	template <class Type> inline void intrusive_ptr_release(cow_heap_body<Type> * ptr) noexcept;  //{ if (--ptr->refs == 0) delete ptr; }
 	template <class Type> inline unsigned intrusive_ptr_use_count(const cow_heap_body<Type> * ptr) noexcept { return ptr->refs; }
-	template <class Type> inline cow_heap_body<Type> * intrusive_ptr_default(const cow_heap_body<Type> * ptr) noexcept { ms_shared_null<Type>.addref(); return ms_shared_null<Type>.get_ptr(); }
+	template <class Type> inline cow_heap_body<Type> * intrusive_ptr_default(const cow_heap_body<Type> * ptr) noexcept { cow_heap_body<Type>::ms_shared_null.addref(); return cow_heap_body<Type>::ms_shared_null.get(); }
 	template <class Type> void intrusive_ptr_clone(const cow_heap_body<Type> * old_body, cow_heap_body<Type> * & dest);
 
 
@@ -258,11 +262,11 @@ namespace ext::container
 	{
 		if (--ptr->refs != 0) return;
 
-		destruct(ptr);
+		cow_heap_body<Type>::destruct(ptr);
 	}
 
 	template <class Type>
-	void destruct(cow_heap_body<Type> * ptr)
+	void cow_heap_body<Type>::destruct(cow_heap_body * ptr)
 	{
 		auto * first = ptr->elements;
 		auto * last  = first + ptr->size;
