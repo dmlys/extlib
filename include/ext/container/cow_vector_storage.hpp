@@ -38,6 +38,14 @@ namespace ext::container
 	template <class Type>
 	ext::intrusive_cow_ptr<cow_heap_body<Type>> cow_heap_body<Type>::ms_shared_null = init_shared_null();
 
+	template <class Type> inline void intrusive_ptr_add_ref(cow_heap_body<Type> * ptr) noexcept   { ++ptr->refs; }
+	template <class Type> inline void intrusive_ptr_release(cow_heap_body<Type> * ptr) noexcept;  //{ if (--ptr->refs == 0) delete ptr; }
+	template <class Type> inline unsigned intrusive_ptr_use_count(const cow_heap_body<Type> * ptr) noexcept { return ptr->refs; }
+	template <class Type> inline cow_heap_body<Type> * intrusive_ptr_default(const cow_heap_body<Type> * ptr) noexcept { cow_heap_body<Type>::ms_shared_null.addref(); return cow_heap_body<Type>::ms_shared_null.get_ptr(); }
+	template <class Type> void intrusive_ptr_clone(const cow_heap_body<Type> * old_body, cow_heap_body<Type> * & dest);
+
+
+
 
 
 
@@ -92,8 +100,8 @@ namespace ext::container
 
 	private:
 		void destruct() noexcept { }
-		void copy_construct(const cow_vector_storage & other)     { m_body = other.m_body; }
-		void move_construct(cow_vector_storage && other) noexcept { m_body = std::move(other.m_body); }
+		static auto copy_construct(const cow_vector_storage & other, const allocator_type & alloc) noexcept { return other.m_body; }
+		static auto move_construct(cow_vector_storage && other, const allocator_type & alloc) noexcept { return std::move(other.m_body); }
 		void copy_assign(const cow_vector_storage & other)        { m_body = other.m_body; }
 		void move_assign(cow_vector_storage && other) noexcept    { m_body = std::move(other.m_body); }
 
@@ -249,14 +257,6 @@ namespace ext::container
 
 		return ext::intrusive_cow_ptr(ptr);
 	}
-
-
-	template <class Type> inline void intrusive_ptr_add_ref(cow_heap_body<Type> * ptr) noexcept   { ++ptr->refs; }
-	template <class Type> inline void intrusive_ptr_release(cow_heap_body<Type> * ptr) noexcept;  //{ if (--ptr->refs == 0) delete ptr; }
-	template <class Type> inline unsigned intrusive_ptr_use_count(const cow_heap_body<Type> * ptr) noexcept { return ptr->refs; }
-	template <class Type> inline cow_heap_body<Type> * intrusive_ptr_default(const cow_heap_body<Type> * ptr) noexcept { cow_heap_body<Type>::ms_shared_null.addref(); return cow_heap_body<Type>::ms_shared_null.get(); }
-	template <class Type> void intrusive_ptr_clone(const cow_heap_body<Type> * old_body, cow_heap_body<Type> * & dest);
-
 
 	template <class Type> inline void intrusive_ptr_release(cow_heap_body<Type> * ptr) noexcept
 	{

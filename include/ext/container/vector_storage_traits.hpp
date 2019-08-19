@@ -96,7 +96,7 @@ namespace ext::container
 		template <class storage>
 		struct have_copy_construct
 		{
-			template <class Storage, class = decltype(std::declval<Storage &>().copy_construct(std::declval<const Storage &>()))>
+			template <class Storage, class = decltype(Storage::copy_construct(std::declval<const Storage &>()), std::declval<const allocator_type &>())>
 			static std::true_type test(int);
 			template <class Storage>
 			static std::false_type test(...);
@@ -107,7 +107,7 @@ namespace ext::container
 		template <class storage>
 		struct have_move_construct
 		{
-			template <class Storage, class = decltype(std::declval<Storage &>().move_construct(std::declval<Storage>()))>
+			template <class Storage, class = decltype(Storage::move_construct(std::declval<Storage>()), std::declval<const allocator_type &>())>
 			static std::true_type test(int);
 			template <class Storage>
 			static std::false_type test(...);
@@ -187,20 +187,20 @@ namespace ext::container
 		{ return vector_facade<Storage>::vector_cast(st).destruct(); }
 
 		template <class Storage>
-		static auto copy_construct(Storage & left, const Storage & right) -> std::enable_if_t<    have_copy_construct<Storage>::value>
-		{ return left.copy_construct(right); }
+		static auto copy_construct(const Storage & other, const allocator_type & alloc) -> std::enable_if_t<    have_copy_construct<Storage>::value, storage_type>
+		{ return Storage::copy_construct(other, alloc); }
 
 		template <class Storage>
-		static auto copy_construct(Storage & left, const Storage & right) -> std::enable_if_t<not have_copy_construct<Storage>::value>
-		{ return vector_facade<Storage>::vector_cast(left).copy_construct(vector_facade<Storage>::vector_cast(right)); }
+		static auto copy_construct(const Storage & other, const allocator_type & alloc) -> std::enable_if_t<not have_copy_construct<Storage>::value, storage_type>
+		{ return vector_facade<Storage>::copy_construct(other, alloc); }
 
 		template <class Storage>
-		static auto move_construct(Storage & left, Storage && right) noexcept -> std::enable_if_t<    have_move_construct<Storage>::value>
-		{ return left.move_construct(std::move(right)); }
+		static auto move_construct(Storage && other, const allocator_type & alloc) noexcept -> std::enable_if_t<    have_move_construct<Storage>::value, storage_type>
+		{ return Storage::move_construct(std::move(other), alloc); }
 
 		template <class Storage>
-		static auto move_construct(Storage & left, Storage && right) noexcept -> std::enable_if_t<not have_move_construct<Storage>::value>
-		{ return vector_facade<Storage>::vector_cast(left).move_construct(std::move(vector_facade<Storage>::vector_cast(right))); }
+		static auto move_construct(Storage && right, const allocator_type & alloc) noexcept -> std::enable_if_t<not have_move_construct<Storage>::value, storage_type>
+		{ return vector_facade<Storage>::move_construct(std::move(right), alloc); }
 
 		template <class Storage>
 		static auto copy_assign(Storage & left, const Storage & right) -> std::enable_if_t<    have_copy_assign<Storage>::value>
