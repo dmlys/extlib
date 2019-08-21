@@ -87,7 +87,7 @@ namespace ext::pretty_printers
 	///    cout << arr << endl;
 	/// }
 	template <class CharType, class Range, std::enable_if_t<is_streamable<Range>::value, int> = 0>
-	std::basic_ostream<CharType> & operator <<(std::basic_ostream<CharType> & os, const Range & rng)
+	inline std::basic_ostream<CharType> & operator <<(std::basic_ostream<CharType> & os, const Range & rng)
 	{
 		ext::pretty_printers::print(os, rng);
 		return os;
