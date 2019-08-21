@@ -17,25 +17,35 @@
 
 namespace ext
 {
+	template <class String>
+	struct str_view_traits
+	{
+		using char_type = ext::range_value_t<String>;
+		using string_view = std::basic_string_view<char_type>;
+
+		inline static string_view str_view(const String & str)
+		{
+			auto first = ext::data(str);
+			auto size = boost::size(str);
+			return string_view(first, size);
+		}
+	};
+
 	/// similar to boost::as_literal, but tries to return std::string_view,
 	/// thus working only with contiguous string ranges, string literals and std::string are those.
 	/// Also explicitly deleted for temprorary objects
 	template <class String>
 	inline auto str_view(const String & str) ->
-		std::enable_if_t<ext::is_contiguous_range_v<String>, std::basic_string_view<ext::range_value_t<String>>>
+		std::enable_if_t<ext::is_contiguous_range_v<String>, typename str_view_traits<String>::string_view>
 	{
-		auto * first = ext::data(str);
-		auto size = boost::size(str);
-		return std::basic_string_view(first, size);
+		return str_view_traits<String>::str_view(str);
 	}
 
 	template <class String>
 	inline auto str_view(String & str) ->
-		std::enable_if_t<ext::is_contiguous_range_v<String>, std::basic_string_view<ext::range_value_t<String>>>
+		std::enable_if_t<ext::is_contiguous_range_v<String>, typename str_view_traits<String>::string_view>
 	{
-		auto * first = ext::data(str);
-		auto size = boost::size(str);
-		return std::basic_string_view(first, size);
+		return str_view_traits<String>::str_view(str);
 	}
 
 	// if it's a temp object - we do not want to introduce dangling strings
