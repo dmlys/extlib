@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // author: Dmitry Lysachenko
 // date: Saturday 20 august 2016
 // license: boost software license
@@ -190,11 +190,11 @@ namespace ext
 
 	template<class Function, class ... Args>
 	auto async(ext::launch policy, Function && f, Args && ... args) ->
-	    future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>;
+		future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>;
 
 	template<class Function, class ... Args>
 	auto async(Function && f, Args && ... args) ->
-	    future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>
+		future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>
 	{
 		constexpr ext::launch pol = static_cast<ext::launch>(
 			static_cast<int>(ext::launch::async) |
@@ -212,6 +212,13 @@ namespace ext
 			ext::future<when_any_result<std::vector<typename std::iterator_traits<InputIterator>::value_type>>>
 		>;
 
+	template <class Future>
+	auto when_any(std::vector<Future> futures) ->
+		std::enable_if_t<
+			is_future_type<Future>::value,
+			ext::future<when_any_result<std::vector<Future>>>
+		>;
+
 	template <class ... Futures>
 	auto when_any(Futures && ... futures) ->
 		std::enable_if_t<
@@ -224,6 +231,13 @@ namespace ext
 		std::enable_if_t<
 			is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
 			ext::future<std::vector<typename std::iterator_traits<InputIterator>::value_type>>
+		>;
+
+	template <class Future>
+	auto when_all(std::vector<Future> futures) ->
+		std::enable_if_t<
+			is_future_type<Future>::value,
+			ext::future<std::vector<Future>>
 		>;
 
 	template <class ... Futures>
@@ -1087,6 +1101,13 @@ namespace ext
 				ext::future<when_any_result<std::vector<typename std::iterator_traits<InputIterator>::value_type>>>
 			>;
 
+		template <class Future>
+		friend auto when_any(std::vector<Future> futures) ->
+			std::enable_if_t<
+				is_future_type<Future>::value,
+				ext::future<when_any_result<std::vector<Future>>>
+			>;
+
 		template <class ... Futures>
 		friend auto when_any(Futures && ... futures) ->
 			std::enable_if_t<
@@ -1123,6 +1144,13 @@ namespace ext
 			std::enable_if_t<
 				is_future_type<typename std::iterator_traits<InputIterator>::value_type>::value,
 				ext::future<std::vector<typename std::iterator_traits<InputIterator>::value_type>>
+			>;
+
+		template <class Future>
+		friend auto when_all(std::vector<Future> futures) ->
+			std::enable_if_t<
+				is_future_type<Future>::value,
+				ext::future<std::vector<Future>>
 			>;
 
 		template <class ... Futures>
@@ -2409,9 +2437,9 @@ namespace ext
 
 	template<class Function, class... Args>
 	auto async(ext::launch policy, Function && func, Args && ... args) ->
-	    future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>
+		future<std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>>
 	{
-	    using result_type = std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>;
+		using result_type = std::invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>;
 
 		auto closure = [func = std::forward<Function>(func),
 		                args_tuple = std::make_tuple(std::forward<Args>(args)...)]() mutable -> result_type
@@ -2442,9 +2470,9 @@ namespace ext
 			ext::future<when_any_result<std::vector<typename std::iterator_traits<InputIterator>::value_type>>>
 		>
 	{
-	    using value_type  = typename std::iterator_traits<InputIterator>::value_type;
-	    using result_type = when_any_result<std::vector<value_type>>;
-	    using state_type  = when_any_task<result_type>;
+		using value_type  = typename std::iterator_traits<InputIterator>::value_type;
+		using result_type = when_any_result<std::vector<value_type>>;
+		using state_type  = when_any_task<result_type>;
 
 		result_type result;
 		result.index = SIZE_MAX;
@@ -2475,6 +2503,41 @@ namespace ext
 		return {state};
 	}
 
+	template <class Future>
+	auto when_any(std::vector<Future> futures) ->
+		std::enable_if_t<
+			is_future_type<Future>::value,
+			ext::future<when_any_result<std::vector<Future>>>
+		>
+	{
+		using result_type = when_any_result<std::vector<Future>>;
+		using state_type  = when_any_task<result_type>;
+
+		result_type result;
+		result.index = SIZE_MAX;
+		result.futures = std::move(futures);
+
+		if (result.futures.empty())
+			return make_ready_future<result_type>(std::move(result));
+
+		std::size_t idx = 0;
+		auto state = ext::make_intrusive<state_type>(std::move(result));
+		for (const auto & f : state->m_val.futures)
+		{
+			if (f.is_deferred())
+			{
+				state->notify_satisfied(idx);
+				break;
+			}
+
+			auto cont = ext::make_intrusive<when_any_task_continuation>(state, idx++);
+			if (not f.handle()->add_continuation(cont.get()))
+				break; // executed immediately, no sense to continue
+		}
+
+		return {state};
+	}
+
 	template <class ... Futures>
 	auto when_any(Futures && ... futures) ->
 		std::enable_if_t<
@@ -2482,9 +2545,9 @@ namespace ext
 			ext::future<when_any_result<std::tuple<std::decay_t<Futures>...>>>
 		>
 	{
-	    using tuple_type  = std::tuple<std::decay_t<Futures>...>;
-	    using result_type = when_any_result<tuple_type>;
-	    using state_type  = when_any_task<result_type>;
+		using tuple_type  = std::tuple<std::decay_t<Futures>...>;
+		using result_type = when_any_result<tuple_type>;
+		using state_type  = when_any_task<result_type>;
 
 		std::initializer_list<ext::shared_state_basic *> handles = {futures.handle().get()...};
 		result_type result {SIZE_MAX, tuple_type {std::forward<Futures>(futures)...}};
@@ -2515,15 +2578,43 @@ namespace ext
 			ext::future<std::vector<typename std::iterator_traits<InputIterator>::value_type>>
 		>
 	{
-	    using value_type  = typename std::iterator_traits<InputIterator>::value_type;
-	    using result_type = std::vector<value_type>;
-	    using state_type  = when_all_task<result_type>;
+		using value_type  = typename std::iterator_traits<InputIterator>::value_type;
+		using result_type = std::vector<value_type>;
+		using state_type  = when_all_task<result_type>;
 
 		result_type futures;
 		ext::try_reserve(futures, first, last);
 
 		for (; first != last; ++first)
 			futures.push_back(*first);
+
+		if (futures.empty())
+			return make_ready_future<result_type>(std::move(futures));
+
+		auto state = ext::make_intrusive<state_type>(std::move(futures), futures.size());
+		for (const auto & f : state->m_val)
+		{
+			if (f.is_deferred())
+				state->notify_satisfied(0);
+			else
+			{
+				auto cont = ext::make_intrusive<when_all_task_continuation>(state);
+				f.handle()->add_continuation(cont.get());
+			}
+		}
+
+		return {state};
+	}
+
+	template <class Future>
+	auto when_all(std::vector<Future> futures) ->
+		std::enable_if_t<
+			is_future_type<Future>::value,
+			ext::future<std::vector<Future>>
+		>
+	{
+		using result_type = std::vector<Future>;
+		using state_type  = when_all_task<result_type>;
 
 		if (futures.empty())
 			return make_ready_future<result_type>(std::move(futures));
@@ -2550,8 +2641,8 @@ namespace ext
 			ext::future<std::tuple<std::decay_t<Futures>...>>
 		>
 	{
-	    using result_type = std::tuple<std::decay_t<Futures>...>;
-	    using state_type  = when_all_task<result_type>;
+		using result_type = std::tuple<std::decay_t<Futures>...>;
+		using state_type  = when_all_task<result_type>;
 
 		std::initializer_list<ext::shared_state_basic *> handles = {futures.handle().get()...};
 		result_type ftuple {std::forward<Futures>(futures)...};
