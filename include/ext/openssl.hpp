@@ -4,6 +4,7 @@
 #include <memory>
 #include <tuple>
 #include <ostream>
+#include <vector>
 #include <string>
 #include <string_view>
 #include <chrono>
@@ -26,6 +27,7 @@ typedef struct PKCS12_st         PKCS12;
 typedef struct evp_md_st         EVP_MD;
 
 struct stack_st_X509;
+struct stack_st_X509_EXTENSION;
 
 struct ssl_st;
 struct ssl_ctx_st;
@@ -150,7 +152,9 @@ namespace ext::openssl
 	struct pkcs12_deleter   { void operator()(PKCS12 * pkcs12) const noexcept; };
 	
 	struct x509_extension_deleter { void operator()(X509_EXTENSION * extension) const noexcept; };
-	struct stackof_x509_deleter { void operator()(stack_st_X509 * ca) const noexcept; };
+	
+	struct stackof_x509_deleter { void operator()(stack_st_X509 * x590s) const noexcept; };
+	struct stack_st_x509_extension_deleter { void operator()(stack_st_X509_EXTENSION * extensions) const noexcept; };
 
 	using ssl_uptr     = std::unique_ptr<SSL, ssl_deleter>;
 	using ssl_ctx_uptr = std::unique_ptr<SSL_CTX, ssl_ctx_deleter>;
@@ -164,7 +168,8 @@ namespace ext::openssl
 	
 	using x509_extension_uptr = std::unique_ptr<X509_EXTENSION, x509_extension_deleter>;
 	using stackof_x509_uptr   = std::unique_ptr<stack_st_X509, stackof_x509_deleter>;
-
+	
+	using stack_st_x509_extension_uptr = std::unique_ptr<stack_st_X509_EXTENSION, stack_st_x509_extension_deleter>;
 
 
 	using ssl_iptr      = ext::intrusive_ptr<SSL>;
@@ -180,11 +185,10 @@ namespace ext::openssl
 	/*                     print and date helpers                           */
 	/************************************************************************/
 	
-	// various openssl print helpers
 	/// prints name with X509_NAME_print_ex and given flags
 	std::string x509_name_string(const ::X509_NAME * name, int flags);
 	/// prints name with X509_NAME_print_ex and flags:
-	///  (XN_FLAG_RFC2253 | XN_FLAG_SEP_CPLUS_SPC) & ~XN_FLAG_SEP_COMMA_PLUS & ~ASN1_STRFLGS_ESC_MSB 
+	///  (XN_FLAG_RFC2253 | XN_FLAG_SEP_CPLUS_SPC) & ~XN_FLAG_SEP_COMMA_PLUS & ~ASN1_STRFLGS_ESC_MSB
 	std::string x509_name_string(const ::X509_NAME * name);
 	/// prints name with X509_NAME_print_ex and flags:
 	///  (XN_FLAG_DN_REV | XN_FLAG_RFC2253 | XN_FLAG_SEP_CPLUS_SPC) & ~XN_FLAG_SEP_COMMA_PLUS & ~ASN1_STRFLGS_ESC_MSB;
@@ -201,7 +205,7 @@ namespace ext::openssl
 
 	/// Converts time to time_t type, with help of asn1_time_tm and std::mkgmtime(or platform alternative)
 	/// returns -1 for special invalid date value
-	/// SOME REMARKS:	
+	/// SOME REMARKS:
 	///  ASN1_TIME - just a ASN1_STRING, which holds date as string constrained by RFC 5280
 	///  by that RFC date/time should stored in:
 	///   * UTCTime: date string in format YYMMDDHHMMSSZ, GMT timezone only
@@ -212,8 +216,9 @@ namespace ext::openssl
 	std::tm asn1_time_tm(const ::ASN1_TIME * time);
 	/// ASN1_TIME_print wrapper
 	std::string asn1_time_print(const ::ASN1_TIME * time);
+	/// ASN1_TIME_set wrapper
+	::ASN1_TIME * asn1_time_set(::ASN1_TIME * time, time_t tt);
 	
-
 	
 	/************************************************************************/
 	/*         write/load certificate/private key/PKCS12 functions          */
@@ -266,22 +271,48 @@ namespace ext::openssl
 	/// Throws std::system_error in case of errors
 	pkcs12_uptr load_pkcs12_from_file(const char * path);
 	pkcs12_uptr load_pkcs12_from_file(std::FILE * file);
+	
+	/// Writes PKCS12 into memory in DER format and returns it.
+	/// Throws std::system_error in case of errors
+	std::vector<char> write_pkcs12(PKCS12 * pkcs12);
+	/// Writes PKCS12 into given file in DER format.
+	/// Passwork protection is set by other functions, this is just a serializtion function.
+	/// Throws std::system_error in case of errors
+	void write_pkcs12_to_file(std::FILE * fp, PKCS12 * pkcs12);
+	void write_pkcs12_to_file(const char * path, PKCS12 * pkcs12);
 
 	inline pkcs12_uptr load_pkcs12(std::string_view str) { return load_pkcs12(str.data(), str.size()); }
 
 	inline x509_iptr     load_certificate_from_file(const std::string & path, std::string_view passwd = "") { return load_certificate_from_file(path.c_str(), passwd); }
 	inline evp_pkey_iptr load_private_key_from_file(const std::string & path, std::string_view passwd = "") { return load_private_key_from_file(path.c_str(), passwd); }
 	inline pkcs12_uptr   load_pkcs12_from_file(const std::string & path) { return load_pkcs12_from_file(path.c_str()); }
-
-	inline x509_iptr     load_certificate_from_file(const std::wstring & path, std::string_view passwd = "") { return load_certificate_from_file(path.c_str(), passwd); }
-	inline evp_pkey_iptr load_private_key_from_file(const std::wstring & path, std::string_view passwd = "") { return load_private_key_from_file(path.c_str(), passwd); }
-	inline pkcs12_uptr   load_pkcs12_from_file(const std::wstring & path) { return load_pkcs12_from_file(path.c_str()); }
+	
 
 	/// Parses PKCS12 into private key, x509 certificate and certificate authorities
 	/// Throws std::system_error in case of errors
 	void parse_pkcs12(PKCS12 * pkcs12, std::string passwd, evp_pkey_iptr & evp_pkey, x509_iptr & x509, stackof_x509_uptr & ca);
 	auto parse_pkcs12(PKCS12 * pkcs12, std::string passwd = "") -> std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr>;
 
+	/// PKCS12_create wrapper. see man page PKCS12_CREATE(3)
+	/// Creates new PKCS12 structure encrypted with given password.
+	///   name - friendlyName to use for the supplied certificate and key.
+	///   pkey and cert - private key and corresponding certificate to include.
+	///   ca, if not NULL is an optional set of certificates to also include in the structure.
+	/// 
+	///   nid_key and nid_cert are the encryption algorithms that should be used for the key and certificate respectively.
+	///     The modes GCM, CCM, XTS, and OCB are unsupported.
+	///     iter is the encryption algorithm iteration count to use and mac_iter is the MAC iteration count to use.
+	/// 
+	///   keytype is the type of key. keytype adds a flag to the store private key.
+	///     This is a non standard extension that is only currently interpreted by MSIE.
+	///     If set to zero the flag is omitted, if set to KEY_SIG the key can be used for signing only,
+	///     if set to KEY_EX it can be used for signing and encryption.
+	///     This option was useful for old export grade software which could use signing only keys of arbitrary size
+	///     but had restrictions on the permissible sizes of keys which could be used for encryption.
+	/// Throws std::system_error in case of errors
+	pkcs12_uptr create_pkcs12(const char * pass, const char * name,
+	                          ::EVP_PKEY * pkey, ::X509 * cert, ::stack_st_X509 * ca = nullptr,
+	                          int nid_key = 0, int nid_cert = 0, int iter = 0, int mac_iter = 0, int keytype = 0);
 	
 	/************************************************************************/
 	/*                           TLS/SSL stuff                              */
@@ -303,28 +334,39 @@ namespace ext::openssl
 	ssl_ctx_iptr create_anonymous_sslctx(const SSL_METHOD * method);
 	///	same as above with SSLv23_server_method
 	ssl_ctx_iptr create_anonymous_sslctx();
-		
+	
 	/************************************************************************/
-	/*                Private Key/Certificate generation                    */
+	/*                certificate attributes/extensions                     */
 	/************************************************************************/
-	/// Generates RSA keys with given bites and exponent,
-	/// Basicly it's a wrapper around RSA_generate_key_ex
+	
+	/// Sets not before property of cert to given time point
+	void set_notbefore(X509 * cert, std::chrono::system_clock::time_point tpoint);
+	/// Sets not after property of cert to given time point
+	void set_notafter(X509 * cert, std::chrono::system_clock::time_point tpoint);
+	/// Sets certificate duration, basicly takes not before, adds duration, sets result into not after
+	void set_duration(X509 * cert, std::chrono::system_clock::duration duration);
+	/// Gets certificate not before property as std::chrono::system_clock::time_point
+	auto get_notbefore(X509 * cert) -> std::chrono::system_clock::time_point;
+	/// Gets certificate not after property as std::chrono::system_clock::time_point
+	auto get_notafter(X509 * cert) -> std::chrono::system_clock::time_point;
+	
+	/// Calculates and returns certificate SHA1 fingerprint, basicly ::X509_digest wrapper
 	/// Throws std::system_error in case of errors
-	evp_pkey_iptr generate_rsa_key(int bits, unsigned long exponent = rsa_f4);
+	std::vector<unsigned char> cert_sha1fingerprint(::X509 * cert);
 	
 	/// Wrapper around X509_NAME_add_entry_by_txt:
 	///   X509_NAME_add_entry_by_txt(cert_name, name.c_str(), MBSTRING_UTF8, value.data(), value.size(), -1, 0);
 	/// Throws std::system_error in case of errors
 	void x509_name_add_entry_by_txt(X509_NAME * cert_name, const std::string & name, std::string_view value);
 	/// Similar to OpenSSL X509_NAME_add_entry_by_txt, but name is complete x509 name,
-	/// which splited into parts delimited by ", ", each part then added via X509_NAME_add_entry_by_txt.
-	/// For expample: C=CA, O="MyCompamy, friends and \"Me\"", CN=localhost 
+	/// which splited into parts delimited by comma and space chars, each part then added via X509_NAME_add_entry_by_txt.
+	/// For expample: C=CA, O="MyCompamy, friends and \"Me\"", CN=localhost
 	/// produces:
 	///   * X509_NAME_add_entry_by_txt 'C', 'CA'
 	///   * X509_NAME_add_entry_by_txt 'O', '"MyCompamy, friends and \"Me\""'
 	///   * X509_NAME_add_entry_by_txt 'CN', 'localhost'
 	/// Throws std::system_error in case of errors
-	void x509_name_add_entry_by_txt(X509_NAME * cert_name, const std::string & name, std::string_view value);
+	void x509_name_add_entry_by_txt(X509_NAME * cert_name, std::string name_str);
 	
 	/// wrapper around X509V3_EXT_nconf_nid
 	/// value is same as used in openssl.conf
@@ -336,6 +378,27 @@ namespace ext::openssl
 	/// NOTE: X509V3_EXT_nconf_nid is not documented API, but it is used by OpenSSL internally to create v3 extensions
 	/// Throws std::system_error in case of errors
 	void add_extension_by_nid(X509 * cert, int nid, std::string value);
+	
+	/// Gets extension from certificate by given NID.
+	/// Returns null if not found.
+	/// Throws std::system_error in case of errors
+	X509_EXTENSION * get_extension_by_nid(const stack_st_X509_EXTENSION * extensions, int nid);
+	X509_EXTENSION * get_extension_by_nid(const X509 * cert, int nid);
+	/// Prints given extension value, basicly X509V3_EXT_print wrapper
+	/// Throws std::system_error in case of errors
+	std::string print_extension(X509_EXTENSION * extension);
+	/// Prints and returns extension by NID from certificate,
+	/// basicly get_extension_by_nid + print_extension
+	/// Throws std::system_error in case of errors
+	std::string get_extension_value_by_nid(const X509 * cert, int nid);
+	
+	/************************************************************************/
+	/*                Private Key/Certificate generation                    */
+	/************************************************************************/
+	/// Generates RSA keys with given bites and exponent,
+	/// Basicly it's a wrapper around RSA_generate_key_ex
+	/// Throws std::system_error in case of errors
+	evp_pkey_iptr generate_rsa_key(int bits, unsigned long exponent = rsa_f4);
 	
 	/// Inits empty X509 certificate, sets:
 	///  * given subject
@@ -355,13 +418,15 @@ namespace ext::openssl
 	/// creates new certificate and sets pubkey, inits it via init_self_signed_certificate, configures:
 	///  * not before = current timestamp
 	///  * not after = current timestamp + duration
+	/// Does not signs it
 	/// Throws std::system_error in case of errors
-	x509_iptr make_self_signed_certificate(EVP_PKEY * pkey, std::string subject, std::chrono::seconds duration = std::chrono::seconds(12 * 30 * 24 * 60 * 60)/*one year*/);
+	x509_iptr create_self_signed_certificate(EVP_PKEY * pkey, std::string subject, std::chrono::seconds duration = std::chrono::seconds(12 * 30 * 24 * 60 * 60)/*one year*/);
 	/// creates new certificate and sets pubkey, inits it via init_certificate, configures:
 	///  * not before = current timestamp
 	///  * not after = current timestamp + duration
+	/// Does not signs it
 	/// Throws std::system_error in case of errors
-	x509_iptr make_certificate(EVP_PKEY * pkey, std::string subject, std::string issuer, std::chrono::seconds duration = std::chrono::seconds(12 * 30 * 24 * 60 * 60)/*one year*/);
+	x509_iptr create_certificate(EVP_PKEY * pkey, std::string subject, std::string issuer, std::chrono::seconds duration = std::chrono::seconds(12 * 30 * 24 * 60 * 60)/*one year*/);
 	
 	/// signs certificate with given private key, hash method is EVP_sha256()
 	/// Throws std::system_error in case of errors
