@@ -33,7 +33,7 @@ namespace ext::library_logger
 	///
 	///   * использовать абстрактный интерфейс, который должен реализовать пользователь библиотеки.
 	///     в самом простом случае имеющий метод
-	///     log(int log_lvl, const std::string & msg, int souce_line, const char * soure_file).
+	///     log(int log_lvl, const std::string & msg, int source_line, const char * source_file).
 	///
 	///     данное решение имеет недостаток в том что, _каждая_ библиотека должна реализовать
 	///     несколько вспомогательных функций/макросов для адекватного использования этого интерфейса
@@ -68,13 +68,13 @@ namespace ext::library_logger
 	///            запись можно протолкнуть (push) или отбросить(discard), после чего запись становится недействительной
 	///            при разрушении запись отбрасывается, если не протолкнута
 	///
-	///   проталкивание записи вызывается при нормальном ходе логирования
+	///   проталкивание записи вызывается при нормальном ходе логирования,
 	///   отбрасывание подразумевает что в ходе формирование записи произошла ошибка, например bad_alloc
 	///   реализация вольна все равно залогировать такую запись, но она может быть не полной, или даже пустой
-	///   open_record может вернуть null запись - это флаг что увроень лоогирования ниже запрошенного
+	///   open_record может вернуть null запись - это флаг, что уровень логирования ниже запрошенного
 	///
 	///   is_enabled_for(log_level) - проверяет что логгер включен для заданного уровня
-	///   log(log_level, str, source_file, source_line) - логирукт строку с заданным уровнем
+	///   log(log_level, str, source_file, source_line) - логирует строку с заданным уровнем
 	///
 	///   open_record - открывает запись для заданного уровня логирования.
 	///   push_record/rec.push() - проталкивает запись
@@ -155,7 +155,6 @@ namespace ext::library_logger
 		record(record && rec) noexcept : rctx(rec.rctx), owner(rec.owner)  { rec.rctx = nullptr; rec.owner = nullptr; }
 		record & operator =(record && rec) noexcept                        { rctx = std::exchange(rec.rctx, nullptr); owner = std::exchange(rec.owner, nullptr); return *this; }
 
-		//noncopyable
 		record(const record & rec) = delete;
 		record & operator =(const record & rec) = delete;
 	};
@@ -244,7 +243,7 @@ namespace ext::library_logger
 
 
 	/************************************************************************/
-	/*                some hepler/basic implementations                     */
+	/*                some helper/basic implementations                     */
 	/************************************************************************/
 	/// simple logger for some iostream:
 	///   cout, cerr, clog or any other arbitrary ostream.
