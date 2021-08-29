@@ -38,23 +38,23 @@
 #endif // BOOST_OS_WINDOWS
 
 
-int  intrusive_ptr_add_ref(BIO * ptr)  { return ::BIO_up_ref(ptr); }
-void intrusive_ptr_release(BIO * ptr)  { return ::BIO_free_all(ptr);   }
+int  intrusive_ptr_add_ref(::BIO * ptr)  { return ::BIO_up_ref(ptr); }
+void intrusive_ptr_release(::BIO * ptr)  { return ::BIO_free_all(ptr);   }
 
-int  intrusive_ptr_add_ref(X509 * ptr) { return ::X509_up_ref(ptr); }
-void intrusive_ptr_release(X509 * ptr) { return ::X509_free(ptr);   }
+int  intrusive_ptr_add_ref(::X509 * ptr) { return ::X509_up_ref(ptr); }
+void intrusive_ptr_release(::X509 * ptr) { return ::X509_free(ptr);   }
 
-int  intrusive_ptr_add_ref(RSA * ptr)  { return ::RSA_up_ref(ptr);  }
-void intrusive_ptr_release(RSA * ptr)  { return ::RSA_free(ptr);    }
+int  intrusive_ptr_add_ref(::RSA * ptr)  { return ::RSA_up_ref(ptr);  }
+void intrusive_ptr_release(::RSA * ptr)  { return ::RSA_free(ptr);    }
 
-int  intrusive_ptr_add_ref(EVP_PKEY * ptr) { return ::EVP_PKEY_up_ref(ptr); }
-void intrusive_ptr_release(EVP_PKEY * ptr) { return ::EVP_PKEY_free(ptr);   }
+int  intrusive_ptr_add_ref(::EVP_PKEY * ptr) { return ::EVP_PKEY_up_ref(ptr); }
+void intrusive_ptr_release(::EVP_PKEY * ptr) { return ::EVP_PKEY_free(ptr);   }
 
-int  intrusive_ptr_add_ref(SSL * ptr) { return ::SSL_up_ref(ptr); }
-void intrusive_ptr_release(SSL * ptr) { return ::SSL_free(ptr);   }
+int  intrusive_ptr_add_ref(::SSL * ptr) { return ::SSL_up_ref(ptr); }
+void intrusive_ptr_release(::SSL * ptr) { return ::SSL_free(ptr);   }
 
-int  intrusive_ptr_add_ref(SSL_CTX * ptr) { return ::SSL_CTX_up_ref(ptr); }
-void intrusive_ptr_release(SSL_CTX * ptr) { return ::SSL_CTX_free(ptr);   }
+int  intrusive_ptr_add_ref(::SSL_CTX * ptr) { return ::SSL_CTX_up_ref(ptr); }
+void intrusive_ptr_release(::SSL_CTX * ptr) { return ::SSL_CTX_free(ptr);   }
 
 
 #if OPENSSL_VERSION_NUMBER < 0x10101000L
@@ -226,19 +226,19 @@ namespace ext::openssl
 	void crypto_init()
 	{
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-		ERR_load_crypto_strings();
+		::ERR_load_crypto_strings();
 #elif OPENSSL_VERSION_NUMBER >= 0x10100000L
-		OPENSSL_init_crypto(0, nullptr);
+		::OPENSSL_init_crypto(0, nullptr);
 #endif
 	}
 	
 	void ssl_init()
 	{
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-		SSL_load_error_strings();
-		SSL_library_init();
+		::SSL_load_error_strings();
+		::SSL_library_init();
 #elif OPENSSL_VERSION_NUMBER >= 0x10100000L
-		OPENSSL_init_ssl(0, nullptr);
+		::OPENSSL_init_ssl(0, nullptr);
 #endif
 
 	}
@@ -247,36 +247,36 @@ namespace ext::openssl
 	{
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 		// https://mta.openssl.org/pipermail/openssl-users/2015-January/000326.html
-		CRYPTO_cleanup_all_ex_data();
-		ERR_free_strings();
-		EVP_cleanup();
+		::CRYPTO_cleanup_all_ex_data();
+		::ERR_free_strings();
+		::EVP_cleanup();
 #endif
 	}
 
 	/************************************************************************/
 	/*                  smart ptr stuff                                     */
 	/************************************************************************/
-	void ssl_deleter::operator()(SSL * ssl) const noexcept
+	void ssl_deleter::operator()(::SSL * ssl) const noexcept
 	{
 		::SSL_free(ssl);
 	}
 
-	void ssl_ctx_deleter::operator()(SSL_CTX * sslctx) const noexcept
+	void ssl_ctx_deleter::operator()(::SSL_CTX * sslctx) const noexcept
 	{
 		::SSL_CTX_free(sslctx);
 	}
 
-	void bignum_deleter::operator()(BIGNUM * bn) const noexcept
+	void bignum_deleter::operator()(::BIGNUM * bn) const noexcept
 	{
 		::BN_free(bn);
 	}
 	
-	void bio_deleter::operator()(BIO * bio) const noexcept
+	void bio_deleter::operator()(::BIO * bio) const noexcept
 	{
 		::BIO_vfree(bio);
 	}
 
-	void x509_deleter::operator()(X509 * cert) const noexcept
+	void x509_deleter::operator()(::X509 * cert) const noexcept
 	{
 		::X509_free(cert);
 	}
@@ -298,17 +298,17 @@ namespace ext::openssl
 		::RSA_free(rsa);
 	}
 
-	void evp_pkey_deleter::operator()(EVP_PKEY * pkey) const noexcept
+	void evp_pkey_deleter::operator()(::EVP_PKEY * pkey) const noexcept
 	{
 		::EVP_PKEY_free(pkey);
 	}
 
-	void pkcs12_deleter::operator()(PKCS12 * pkcs12) const noexcept
+	void pkcs12_deleter::operator()(::PKCS12 * pkcs12) const noexcept
 	{
 		::PKCS12_free(pkcs12);
 	}
 	
-	void x509_extension_deleter::operator()(X509_EXTENSION *extension) const noexcept
+	void x509_extension_deleter::operator()(::X509_EXTENSION *extension) const noexcept
 	{
 		::X509_EXTENSION_free(extension);
 	}
@@ -326,7 +326,7 @@ namespace ext::openssl
 			ext::openssl::throw_last_error("::X509_NAME_print_ex failed");
 
 		char * data;
-		int len = BIO_get_mem_data(mem_bio.get(), &data);
+		int len = ::BIO_get_mem_data(mem_bio.get(), &data);
 		return std::string(data, len);
 	}
 	
@@ -398,7 +398,7 @@ namespace ext::openssl
 			ext::openssl::throw_last_error("::ASN1_TIME_print failed");
 		
 		char * data;
-		int len = BIO_get_mem_data(mem_bio.get(), &data);
+		int len = ::BIO_get_mem_data(mem_bio.get(), &data);
 		return std::string(data, len);
 	}
 	
@@ -427,7 +427,7 @@ namespace ext::openssl
 		bio_uptr.reset(bio);
 		if (not bio) throw_last_error("ext::openssl::load_certificate: ::BIO_new_mem_buf failed");
 
-		X509 * cert = ::PEM_read_bio_X509(bio, nullptr, password_callback, &passwd);
+		::X509 * cert = ::PEM_read_bio_X509(bio, nullptr, password_callback, &passwd);
 		if (not cert) throw_last_error("ext::openssl::load_certificate: ::PEM_read_bio_X509 failed");
 		return x509_iptr(cert, ext::noaddref);
 	}
@@ -436,16 +436,16 @@ namespace ext::openssl
 	{
 		bio_uptr bio_uptr;
 
-		auto * bio = BIO_new_mem_buf(data, static_cast<int>(len));
+		auto * bio = ::BIO_new_mem_buf(data, static_cast<int>(len));
 		bio_uptr.reset(bio);
 		if (not bio) throw_last_error("ext::openssl::load_private_key: ::BIO_new_mem_buf failed");
 
-		EVP_PKEY * pkey = ::PEM_read_bio_PrivateKey(bio, nullptr, password_callback, &passwd);
+		::EVP_PKEY * pkey = ::PEM_read_bio_PrivateKey(bio, nullptr, password_callback, &passwd);
 		if (not bio) throw_last_error("ext::openssl::load_private_key: ::PEM_read_bio_PrivateKey failed");
 		return evp_pkey_iptr(pkey, ext::noaddref);
 	}
 	
-	std::string write_certificate(X509 * cert)
+	std::string write_certificate(::X509 * cert)
 	{
 		assert(cert);
 		
@@ -457,12 +457,12 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_certificate: ::PEM_write_bio_X509 failed");
 		
 		char * data;
-		int len = BIO_get_mem_data(mem_bio, &data);
+		int len = ::BIO_get_mem_data(mem_bio, &data);
 		
 		return std::string(data, len);
 	}
 	
-	std::string write_pkey(EVP_PKEY * key)
+	std::string write_pkey(::EVP_PKEY * key)
 	{
 		assert(key);
 		
@@ -474,7 +474,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_pkey: ::PEM_write_bio_X509 failed");
 		
 		char * data;
-		int len = BIO_get_mem_data(mem_bio, &data);
+		int len = ::BIO_get_mem_data(mem_bio, &data);
 		
 		return std::string(data, len);
 	}
@@ -493,7 +493,7 @@ namespace ext::openssl
 			throw std::system_error(errc, "ext::openssl::load_certificate_from_file: std::fopen failed");
 		}
 
-		X509 * cert = ::PEM_read_X509(fp, nullptr, password_callback, &passwd);
+		::X509 * cert = ::PEM_read_X509(fp, nullptr, password_callback, &passwd);
 		std::fclose(fp);
 
 		if (not cert) throw_last_error("ext::openssl::load_certificate_from_file: ::PEM_read_X509 failed");
@@ -503,7 +503,7 @@ namespace ext::openssl
 	x509_iptr load_certificate_from_file(std::FILE * file, std::string_view passwd)
 	{
 		assert(file);
-		X509 * cert = ::PEM_read_X509(file, nullptr, password_callback, &passwd);
+		::X509 * cert = ::PEM_read_X509(file, nullptr, password_callback, &passwd);
 
 		if (not cert) throw_last_error("ext::openssl::load_certificate_from_file: ::PEM_read_X509 failed");
 		return x509_iptr(cert, ext::noaddref);
@@ -526,7 +526,7 @@ namespace ext::openssl
 		}
 
 		//                  traditional or PKCS#8 format
-		EVP_PKEY * pkey = ::PEM_read_PrivateKey(fp, nullptr, password_callback, &passwd);
+		::EVP_PKEY * pkey = ::PEM_read_PrivateKey(fp, nullptr, password_callback, &passwd);
 		std::fclose(fp);
 
 		if (not pkey) throw_last_error("ext::openssl::load_private_key_from_file: ::PEM_read_PrivateKey failed");
@@ -537,13 +537,13 @@ namespace ext::openssl
 	{
 		assert(file);
 		//                  traditional or PKCS#8 format
-		EVP_PKEY * pkey = ::PEM_read_PrivateKey(file, nullptr, password_callback, &passwd);
+		::EVP_PKEY * pkey = ::PEM_read_PrivateKey(file, nullptr, password_callback, &passwd);
 
 		if (not pkey) throw_last_error("ext::openssl::load_private_key_from_file: ::PEM_read_PrivateKey failed");
 		return evp_pkey_iptr(pkey, ext::noaddref);
 	}
 	
-	void write_certificate_to_file(std::FILE * fp, X509 * cert)
+	void write_certificate_to_file(std::FILE * fp, ::X509 * cert)
 	{
 		assert(fp);
 		assert(cert);
@@ -552,7 +552,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_certificate_to_file: ::PEM_write_X509 failed");
 	}
 	
-	void write_certificate_to_file(const char * path, X509 * cert)
+	void write_certificate_to_file(const char * path, ::X509 * cert)
 	{
 		assert(path);
 		assert(cert);
@@ -576,7 +576,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_certificate_to_file: ::PEM_write_X509 failed");
 	}
 	
-	void write_pkey_to_file(std::FILE * fp, EVP_PKEY * pkey)
+	void write_pkey_to_file(std::FILE * fp, ::EVP_PKEY * pkey)
 	{
 		assert(fp);
 		assert(pkey);
@@ -585,7 +585,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_pkey_to_file: ::PEM_write_PrivateKey failed");
 	}
 	
-	void write_pkey_to_file(const char * path, EVP_PKEY * pkey)
+	void write_pkey_to_file(const char * path, ::EVP_PKEY * pkey)
 	{
 		assert(path);
 		assert(pkey);
@@ -650,7 +650,7 @@ namespace ext::openssl
 		return pkcs12;
 	}
 	
-	std::vector<char> write_pkcs12(PKCS12 * pkcs12)
+	std::vector<char> write_pkcs12(::PKCS12 * pkcs12)
 	{
 		assert(pkcs12);
 		
@@ -662,7 +662,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_pkcs12: ::i2d_PKCS12_bio failed");
 		
 		char * data;
-		int len = BIO_get_mem_data(mem_bio, &data);
+		int len = ::BIO_get_mem_data(mem_bio, &data);
 		
 		return std::vector(data, data + len);
 	}
@@ -670,7 +670,7 @@ namespace ext::openssl
 	/// Writes PKCS12 into given file in DER format.
 	/// Passwork protection is set by other functions, this is just a serializtion function.
 	/// Throws std::system_error in case of errors
-	void write_pkcs12_to_file(std::FILE * fp, PKCS12 * pkcs12)
+	void write_pkcs12_to_file(std::FILE * fp, ::PKCS12 * pkcs12)
 	{
 		assert(fp);
 		assert(pkcs12);
@@ -679,7 +679,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_pkcs12_to_file: ::i2d_PKCS12_fp failed");
 	}
 	
-	void write_pkcs12_to_file(const char * path, PKCS12 * pkcs12)
+	void write_pkcs12_to_file(const char * path, ::PKCS12 * pkcs12)
 	{
 		assert(path);
 		assert(pkcs12);
@@ -703,10 +703,10 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_pkcs12_to_file: ::i2d_PKCS12_fp failed");
 	}
 	
-	void parse_pkcs12(PKCS12 * pkcs12, std::string passwd, evp_pkey_iptr & evp_pkey, x509_iptr & x509, stackof_x509_uptr & ca)
+	void parse_pkcs12(::PKCS12 * pkcs12, std::string passwd, evp_pkey_iptr & evp_pkey, x509_iptr & x509, stackof_x509_uptr & ca)
 	{
-		X509 * raw_cert = nullptr;
-		EVP_PKEY * raw_pkey = nullptr;
+		::X509 * raw_cert = nullptr;
+		::EVP_PKEY * raw_pkey = nullptr;
 		STACK_OF(X509) * raw_ca = nullptr;
 
 		int res = ::PKCS12_parse(pkcs12, passwd.c_str(), &raw_pkey, &raw_cert, &raw_ca);
@@ -717,7 +717,7 @@ namespace ext::openssl
 		ca.reset(raw_ca);
 	}
 
-	auto parse_pkcs12(PKCS12 * pkcs12, std::string passwd) -> std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr>
+	auto parse_pkcs12(::PKCS12 * pkcs12, std::string passwd) -> std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr>
 	{
 		std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr> result;
 		parse_pkcs12(pkcs12, passwd, std::get<0>(result), std::get<1>(result), std::get<2>(result));
@@ -736,13 +736,13 @@ namespace ext::openssl
 	}
 
 
-	ssl_ctx_iptr create_sslctx(X509 * cert, EVP_PKEY * pkey, stack_st_X509 * ca_chain)
+	ssl_ctx_iptr create_sslctx(::X509 * cert, ::EVP_PKEY * pkey, ::stack_st_X509 * ca_chain)
 	{
 		auto * method = ::SSLv23_server_method();
 		return create_sslctx(method, cert, pkey, ca_chain);
 	}
 
-	ssl_ctx_iptr create_sslctx(const SSL_METHOD * method, X509 * cert, EVP_PKEY * pkey, stack_st_X509 * ca_chain)
+	ssl_ctx_iptr create_sslctx(const ::SSL_METHOD * method, ::X509 * cert, ::EVP_PKEY * pkey, ::stack_st_X509 * ca_chain)
 	{
 		auto * ctx = ::SSL_CTX_new(method);
 
@@ -760,7 +760,7 @@ namespace ext::openssl
 		return create_anonymous_sslctx(method);
 	}
 
-	ssl_ctx_iptr create_anonymous_sslctx(const SSL_METHOD * method)
+	ssl_ctx_iptr create_anonymous_sslctx(const ::SSL_METHOD * method)
 	{
 		auto * ctx = ::SSL_CTX_new(method);
 
@@ -775,7 +775,7 @@ namespace ext::openssl
 		return ssl_ctx_iptr;
 	}
 	
-	void set_notbefore(X509 * cert, std::chrono::system_clock::time_point tpoint)
+	void set_notbefore(::X509 * cert, std::chrono::system_clock::time_point tpoint)
 	{
 		assert(cert);
 		
@@ -785,7 +785,7 @@ namespace ext::openssl
 		asn1_time_set(notbefore, t);
 	}
 	
-	void set_notafter(X509 * cert, std::chrono::system_clock::time_point tpoint)
+	void set_notafter(::X509 * cert, std::chrono::system_clock::time_point tpoint)
 	{
 		assert(cert);
 		
@@ -795,7 +795,7 @@ namespace ext::openssl
 		asn1_time_set(notafter, t);
 	}
 	
-	void set_duration(X509 * cert, std::chrono::system_clock::duration duration)
+	void set_duration(::X509 * cert, std::chrono::system_clock::duration duration)
 	{
 		assert(cert);
 		
@@ -803,7 +803,7 @@ namespace ext::openssl
 		::X509_gmtime_adj(::X509_get_notAfter(cert), seconds.count());
 	}
 	
-	auto get_notbefore(X509 * cert) -> std::chrono::system_clock::time_point
+	auto get_notbefore(::X509 * cert) -> std::chrono::system_clock::time_point
 	{
 		assert(cert);
 		
@@ -813,7 +813,7 @@ namespace ext::openssl
 		return std::chrono::system_clock::from_time_t(t);
 	}
 	
-	auto get_notafter(X509 * cert) -> std::chrono::system_clock::time_point
+	auto get_notafter(::X509 * cert) -> std::chrono::system_clock::time_point
 	{
 		assert(cert);
 		
@@ -840,7 +840,7 @@ namespace ext::openssl
 		return result;
 	}
 	
-	void x509_name_add_entry_by_txt(X509_NAME * cert_name, const std::string & name, std::string_view value)
+	void x509_name_add_entry_by_txt(::X509_NAME * cert_name, const std::string & name, std::string_view value)
 	{
 		assert(cert_name);
 		
@@ -848,7 +848,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::x509_name_add_entry_by_txt: ::X509_NAME_add_entry_by_txt failed");
 	}
 	
-	void x509_name_add_entry_by_txt(X509_NAME * cert_name, std::string name_str)
+	void x509_name_add_entry_by_txt(::X509_NAME * cert_name, std::string name_str)
 	{
 		assert(cert_name);
 		using token_function = boost::escaped_list_separator<char>;
@@ -880,7 +880,7 @@ namespace ext::openssl
 		return x509_extension_uptr(cert_ext);
 	}
 	
-	void add_extension_by_nid(X509 * cert, int nid, std::string value)
+	void add_extension_by_nid(::X509 * cert, int nid, std::string value)
 	{
 		auto cert_ext = ::X509V3_EXT_nconf_nid(nullptr, nullptr, nid, value.c_str());
 		if (not cert_ext) throw_last_error("ext::openssl::add_extension_by_nid: ::X509V3_EXT_nconf_nid failed");
@@ -890,7 +890,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::add_extension_by_nid: ::X509_add_ext failed");
 	}
 
-	X509_EXTENSION * get_extension_by_nid(const stack_st_X509_EXTENSION * extensions, int nid)
+	::X509_EXTENSION * get_extension_by_nid(const ::stack_st_X509_EXTENSION * extensions, int nid)
 	{
 		assert(extensions);
 		
@@ -899,7 +899,7 @@ namespace ext::openssl
 		return ::X509v3_get_ext(extensions, index);
 	}
 	
-	X509_EXTENSION * get_extension_by_nid(const X509 * cert, int nid)
+	::X509_EXTENSION * get_extension_by_nid(const ::X509 * cert, int nid)
 	{
 		assert(cert);
 		
@@ -909,7 +909,7 @@ namespace ext::openssl
 		return get_extension_by_nid(extensions, nid);
 	}
 	
-	std::string print_extension(X509_EXTENSION * extension)
+	std::string print_extension(::X509_EXTENSION * extension)
 	{
 		assert(extension);
 		
@@ -921,11 +921,11 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::print_extension: ::X509V3_EXT_print failed");
 		
 		char * data;
-		int len = BIO_get_mem_data(mem_bio, &data);
+		int len = ::BIO_get_mem_data(mem_bio, &data);
 		return std::string(data, len);
 	}
 	
-	std::string get_extension_value_by_nid(const X509 * cert, int nid)
+	std::string get_extension_value_by_nid(const ::X509 * cert, int nid)
 	{
 		auto * extension = get_extension_by_nid(cert, nid);
 		if (not extension) return "";
@@ -961,7 +961,7 @@ namespace ext::openssl
 		return evp_pkey_iptr;
 	}
 	
-	void init_certificate(X509 * cert, std::string subject, std::string issuer)
+	void init_certificate(::X509 * cert, std::string subject, std::string issuer)
 	{
 		assert(cert);
 		int res;
@@ -986,7 +986,7 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::init_certificate: basicContraints extension ::X509_add_ext failed");
 	}
 	
-	void init_self_signed_certificate(X509 * cert, std::string subject)
+	void init_self_signed_certificate(::X509 * cert, std::string subject)
 	{
 		assert(cert);
 		int res;
@@ -1011,11 +1011,11 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::init_self_signed_certificate: basicContraints extension ::X509_add_ext failed");
 	}
 	
-	x509_iptr create_self_signed_certificate(EVP_PKEY * pkey, std::string subject, std::chrono::seconds duration)
+	x509_iptr create_self_signed_certificate(::EVP_PKEY * pkey, std::string subject, std::chrono::seconds duration)
 	{
 		assert(pkey);
 		
-		auto * cert = X509_new();
+		auto * cert = ::X509_new();
 		if (not cert) throw_last_error("ext::openssl::create_self_signed_certificate: ::X509_new failed");
 		x509_iptr cert_ptr(cert, ext::noaddref);
 		
@@ -1030,11 +1030,11 @@ namespace ext::openssl
 		return cert_ptr;
 	}
 	
-	x509_iptr create_certificate(EVP_PKEY * pkey, std::string subject, std::string issuer, std::chrono::seconds duration)
+	x509_iptr create_certificate(::EVP_PKEY * pkey, std::string subject, std::string issuer, std::chrono::seconds duration)
 	{
 		assert(pkey);
 		
-		auto * cert = X509_new();
+		auto * cert = ::X509_new();
 		if (not cert) throw_last_error("ext::openssl::create_certificate: ::X509_new failed");
 		x509_iptr cert_ptr(cert, ext::noaddref);
 		
@@ -1050,12 +1050,12 @@ namespace ext::openssl
 	}
 	
 	
-	void sign_certificate(X509 * cert, EVP_PKEY * signkey)
+	void sign_certificate(::X509 * cert, ::EVP_PKEY * signkey)
 	{
-		return sign_certificate(cert, signkey, EVP_sha256());
+		return sign_certificate(cert, signkey, ::EVP_sha256());
 	}
 	
-	void sign_certificate(X509 * cert, EVP_PKEY * signkey, const EVP_MD * method)
+	void sign_certificate(::X509 * cert, ::EVP_PKEY * signkey, const ::EVP_MD * method)
 	{
 		assert(cert);
 		assert(signkey);
