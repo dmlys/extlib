@@ -41,7 +41,7 @@ namespace ext
 	///        return ptr->refs;
 	/// 
 	/// additionally for intrusive_cow_ptr
-	/// * auto intrusive_ptr_default(const value_type *) -> value_type */std::nullptr_t
+	/// * auto intrusive_ptr_default(const value_type * unused) -> value_type */std::nullptr_t
 	/// 
 	///        returns pointer for a default constructed object.
 	///        if it returns pointer to shared empty object,
