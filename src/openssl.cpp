@@ -703,13 +703,29 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_pkcs12_to_file: ::i2d_PKCS12_fp failed");
 	}
 	
-	void parse_pkcs12(::PKCS12 * pkcs12, std::string passwd, evp_pkey_iptr & evp_pkey, x509_iptr & x509, stackof_x509_uptr & ca)
+	bool pkcs12_password_encrypted(::PKCS12 * p12, std::string_view pass)
+	{
+		int res = ::PKCS12_verify_mac(p12, pass.data(), pass.length());
+		if (res == 1) return true;
+		
+		int err = ::ERR_peek_error();
+		int lib = ERR_GET_LIB(err);
+		if (err and lib == ERR_LIB_PKCS12)
+			return false;
+		
+		if (not pass.empty()) return false;
+		
+		res = ::PKCS12_verify_mac(p12, nullptr, 0);
+		return res == 1;
+	}
+	
+	void parse_pkcs12(::PKCS12 * pkcs12, const char * passwd, evp_pkey_iptr & evp_pkey, x509_iptr & x509, stackof_x509_uptr & ca)
 	{
 		::X509 * raw_cert = nullptr;
 		::EVP_PKEY * raw_pkey = nullptr;
 		STACK_OF(X509) * raw_ca = nullptr;
 
-		int res = ::PKCS12_parse(pkcs12, passwd.c_str(), &raw_pkey, &raw_cert, &raw_ca);
+		int res = ::PKCS12_parse(pkcs12, passwd, &raw_pkey, &raw_cert, &raw_ca);
 		if (res <= 0) throw_last_error("ext::openssl::parse_pkcs12: ::PKCS12_parse failed");
 
 		evp_pkey.reset(raw_pkey, ext::noaddref);
@@ -717,7 +733,7 @@ namespace ext::openssl
 		ca.reset(raw_ca);
 	}
 
-	auto parse_pkcs12(::PKCS12 * pkcs12, std::string passwd) -> std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr>
+	auto parse_pkcs12(::PKCS12 * pkcs12, const char * passwd) -> std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr>
 	{
 		std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr> result;
 		parse_pkcs12(pkcs12, passwd, std::get<0>(result), std::get<1>(result), std::get<2>(result));

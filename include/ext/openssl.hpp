@@ -287,17 +287,21 @@ namespace ext::openssl
 	inline evp_pkey_iptr load_private_key_from_file(const std::string & path, std::string_view passwd = "") { return load_private_key_from_file(path.c_str(), passwd); }
 	inline pkcs12_uptr   load_pkcs12_from_file(const std::string & path) { return load_pkcs12_from_file(path.c_str()); }
 	
-
+	/// Tests if PKCS12 is password encrypted, basicly a PKCS12_verify_mac wrapper.
+	/// NOTE: null password and empty password for PKCS12 encryption are 2 different things.
+	///       This functions for empty password tries both cases: null and "", if one succeeds - result is true
+	bool pkcs12_password_encrypted(::PKCS12 * p12, std::string_view pass = "");
+	
 	/// Parses PKCS12 into private key, x509 certificate and certificate authorities
 	/// Throws std::system_error in case of errors
-	void parse_pkcs12(::PKCS12 * pkcs12, std::string passwd, evp_pkey_iptr & evp_pkey, x509_iptr & x509, stackof_x509_uptr & ca);
-	auto parse_pkcs12(::PKCS12 * pkcs12, std::string passwd = "") -> std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr>;
+	void parse_pkcs12(::PKCS12 * pkcs12, const char * passwd, evp_pkey_iptr & evp_pkey, x509_iptr & x509, stackof_x509_uptr & ca);
+	auto parse_pkcs12(::PKCS12 * pkcs12, const char * passwd = "") -> std::tuple<evp_pkey_iptr, x509_iptr, stackof_x509_uptr>;
 
 	/// PKCS12_create wrapper. see man page PKCS12_CREATE(3)
 	/// Creates new PKCS12 structure encrypted with given password.
 	///   name - friendlyName to use for the supplied certificate and key.
 	///   pkey and cert - private key and corresponding certificate to include.
-	///   ca, if not NULL is an optional set of certificates to also include in the structure.
+	///   ca, if not NULL, is an optional set of certificates to also include in the structure.
 	/// 
 	///   nid_key and nid_cert are the encryption algorithms that should be used for the key and certificate respectively.
 	///     The modes GCM, CCM, XTS, and OCB are unsupported.
