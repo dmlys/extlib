@@ -174,7 +174,6 @@ namespace ext::openssl
 
 	using ssl_iptr      = ext::intrusive_ptr<::SSL>;
 	using ssl_ctx_iptr  = ext::intrusive_ptr<::SSL_CTX>;
-	using x509_iptr     = ext::intrusive_ptr<::X509>;
 
 	using bio_iptr      = ext::intrusive_ptr<::BIO>;
 	using x509_iptr     = ext::intrusive_ptr<::X509>;
@@ -244,8 +243,8 @@ namespace ext::openssl
 
 	/// Loads X509 certificate from given path and with optional password
 	/// Throws std::system_error in case of errors
-	x509_iptr     load_certificate_from_file(const char * path, std::string_view passwd = "");
-	x509_iptr     load_certificate_from_file(std::FILE * file, std::string_view passwd = "");
+	x509_iptr load_certificate_from_file(const char * path, std::string_view passwd = "");
+	x509_iptr load_certificate_from_file(std::FILE * file, std::string_view passwd = "");
 
 	/// loads private key from given given path and with optional password
 	/// Throws std::system_error in case of errors
