@@ -84,7 +84,7 @@ namespace ext::stream_filtering
 		{
 			int err = errno;
 			auto classname = boost::core::demangle(typeid(sb).name());
-			auto errdescr = fmt::format("ext::stream_filtering::write_data: streambuf write error: streambuf class = {:b}, errno = {}", classname, ext::format_errno(err));
+			auto errdescr = fmt::format("ext::stream_filtering::write_data: streambuf write error: streambuf class = {}, errno = {}", classname, ext::format_errno(err));
 			throw std::runtime_error(std::move(errdescr));
 		}
 	}
