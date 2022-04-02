@@ -79,7 +79,7 @@ namespace ext::openssl
 
 	// those can be used as err == ext::openssl_error::zero_return.
 	// also we do not include openssl/ssl.h, those definition are asserted in ext/openssl.cpp
-	enum class ssl_error
+	enum class ssl_errc
 	{
 		none             = 0, // SSL_ERROR_NONE
 		ssl              = 1, // SSL_ERROR_SSL
@@ -100,8 +100,8 @@ namespace ext::openssl
 	const std::error_category & openssl_ssl_category() noexcept;
 
 	/// интеграция с system_error
-	inline std::error_code make_error_code(ssl_error val) noexcept           { return {static_cast<int>(val), openssl_ssl_category()}; }
-	inline std::error_condition make_error_condition(ssl_error val) noexcept { return {static_cast<int>(val), openssl_ssl_category()}; }
+	inline std::error_code make_error_code(ssl_errc val) noexcept           { return {static_cast<int>(val), openssl_ssl_category()}; }
+	inline std::error_condition make_error_condition(ssl_errc val) noexcept { return {static_cast<int>(val), openssl_ssl_category()}; }
 
 	/// creates error_code by given sslcode retrieved with SSL_get_error(..., ret)
 	/// if sslcode == SSL_ERROR_SYSCALL, checks ERR_get_error() / system error,
@@ -114,7 +114,9 @@ namespace ext::openssl
 
 	/// returns last SSL error via ::ERR_get_error()
 	std::error_code last_error(error_retrieve rtype = error_retrieve::get) noexcept;
-	/// throws std::system_error with last_error error_code
+	/// throws openssl_error with last_error error_code
+	/// if rtype == get, prints whole openssl error queue and places result into thrown exception,
+	/// if rtype == peek, does not extract openssl error queue, exception object will hold empty string
 	[[noreturn]] void throw_last_error(const std::string & errmsg, error_retrieve rtype = error_retrieve::get);
 
 	/// prints openssl error queue into string, see ::ERR_print_errors,
@@ -129,7 +131,24 @@ namespace ext::openssl
 	/// prints openssl error queue into string and returns it, see ::ERR_print_errors,
 	/// error queue will be empty after executing this function
 	std::string print_error_queue();
-
+	
+	/// Exception for openssl error, in addition to std::system_error holds openssl error queue
+	/// This class does not call print_error_queue in any way, in just holds additional string, see throw_last_error
+	class openssl_error : public std::system_error
+	{
+	protected:
+		std::string m_error_queue;
+		
+	public:
+		std::string error_queue() const { return m_error_queue; }
+		
+	public:
+		using system_error::system_error;
+		
+		openssl_error(std::error_code ec, const std::string & what, std::string error_queue)
+		    : std::system_error(ec, what), m_error_queue(std::move(error_queue)) {}
+	};
+	
 	/// per process initialization.
 	/// Calls SSL_load_error_strings, SSL_library_init
 	void crypto_init();
@@ -446,13 +465,15 @@ namespace ext
 	using openssl::openssl_ssl_category;
 	using openssl::openssl_geterror;
 	
-	typedef openssl::ssl_error  openssl_error;
+	using openssl_errc  = openssl::ssl_errc;
+	using openssl_error = openssl::openssl_error;
+	
 }
 
 namespace std
 {
 	template <>
-	struct is_error_code_enum<ext::openssl::ssl_error>
+	struct is_error_code_enum<ext::openssl::ssl_errc>
 		: std::true_type { };
 }
 

@@ -64,15 +64,15 @@ static int ASN1_TIME_to_tm(const ::ASN1_TIME * time, std::tm * tm);
 
 namespace ext::openssl
 {
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::none)              == SSL_ERROR_NONE);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::ssl)               == SSL_ERROR_SSL);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_read)         == SSL_ERROR_WANT_READ);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_write)        == SSL_ERROR_WANT_WRITE);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_X509_lookup)  == SSL_ERROR_WANT_X509_LOOKUP);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::syscall)           == SSL_ERROR_SYSCALL);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::zero_return)       == SSL_ERROR_ZERO_RETURN);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_connect)      == SSL_ERROR_WANT_CONNECT);
-	BOOST_STATIC_ASSERT(static_cast<int>(ssl_error::want_accept)       == SSL_ERROR_WANT_ACCEPT);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::none)              == SSL_ERROR_NONE);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::ssl)               == SSL_ERROR_SSL);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::want_read)         == SSL_ERROR_WANT_READ);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::want_write)        == SSL_ERROR_WANT_WRITE);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::want_X509_lookup)  == SSL_ERROR_WANT_X509_LOOKUP);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::syscall)           == SSL_ERROR_SYSCALL);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::zero_return)       == SSL_ERROR_ZERO_RETURN);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::want_connect)      == SSL_ERROR_WANT_CONNECT);
+	BOOST_STATIC_ASSERT(static_cast<int>(ssl_errc::want_accept)       == SSL_ERROR_WANT_ACCEPT);
 
 	const unsigned long rsa_f4 = RSA_F4;
 
@@ -175,7 +175,12 @@ namespace ext::openssl
 
 	[[noreturn]] void throw_last_error(const std::string & errmsg, error_retrieve rtype)
 	{
-		throw std::system_error(last_error(rtype), errmsg);
+		int err = ::ERR_peek_error();
+		std::string error_queue;
+		if (rtype == error_retrieve::get)
+			error_queue = print_error_queue();
+		
+		throw openssl_error(std::error_code(err, openssl_err_category()), errmsg, std::move(error_queue));
 	}
 
 	static int print_error_queue_string_cb(const char * data, std::size_t len, void * ptr)
