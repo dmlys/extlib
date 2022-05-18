@@ -25,7 +25,15 @@ namespace ext::library_logger
 	std::string_view log_level_string(unsigned log_level);
 	/// parses word as log_level, if parsing fails - returns Disabled
 	unsigned parse_log_level(std::string_view word);
+	/// parses word as log_level, if parsing fails - returns false, log_level is unchanged
+	bool parse_log_level(std::string_view word, unsigned & log_level);
 
+	// forwards
+	class logger;
+	class stream_logger;
+	class simple_logger;
+	class sequenced_simple_logger;
+	
 	/// rationale:
 	/// некоторым библиотекам требуется возможность логирования.
 	///   * они могут использовать стороннюю библиотеку,
@@ -125,6 +133,9 @@ namespace ext::library_logger
 		virtual ~logger() = default;
 	};
 
+	inline logger::record open_record(logger * lg, unsigned log_level, const char * source_file, int source_line);
+	inline logger::record open_record(logger & lg, unsigned log_level, const char * source_file, int source_line);
+	
 	/************************************************************************/
 	/*   RAII safe record class.                                            */
 	/*   представляет запись в которую можно добавлять данные логирования   */
@@ -238,7 +249,22 @@ namespace ext::library_logger
 		else if (aci_word == "info" ) return Info;
 		else if (aci_word == "debug") return Debug;
 		else if (aci_word == "trace") return Trace;
+		//else if (aci_word == "disabled") return Disabled;
 		else                          return Disabled;
+	}
+	
+	inline bool parse_log_level(std::string_view word, unsigned & log_level)
+	{
+		ext::aci_string_view aci_word(word.data(), word.length());
+
+		if      (aci_word == "fatal") return log_level = Fatal, true;
+		else if (aci_word == "error") return log_level = Error, true;
+		else if (aci_word == "warn" ) return log_level = Warn,  true;
+		else if (aci_word == "info" ) return log_level = Info,  true;
+		else if (aci_word == "debug") return log_level = Debug, true;
+		else if (aci_word == "trace") return log_level = Trace, true;
+		else if (aci_word == "disabled") return log_level = Disabled, true;
+		else                             return false;
 	}
 
 

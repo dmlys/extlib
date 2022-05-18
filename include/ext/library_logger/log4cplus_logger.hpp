@@ -1,4 +1,5 @@
 #pragma once
+#include <ext/codecvt_conv/wchar_cvt.hpp>
 #include <ext/library_logger/logger.hpp>
 #include <log4cplus/logger.h>
 
@@ -8,13 +9,14 @@ namespace log4cplus
 	{
 		switch (log_level)
 		{
-		    default:
-		    case ext::library_logger::Trace: return TRACE_LOG_LEVEL;
-		    case ext::library_logger::Debug: return DEBUG_LOG_LEVEL;
-		    case ext::library_logger::Info:  return INFO_LOG_LEVEL;
-		    case ext::library_logger::Warn:  return WARN_LOG_LEVEL;
-		    case ext::library_logger::Error: return ERROR_LOG_LEVEL;
-		    case ext::library_logger::Fatal: return FATAL_LOG_LEVEL;
+			default:
+			case ext::library_logger::Disabled:   return OFF_LOG_LEVEL;
+			case ext::library_logger::Trace:      return TRACE_LOG_LEVEL;
+			case ext::library_logger::Debug:      return DEBUG_LOG_LEVEL;
+			case ext::library_logger::Info:       return INFO_LOG_LEVEL;
+			case ext::library_logger::Warn:       return WARN_LOG_LEVEL;
+			case ext::library_logger::Error:      return ERROR_LOG_LEVEL;
+			case ext::library_logger::Fatal:      return FATAL_LOG_LEVEL;
 		}
 	}
 }
@@ -42,7 +44,12 @@ namespace ext::library_logger
 
 	inline void log4cplus_logger::do_log(unsigned log_level, const std::string & log_str, const char * source_file, int source_line)
 	{
+#if BOOST_OS_WINDOWS and defined (UNICODE)
+		auto wstr = ext::codecvt_convert::wchar_cvt::to_wchar(log_str);
+		m_logger->log(log4cplus::log_level(log_level), wstr, source_file, source_line);
+#else
 		m_logger->log(log4cplus::log_level(log_level), log_str, source_file, source_line);
+#endif
 	}
 
 
@@ -67,6 +74,11 @@ namespace ext::library_logger
 
 	inline void sequenced_log4cplus_logger::do_log(unsigned log_level, const std::string & log_str, const char * source_file, int source_line)
 	{
+#if BOOST_OS_WINDOWS and defined (UNICODE)
+		auto wstr = ext::codecvt_convert::wchar_cvt::to_wchar(log_str);
+		m_logger->log(log4cplus::log_level(log_level), wstr, source_file, source_line);
+#else
 		m_logger->log(log4cplus::log_level(log_level), log_str, source_file, source_line);
+#endif
 	}
 }
