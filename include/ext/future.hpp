@@ -62,11 +62,11 @@ namespace ext
 	/// future error conditions(strictly error codes)
 	enum class future_errc
 	{
-		broken_promise             = 1,
-		future_already_retrieved   = 2,
-		promise_already_satisfied  = 3,
-		no_state                   = 4,
-		cancelled                  = 5,
+		broken_promise             = 1,   // the asynchronous task abandoned its shared state
+		future_already_retrieved   = 2,   // the contents of shared state were already accessed through ext::future
+		promise_already_satisfied  = 3,   // attempt to store a value in the shared state twice
+		no_state                   = 4,   // attempt to access ext::promise or ext::future without an associated shared state
+		cancelled                  = 5,   // future is cancelled
 	};
 
 	const std::error_category & future_category();
