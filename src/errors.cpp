@@ -1,3 +1,4 @@
+#include <boost/predef.h>
 #include <ext/errors.hpp>
 #include <ext/itoa.hpp>
 
@@ -142,7 +143,7 @@ namespace ext
 {
 	namespace
 	{
-		std::string GetMessage(int ev)
+		static std::string GetMessage(int ev)
 		{
 			//http://msdn.microsoft.com/en-us/library/windows/desktop/ms679351%28v=vs.85%29.aspx
 			//64k from MSDN: "The output buffer cannot be larger than 64K bytes."
@@ -156,7 +157,7 @@ namespace ext
 			                             MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
 			                             errBuf, bufSz,
 			                             nullptr);
-			if (!res)
+			if (not res)
 				return "FormatMessageW failed with " + std::to_string(GetLastError());
 			else
 			{
@@ -209,6 +210,11 @@ namespace ext
 		const boost_system_utf8_category boost_system_utf8_category_instance {};
 	} //anonymous namespace
 
+	std::error_code last_system_error() noexcept
+	{
+		return std::error_code(GetLastError(), std::system_category());
+	}
+	
 	std::error_category const & system_utf8_category() noexcept
 	{
 		return system_utf8_category_instance;
@@ -218,15 +224,30 @@ namespace ext
 	{
 		return boost_system_utf8_category_instance;
 	}
+}
 
-	void throw_last_system_error(const std::string & errMsg)
+#elif BOOST_OS_UNIX
+/************************************************************************/
+/*                    UNIX/POSIX specific part                          */
+/************************************************************************/
+#include <cerrno>
+
+namespace ext
+{
+	std::error_code last_system_error() noexcept
 	{
-		throw std::system_error(GetLastError(), std::system_category(), errMsg);
+		return std::error_code(errno, std::system_category());
 	}
-
-	void throw_last_system_error(const char * errMsg)
+	
+	std::error_category const & system_utf8_category() noexcept
 	{
-		throw std::system_error(GetLastError(), std::system_category(), errMsg);
+		return std::system_category();
+	}
+	
+	boost::system::error_category const & boost_system_utf8_category() noexcept
+	{
+		return boost::system::system_category();
 	}
 }
+
 #endif

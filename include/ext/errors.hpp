@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <system_error>
-#include <boost/predef.h>
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_error.hpp>
 
@@ -17,35 +16,25 @@ namespace ext
 	std::string format_error(std::system_error & err);
 	std::string format_error(boost::system::system_error err);
 
-	inline std::string format_errno(int err)
-	{
-		return format_error(std::error_code(err, std::generic_category()));
-	}
-
-	inline void throw_last_errno(const std::string & errMsg)
-	{
-		throw std::system_error(errno, std::generic_category(), errMsg);
-	}
-
-	inline void throw_last_errno(const char * errMsg)
-	{
-		throw std::system_error(errno, std::generic_category(), errMsg);
-	}
-}
-
-#if BOOST_OS_WINDOWS
-namespace ext
-{
-	/// в windows system_category реализована через FormatMessageA, как следствие
-	/// текст ошибки возвращается в некой местной однобайтовой кодировке + еще и локализованный.
+	inline std::string format_errno(int err) { return format_error(std::error_code(err, std::generic_category())); }
+	
+	/// returns last system error:
+	///   on windows - GetLastError()
+	///   on posix   - errno
+	std::error_code last_system_error() noexcept;
+	
+	/// In windows system_category implemented via FormatMessageA, as result
+	/// error text is returned localized in some local one-byte code page
 	///
-	/// Данные категории возвращают текст в utf-8 и MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US)
-	/// Фактически должен быть ASCII
+	/// This category returns text with MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US) in ASCII(or should be)
+	/// On other OS - this is same as std::system_category
 	std::error_category const & system_utf8_category() noexcept;
 	boost::system::error_category const & boost_system_utf8_category() noexcept;
-
-	///эквивалентно throw std::system_error(GetLastError(), std::system_category(), errMsg);
-	void throw_last_system_error(const char * errMsg);
-	void throw_last_system_error(const std::string & errMsg);
+	
+	/// equivalent throw std::system_error(last_system_error, errMsg);
+	inline void throw_last_system_error(const char * errmsg)         { throw std::system_error(last_system_error(), errmsg); }
+	inline void throw_last_system_error(const std::string & errmsg)  { throw std::system_error(last_system_error(), errmsg); }
+	
+	inline void throw_last_errno(const std::string & errmsg) { throw std::system_error(errno, std::generic_category(), errmsg); }
+	inline void throw_last_errno(const char * errmsg)        { throw std::system_error(errno, std::generic_category(), errmsg); }
 }
-#endif
