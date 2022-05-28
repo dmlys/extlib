@@ -22,8 +22,7 @@
 #define EXTLL_DISABLE_TRACE
 #endif
 
-namespace ext {
-namespace library_logger
+namespace ext::library_logger
 {
 	inline logger * get_logger(logger * lg) { return lg; }
 	inline logger * get_logger(logger & lg) { return &lg; }
@@ -35,7 +34,7 @@ namespace library_logger
 
 	// smart pointer overload
 	template <class Pointer> inline auto get_logger(Pointer & ptr) { return ptr.get(); }
-}}
+}
 
 #if defined(_MSC_VER)
 #define EXTLL_SUPPRESS_DOWHILE_WARNING()  \

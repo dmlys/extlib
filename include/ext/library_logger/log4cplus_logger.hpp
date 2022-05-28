@@ -24,7 +24,7 @@ namespace log4cplus
 namespace ext::library_logger
 {
 	/// log4cplus implementation of ext::library_logger::logger
-	class log4cplus_logger : public simple_logger
+	class log4cplus_logger : public abstract_logger
 	{
 		log4cplus::Logger * m_logger = nullptr;
 
@@ -54,7 +54,7 @@ namespace ext::library_logger
 
 
 	/// log4cplus implementation of ext::library_logger::logger for simple sequenced cases
-	class sequenced_log4cplus_logger : public sequenced_simple_logger
+	class sequenced_log4cplus_logger : public abstract_seq_logger
 	{
 		log4cplus::Logger * m_logger = nullptr;
 
