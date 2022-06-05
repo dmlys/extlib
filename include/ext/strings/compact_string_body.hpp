@@ -127,8 +127,11 @@ namespace ext
 			realloc_body_nothrow(other_body_type * other, std::size_t newcap)
 		{
 			std::size_t size = std::min<std::size_t>(other->size, newcap);
-			auto * body = static_cast<body_type *>(::realloc(other, sizeof(body_type) + newcap));
-			if (body == nullptr) return nullptr;
+			auto * ptr = ::realloc(other, sizeof(body_type) + newcap);
+			if (ptr == nullptr) return nullptr;
+			
+			auto * body = static_cast<body_type *>(ptr);
+			other = static_cast<other_body_type *>(ptr);
 
 			std::memmove(body->buffer, other->buffer, size);
 			set_val(body->size, size);
@@ -153,8 +156,11 @@ namespace ext
 			realloc_body(other_body_type * other, std::size_t newcap)
 		{
 			std::size_t size = std::min<std::size_t>(other->size, newcap);
-			auto * body = static_cast<body_type *>(::realloc(other, sizeof(body_type) + newcap));
-			if (body == nullptr) throw std::bad_alloc();
+			auto * ptr = ::realloc(other, sizeof(body_type) + newcap);
+			if (ptr == nullptr) throw std::bad_alloc();
+			
+			auto * body = static_cast<body_type *>(ptr);
+			other = static_cast<other_body_type *>(ptr);
 
 			std::memmove(body->buffer, other->buffer, size);
 			set_val(body->size, size);
