@@ -6,7 +6,7 @@
 #include <string_view>
 #include <sstream>
 
-namespace ext::library_logger
+namespace ext::log
 {
 	/// well-known log levels
 	constexpr unsigned Fatal = 0;
@@ -41,7 +41,7 @@ namespace ext::library_logger
 	///     
 	/// Declare such logging interface, and provide all useful and needed helpers for logging.
 	
-	/// Abstract logging interface(see also logging macros in ext/library_logger/logging_macros.hpp)
+	/// Abstract logging interface(see also logging macros in ext/log/logging_macros.hpp)
 	///  Should be used as follows:
 	///   if (logger->is_enabled_for(log_level)
 	///      logger->log(log_level, str, __FILE__, __LINE__);

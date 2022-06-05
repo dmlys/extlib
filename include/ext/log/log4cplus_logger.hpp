@@ -1,6 +1,6 @@
 #pragma once
 #include <ext/codecvt_conv/wchar_cvt.hpp>
-#include <ext/library_logger/logger.hpp>
+#include <ext/log/logger.hpp>
 #include <log4cplus/logger.h>
 
 namespace log4cplus
@@ -10,20 +10,20 @@ namespace log4cplus
 		switch (log_level)
 		{
 			default:
-			case ext::library_logger::Disabled:   return OFF_LOG_LEVEL;
-			case ext::library_logger::Trace:      return TRACE_LOG_LEVEL;
-			case ext::library_logger::Debug:      return DEBUG_LOG_LEVEL;
-			case ext::library_logger::Info:       return INFO_LOG_LEVEL;
-			case ext::library_logger::Warn:       return WARN_LOG_LEVEL;
-			case ext::library_logger::Error:      return ERROR_LOG_LEVEL;
-			case ext::library_logger::Fatal:      return FATAL_LOG_LEVEL;
+			case ext::log::Disabled:   return OFF_LOG_LEVEL;
+			case ext::log::Trace:      return TRACE_LOG_LEVEL;
+			case ext::log::Debug:      return DEBUG_LOG_LEVEL;
+			case ext::log::Info:       return INFO_LOG_LEVEL;
+			case ext::log::Warn:       return WARN_LOG_LEVEL;
+			case ext::log::Error:      return ERROR_LOG_LEVEL;
+			case ext::log::Fatal:      return FATAL_LOG_LEVEL;
 		}
 	}
 }
 
-namespace ext::library_logger
+namespace ext::log
 {
-	/// log4cplus implementation of ext::library_logger::logger
+	/// log4cplus implementation of ext::log::logger
 	class log4cplus_logger : public abstract_logger
 	{
 		log4cplus::Logger * m_logger = nullptr;
@@ -53,7 +53,7 @@ namespace ext::library_logger
 	}
 
 
-	/// log4cplus implementation of ext::library_logger::logger for simple sequenced cases
+	/// log4cplus implementation of ext::log::logger for simple sequenced cases
 	class sequenced_log4cplus_logger : public abstract_seq_logger
 	{
 		log4cplus::Logger * m_logger = nullptr;

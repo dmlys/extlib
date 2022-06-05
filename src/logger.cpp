@@ -1,7 +1,7 @@
-#include <ext/library_logger/logger.hpp>
+#include <ext/log/logger.hpp>
 #include <ext/strings/aci_string.hpp>
 
-namespace ext::library_logger
+namespace ext::log
 {
 	unsigned parse_log_level(std::string_view word)
 	{
