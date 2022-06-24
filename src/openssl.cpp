@@ -16,7 +16,7 @@
 #include <boost/algorithm/string/trim.hpp>
 
 #include <ext/openssl.hpp>
-#include <ext/time_fmt.hpp>
+#include <ext/time.hpp>
 
 #include <cstring> // for std::memset
 
