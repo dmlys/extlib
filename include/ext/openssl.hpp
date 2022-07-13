@@ -368,9 +368,9 @@ namespace ext::openssl
 	/// Sets certificate duration, basicly takes not before, adds duration, sets result into not after
 	void set_duration(::X509 * cert, std::chrono::system_clock::duration duration);
 	/// Gets certificate not before property as std::chrono::system_clock::time_point
-	auto get_notbefore(::X509 * cert) -> std::chrono::system_clock::time_point;
+	auto get_notbefore(const ::X509 * cert) -> std::chrono::system_clock::time_point;
 	/// Gets certificate not after property as std::chrono::system_clock::time_point
-	auto get_notafter(::X509 * cert) -> std::chrono::system_clock::time_point;
+	auto get_notafter(const ::X509 * cert) -> std::chrono::system_clock::time_point;
 	
 	/// Calculates and returns certificate SHA1 fingerprint, basicly ::X509_digest wrapper
 	/// Throws std::system_error in case of errors

@@ -824,7 +824,7 @@ namespace ext::openssl
 		::X509_gmtime_adj(::X509_get_notAfter(cert), seconds.count());
 	}
 	
-	auto get_notbefore(::X509 * cert) -> std::chrono::system_clock::time_point
+	auto get_notbefore(const ::X509 * cert) -> std::chrono::system_clock::time_point
 	{
 		assert(cert);
 		
@@ -834,7 +834,7 @@ namespace ext::openssl
 		return std::chrono::system_clock::from_time_t(t);
 	}
 	
-	auto get_notafter(::X509 * cert) -> std::chrono::system_clock::time_point
+	auto get_notafter(const ::X509 * cert) -> std::chrono::system_clock::time_point
 	{
 		assert(cert);
 		
