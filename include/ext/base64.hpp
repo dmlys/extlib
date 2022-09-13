@@ -120,7 +120,7 @@ namespace ext
 					// +---------------+---------------+
 					// |7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
 					// +---------------+---------------+
-					// /    >> 2   /<<4        /
+					// /    >> 2   /    << 4   /
 
 					val = static_cast<unsigned char>(first[0]);
 					*out++ = base64_encoding_array[ static_cast<unsigned char>(val >> 2u)        ];
@@ -253,7 +253,16 @@ namespace ext
 				case 1:
 					// theoretically this is normal, and we should process it, but in practice -
 					// there is no way base64 encoder would produce not a full quadruplet with 1 character
-					throw not_enough_input();
+					// 
+					//throw not_enough_input();
+					
+					//     /           /
+					// +---------------+
+					// |7|6|5|4|3|2|1|0|
+					// +---------------+
+					//     /           /
+					val = static_cast<std::uint32_t>(static_cast<unsigned char>(decode_char(first[0])));
+					*out++ = static_cast<unsigned char>(val & mask);
 
 				case 2:
 					//          /   << 6   /           /

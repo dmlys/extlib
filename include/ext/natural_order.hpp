@@ -18,6 +18,8 @@ namespace ext::natural_order
 
 	template <class NumberTraits, class StringTraits>
 	class comparator;
+	
+	
 
 	/// default number traits, is_digit forwarded to std::isdigit
 	/// leading zeroes are ignored, numbers are compared by longest run or greatest number, see implementation
@@ -65,11 +67,9 @@ namespace ext::natural_order
 			if (s2_first == s2_last) return +1;
 
 			// remember less
-			if (*s1_first < *s2_first)
-			{ if (result == 0) result = -1; }
+			if      (*s1_first < *s2_first) { if (result == 0) result = -1; }
 			// remember greater
-			else if (*s1_first > *s2_first)
-			{ if (result == 0) result = +1; }
+			else if (*s1_first > *s2_first) { if (result == 0) result = +1; }
 		}
 
 		return result != 0 ? result
@@ -77,6 +77,8 @@ namespace ext::natural_order
 			: ext::tribool_compare(z2, z1);
 	}
 
+	
+	
 	/// default char_traits implementation. Compares string using std::char_traits
 	class default_char_traits
 	{
@@ -101,6 +103,8 @@ namespace ext::natural_order
 		return ext::tribool_compare(n1, n2);
 	}
 
+	
+	
 	/// char_traits implementation using std::locale via std::collator
 	class localized_char_traits
 	{
@@ -114,7 +118,7 @@ namespace ext::natural_order
 		std::tuple<
 			  result_type (localized_char_traits::*)(const char     * s1_first, const char     * s1_last, const char     * s2_first, const char     * s2_last) const
 			, result_type (localized_char_traits::*)(const wchar_t  * s1_first, const wchar_t  * s1_last, const wchar_t  * s2_first, const wchar_t  * s2_last) const
-		// on msvc std lib does likes locales for char16_t, char32_t :(
+		// on msvc std lib does not like locales for char16_t, char32_t :(
 		// locale(126): warning C4273: 'id': inconsistent dll linkage
 		// error C2491: 'std::collate<CharType>::id': definition of dllimport static data member not allowed
 		// https://social.msdn.microsoft.com/Forums/en-US/3e1d37a5-0b50-41fe-ac18-2b4db5e1262b/compile-error-for-stl-stream-containers-in-visual-studio?forum=vcgeneral
@@ -213,6 +217,7 @@ namespace ext::natural_order
 	}
 
 
+	
 	/// Comparator that can compare strings according to natural order.
 	/// It is implemented via 2 traits classes:
 	///  * NumberTraits - number related stuff:
