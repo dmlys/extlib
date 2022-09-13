@@ -9,6 +9,7 @@
 #include <string_view>
 #include <chrono>
 #include <system_error>
+#include <openssl/opensslv.h> // for openssl version
 #include <ext/intrusive_ptr.hpp>
 
 // forward some openssl types

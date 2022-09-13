@@ -1,4 +1,5 @@
 #ifdef EXT_ENABLE_OPENSSL
+#include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509.h>
