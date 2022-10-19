@@ -40,7 +40,8 @@ namespace ext
 		void reset(handle_type handle) noexcept { handle_traits::close(m_handle); m_handle = handle; }
 		void reset()                   noexcept { return reset(emptyval()); }
 
-		handle_type get() const noexcept { return m_handle; }
+		handle_type get()    const noexcept { return m_handle; }
+		handle_type handle() const noexcept { return m_handle; }
 
 		//explicit operator handle_type() const noexcept { return m_handle; }
 		explicit operator bool() const noexcept { return m_handle != emptyval(); }
