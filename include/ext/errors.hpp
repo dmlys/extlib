@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <system_error>
+#include <ext/config.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_error.hpp>
 
@@ -32,9 +33,9 @@ namespace ext
 	boost::system::error_category const & boost_system_utf8_category() noexcept;
 	
 	/// equivalent throw std::system_error(last_system_error, errMsg);
-	inline void throw_last_system_error(const char * errmsg)         { throw std::system_error(last_system_error(), errmsg); }
-	inline void throw_last_system_error(const std::string & errmsg)  { throw std::system_error(last_system_error(), errmsg); }
+	EXT_NORETURN inline void throw_last_system_error(const char * errmsg)         { throw std::system_error(last_system_error(), errmsg); }
+	EXT_NORETURN inline void throw_last_system_error(const std::string & errmsg)  { throw std::system_error(last_system_error(), errmsg); }
 	
-	inline void throw_last_errno(const std::string & errmsg) { throw std::system_error(errno, std::generic_category(), errmsg); }
-	inline void throw_last_errno(const char * errmsg)        { throw std::system_error(errno, std::generic_category(), errmsg); }
+	EXT_NORETURN inline void throw_last_errno(const std::string & errmsg) { throw std::system_error(errno, std::generic_category(), errmsg); }
+	EXT_NORETURN inline void throw_last_errno(const char * errmsg)        { throw std::system_error(errno, std::generic_category(), errmsg); }
 }
