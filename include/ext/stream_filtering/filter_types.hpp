@@ -136,6 +136,7 @@ namespace ext::stream_filtering
 	constexpr void preprocess_processing_parameters(processing_parameters & par)
 	{
 		if (par.default_buffer_size == 0) par.default_buffer_size = impldef_default_buffer_size;
+		if (par.minimum_buffer_size == 0) par.minimum_buffer_size = impldef_minimum_buffer_size;
 		if (par.maximum_buffer_size == 0) par.maximum_buffer_size = impldef_maximum_buffer_size;
 	}
 	
