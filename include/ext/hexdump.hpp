@@ -37,7 +37,6 @@ namespace ext
 		template <class RandomAccessIterator, class OutputIterator>
 		OutputIterator write_hexdump_impl(std::size_t & nrow, std::size_t addr_width, RandomAccessIterator first, RandomAccessIterator last, OutputIterator out)
 		{
-			constexpr unsigned rowsize = 16;
 			auto count = last - first;
 			auto left  = count % rowsize;
 			char itoa_buffer[2 + std::numeric_limits<std::size_t>::digits / 4];

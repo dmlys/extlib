@@ -44,7 +44,6 @@ namespace ext::hexdump
 
 	std::size_t buffer_estimation(std::size_t addr_width, std::size_t count) noexcept
 	{
-		constexpr unsigned rowsize = 16;
 		auto left = count % rowsize;
 		auto rows = count / rowsize + (left ? 1 : 0);
 
