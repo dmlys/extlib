@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <utility>
 #include <tuple>
+#include <array>
 #include <functional>
 //this utility.h acts as common header, so include integer_sequence
 #include <ext/type_traits.hpp>
@@ -78,7 +79,7 @@ namespace ext
 	/// because of how get function is defined for them - it gives compilation error.
 	/// for those you can specialize this class.
 	template <class type, unsigned N>
-	struct is_decayed_type_tuplelike
+	struct is_type_tuplelike
 	{
 		template <class C>
 		static constexpr auto Test(int) -> decltype(ext_detail_adl_helper::adl_get<N - 1>(std::declval<C>()), ext::detail::Yes());
@@ -90,7 +91,7 @@ namespace ext
 	};
 
 	template <class ... types, unsigned N>
-	struct is_decayed_type_tuplelike<std::tuple<types...>, N>
+	struct is_type_tuplelike<std::tuple<types...>, N>
 	{
 		static constexpr bool value = sizeof...(types) >= N;
 	};
@@ -98,7 +99,7 @@ namespace ext
 
 	/// test if type is a tuple like with size N
 	template <class Type, unsigned N>
-	struct is_tuple : std::integral_constant<bool, is_decayed_type_tuplelike<std::decay_t<Type>, N>::value> {};
+	struct is_tuple : std::integral_constant<bool, is_type_tuplelike<std::decay_t<Type>, N>::value> {};
 
 
 
@@ -349,6 +350,32 @@ namespace ext
 	typedef get_functor<0> first_el;
 	typedef get_functor<1> second_el;
 
+	
+	namespace detail
+	{
+		template <class ArrType, class Array, std::size_t ... Indexes>
+		inline make_nth_tuple_t<ArrType, sizeof...(Indexes)> as_tuple(Array && arr, std::index_sequence<Indexes...>)
+		{
+			if constexpr (std::is_rvalue_reference_v<decltype(arr)>)
+				return std::make_tuple(std::move(arr[Indexes])...);
+			else
+				return std::make_tuple(          arr[Indexes] ...);
+		}
+	}
+	
+	template <class ArrType, std::size_t N>
+	inline make_nth_tuple_t<ArrType, N> as_tuple(const std::array<ArrType, N> & arr)
+	{
+		static_assert(std::is_copy_constructible_v<ArrType>);
+		return detail::as_tuple<ArrType>(arr, std::make_index_sequence<N> {});
+	}
+	
+	template <class ArrType, std::size_t N>
+	inline make_nth_tuple_t<ArrType, N> as_tuple(std::array<ArrType, N> && arr)
+	{
+		return detail::as_tuple<ArrType>(std::move(arr), std::make_index_sequence<N> {});
+	}
+	
 
 	/// находит элемент в карте по ключу и возвращает ссылку на него,
 	/// если элемента нет - создает его с помощью параметров args
