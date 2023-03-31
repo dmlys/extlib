@@ -74,6 +74,10 @@ namespace ext::log
 		class record;
 		
 	protected:
+		/// implementation delegation for set_log_level
+		virtual auto do_log_level() const -> unsigned = 0;
+		/// implementation delegation for set_log_level
+		virtual void do_log_level(unsigned log_level) = 0;
 		/// implementation delegation for is_enabled_for
 		virtual bool do_is_enabled_for(unsigned log_level) const = 0;
 		/// implementation delegation for log
@@ -86,6 +90,10 @@ namespace ext::log
 		virtual void do_discard_record(record_context * rctx) noexcept = 0;
 
 	public:
+		/// Gets current log level
+		auto log_level() const -> unsigned;
+		/// Sets new log. Allows changing log level on the fly, support is optional
+		void log_level(unsigned log_level);
 		/// checks if logging is enabled for given log-level
 		bool is_enabled_for(unsigned log_level) const;
 		/// logs given string at given log-level, also passes source_file(__FILE__) and line(__LINE__)
@@ -148,6 +156,16 @@ namespace ext::log
 	/************************************************************************/
 	/*                  Logger methods                                      */
 	/************************************************************************/
+	inline auto logger::log_level() const -> unsigned
+	{
+		return do_log_level();
+	}
+	
+	inline void logger::log_level(unsigned log_level)
+	{
+		return do_log_level(log_level);
+	}
+	
 	inline bool logger::is_enabled_for(unsigned log_level) const
 	{
 		return do_is_enabled_for(log_level);
@@ -205,6 +223,8 @@ namespace ext::log
 		unsigned lvl = Info;
 
 	protected:
+		auto do_log_level() const -> unsigned override;
+		void do_log_level(unsigned log_level) override;
 		bool do_is_enabled_for(unsigned log_level) const override;
 		void do_log(unsigned log_level, const std::string & str, const char * source_file, int source_line) override;
 
@@ -215,7 +235,6 @@ namespace ext::log
 	public:
 		void flush() { ctx.os->flush(); }
 		auto stream() const noexcept { return ctx.os; }
-		auto log_level() const noexcept { return lvl; }
 
 	public:
 		ostream_logger(std::ostream & os, int lvl = Info)

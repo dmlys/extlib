@@ -42,6 +42,16 @@ namespace ext::log
 	
 	
 	
+	unsigned ostream_logger::do_log_level() const
+	{
+		return lvl;
+	}
+	
+	void ostream_logger::do_log_level(unsigned log_level)
+	{
+		lvl = log_level;
+	}
+	
 	bool ostream_logger::do_is_enabled_for(unsigned log_level) const
 	{
 		return log_level <= lvl; 
