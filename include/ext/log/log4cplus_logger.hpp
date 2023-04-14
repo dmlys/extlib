@@ -71,7 +71,7 @@ namespace ext::log
 	{
 #if BOOST_OS_WINDOWS and defined (UNICODE)
 		auto wstr = ext::codecvt_convert::wchar_cvt::to_wchar(log_str);
-		m_logger->log(log4cplus::log_level(log_level), wstr, source_file, source_line);
+		m_logger->log(log4cplus::l4_log_level(log_level), wstr, source_file, source_line);
 #else
 		m_logger->log(log4cplus::l4_log_level(log_level), log_str, source_file, source_line);
 #endif
@@ -113,7 +113,7 @@ namespace ext::log
 	{
 #if BOOST_OS_WINDOWS and defined (UNICODE)
 		auto wstr = ext::codecvt_convert::wchar_cvt::to_wchar(log_str);
-		m_logger->log(log4cplus::log_level(log_level), wstr, source_file, source_line);
+		m_logger->log(log4cplus::l4_log_level(log_level), wstr, source_file, source_line);
 #else
 		m_logger->log(log4cplus::l4_log_level(log_level), log_str, source_file, source_line);
 #endif
