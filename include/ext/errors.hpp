@@ -35,53 +35,28 @@ namespace ext
 	
 	
 	
-	template <class Arg>
-	EXT_NORETURN inline void throw_error(std::error_code errc, Arg && errmsg)
+	template <class ... Args>
+	EXT_NORETURN inline void throw_error(std::error_code errc, fmt::format_string<Args...> fmt, Args && ... args)
 	{
-		throw std::system_error(errc, std::forward<Arg>(errmsg));
+		throw std::system_error(errc, fmt::format(fmt, std::forward<Args>(args)...));
 	}
 	
 	template <class ... Args>
-	EXT_NORETURN inline void throw_error(std::error_code errc, Args && ... args)
+	EXT_NORETURN inline void throw_error(int code, const std::error_category & ecat, fmt::format_string<Args...> fmt, Args && ... args)
 	{
-		throw std::system_error(errc, fmt::format(std::forward<Args>(args)...));
+		throw std::system_error(code, ecat, fmt::format(fmt, std::forward<Args>(args)...));
 	}
-	
-	template <class Arg>
-	EXT_NORETURN inline void throw_error(int code, const std::error_category & ecat, Arg && errmsg)
-	{
-		throw std::system_error(code, ecat, std::forward<Arg>(errmsg));
-	}
-	
-	template <class ... Args>
-	EXT_NORETURN inline void throw_error(int code, const std::error_category & ecat, Args && ... args)
-	{
-		throw std::system_error(code, ecat, fmt::format(std::forward<Args>(args)...));
-	}
-	
 	
 
-	template <class Arg>
-	EXT_NORETURN inline void throw_last_system_error(Arg && errmsg)
-	{
-		throw std::system_error(last_system_error(), std::forward<Arg>(errmsg));
-	}
-	
 	template <class ... Args>
-	EXT_NORETURN inline void throw_last_system_error(Args && ... args)
+	EXT_NORETURN inline void throw_last_system_error(fmt::format_string<Args...> fmt, Args && ... args)
 	{ 
-		throw std::system_error(last_system_error(), fmt::format(std::forward<Args>(args)...));
+		throw std::system_error(last_system_error(), fmt::format(fmt, std::forward<Args>(args)...));
 	}
-	
-	template <class Arg>
-	EXT_NORETURN inline void throw_last_errno(Arg && errmsg)
-	{
-		throw std::system_error(errno, std::generic_category(), std::forward<Arg>(errmsg));
-	}
-	
+
 	template <class ... Args>
-	EXT_NORETURN inline void throw_last_errno(Args && ... args)
+	EXT_NORETURN inline void throw_last_errno(fmt::format_string<Args...> fmt, Args && ... args)
 	{
-		throw std::system_error(errno, std::generic_category(), fmt::format(std::forward<Args>(args)...));
+		throw std::system_error(errno, std::generic_category(), fmt::format(fmt, std::forward<Args>(args)...));
 	}
 }
