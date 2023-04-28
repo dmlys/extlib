@@ -62,6 +62,19 @@ void intrusive_ptr_release(::SSL_CTX * ptr) { return ::SSL_CTX_free(ptr);   }
 static int ASN1_TIME_to_tm(const ::ASN1_TIME * time, std::tm * tm);
 #endif
 
+// With OpenSLL v3 some functions now accept some arguments via const pointers.
+// Logically they should be accepting those arguments via const pointers from the begining.
+// To support both v1 and v3 versions - accept const pointers and unconst them for v1.
+
+// MNNFFPPS: major minor fix patch status
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+// for v3, pointers should be already const - do nothing
+#define v1_unconst(arg) arg
+#else
+// for v1, pointers should be unconst
+template <class Type>
+static inline Type * v1_unconst(const Type * arg) { return const_cast<Type *>(arg); }
+#endif
 
 namespace ext::openssl
 {
@@ -451,7 +464,7 @@ namespace ext::openssl
 		return evp_pkey_iptr(pkey, ext::noaddref);
 	}
 	
-	std::string write_certificate(::X509 * cert)
+	std::string write_certificate(const ::X509 * cert)
 	{
 		assert(cert);
 		
@@ -459,7 +472,7 @@ namespace ext::openssl
 		if (not mem_bio) throw_last_error("ext::openssl::write_certificate: ::BIO_new failed");
 		bio_uptr bio_ptr(mem_bio);
 		
-		int res = ::PEM_write_bio_X509(mem_bio, cert);
+		int res = ::PEM_write_bio_X509(mem_bio, v1_unconst(cert));
 		if (not res) throw_last_error("ext::openssl::write_certificate: ::PEM_write_bio_X509 failed");
 		
 		char * data;
@@ -468,7 +481,7 @@ namespace ext::openssl
 		return std::string(data, len);
 	}
 	
-	std::string write_pkey(::EVP_PKEY * key)
+	std::string write_pkey(const ::EVP_PKEY * key)
 	{
 		assert(key);
 		
@@ -476,7 +489,7 @@ namespace ext::openssl
 		if (not mem_bio) throw_last_error("ext::openssl::write_pkey: ::BIO_new failed");
 		bio_uptr bio_ptr(mem_bio);
 		
-		int res = ::PEM_write_bio_PrivateKey(mem_bio, key, nullptr, nullptr, 0, nullptr, nullptr);
+		int res = ::PEM_write_bio_PrivateKey(mem_bio, v1_unconst(key), nullptr, nullptr, 0, nullptr, nullptr);
 		if (not res) throw_last_error("ext::openssl::write_pkey: ::PEM_write_bio_X509 failed");
 		
 		char * data;
@@ -582,16 +595,16 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::write_certificate_to_file: ::PEM_write_X509 failed");
 	}
 	
-	void write_pkey_to_file(std::FILE * fp, ::EVP_PKEY * pkey)
+	void write_pkey_to_file(std::FILE * fp, const ::EVP_PKEY * pkey)
 	{
 		assert(fp);
 		assert(pkey);
 		
-		int res = ::PEM_write_PrivateKey(fp, pkey, nullptr, nullptr, 0, nullptr, nullptr);
+		int res = ::PEM_write_PrivateKey(fp, v1_unconst(pkey), nullptr, nullptr, 0, nullptr, nullptr);
 		if (not res) throw_last_error("ext::openssl::write_pkey_to_file: ::PEM_write_PrivateKey failed");
 	}
 	
-	void write_pkey_to_file(const char * path, ::EVP_PKEY * pkey)
+	void write_pkey_to_file(const char * path, const ::EVP_PKEY * pkey)
 	{
 		assert(path);
 		assert(pkey);
@@ -609,7 +622,7 @@ namespace ext::openssl
 			throw std::system_error(errc, "ext::openssl::write_pkey_to_file: std::fopen failed");
 		}
 		
-		int res = ::PEM_write_PrivateKey(fp, pkey, nullptr, nullptr, 0, nullptr, nullptr);
+		int res = ::PEM_write_PrivateKey(fp, v1_unconst(pkey), nullptr, nullptr, 0, nullptr, nullptr);
 		fclose(fp);
 		
 		if (not res) throw_last_error("ext::openssl::write_pkey_to_file: ::PEM_write_PrivateKey failed");
@@ -656,7 +669,7 @@ namespace ext::openssl
 		return pkcs12;
 	}
 	
-	std::vector<char> write_pkcs12(::PKCS12 * pkcs12)
+	std::vector<char> write_pkcs12(const ::PKCS12 * pkcs12)
 	{
 		assert(pkcs12);
 		
@@ -664,7 +677,7 @@ namespace ext::openssl
 		if (not mem_bio) throw_last_error("ext::openssl::write_pkey: ::BIO_new failed");
 		bio_uptr bio_ptr(mem_bio);
 		
-		int res = ::i2d_PKCS12_bio(mem_bio, pkcs12);
+		int res = ::i2d_PKCS12_bio(mem_bio, v1_unconst(pkcs12));
 		if (not res) throw_last_error("ext::openssl::write_pkcs12: ::i2d_PKCS12_bio failed");
 		
 		char * data;
@@ -676,16 +689,16 @@ namespace ext::openssl
 	/// Writes PKCS12 into given file in DER format.
 	/// Passwork protection is set by other functions, this is just a serializtion function.
 	/// Throws std::system_error in case of errors
-	void write_pkcs12_to_file(std::FILE * fp, ::PKCS12 * pkcs12)
+	void write_pkcs12_to_file(std::FILE * fp, const ::PKCS12 * pkcs12)
 	{
 		assert(fp);
 		assert(pkcs12);
 		
-		int res = ::i2d_PKCS12_fp(fp, pkcs12);
+		int res = ::i2d_PKCS12_fp(fp, v1_unconst(pkcs12));
 		if (not res) throw_last_error("ext::openssl::write_pkcs12_to_file: ::i2d_PKCS12_fp failed");
 	}
 	
-	void write_pkcs12_to_file(const char * path, ::PKCS12 * pkcs12)
+	void write_pkcs12_to_file(const char * path, const ::PKCS12 * pkcs12)
 	{
 		assert(path);
 		assert(pkcs12);
@@ -703,7 +716,7 @@ namespace ext::openssl
 			throw std::system_error(errc, "ext::openssl::write_pkcs12_to_file: std::fopen failed");
 		}
 		
-		int res = ::i2d_PKCS12_fp(fp, pkcs12);
+		int res = ::i2d_PKCS12_fp(fp, v1_unconst(pkcs12));
 		fclose(fp);
 		
 		if (not res) throw_last_error("ext::openssl::write_pkcs12_to_file: ::i2d_PKCS12_fp failed");

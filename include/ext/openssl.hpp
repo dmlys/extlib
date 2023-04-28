@@ -255,11 +255,11 @@ namespace ext::openssl
 	
 	/// Writes X509 certificate into memory in PEM format and returns string holding it.
 	/// Throws std::system_error in case of errors
-	std::string write_certificate(::X509 * cert);
+	std::string write_certificate(const ::X509 * cert);
 	/// Writes private key into memory in PEM format and returns string holding it.
 	/// Key will be unprotected(no password encryption).
 	/// Throws std::system_error in case of errors
-	std::string write_pkey(::EVP_PKEY * key);
+	std::string write_pkey(const ::EVP_PKEY * key);
 
 	/// Loads X509 certificate from given path and with optional password
 	/// Throws std::system_error in case of errors
@@ -279,8 +279,8 @@ namespace ext::openssl
 	/// Writes private key into given file in PEM format.
 	/// Key will be unprotected(no password encryption).
 	/// Throws std::system_error in case of errors
-	void write_pkey_to_file(std::FILE * fp, ::EVP_PKEY * pkey);
-	void write_pkey_to_file(const char * fname, ::EVP_PKEY * pkey);
+	void write_pkey_to_file(std::FILE * fp, const ::EVP_PKEY * pkey);
+	void write_pkey_to_file(const char * fname, const ::EVP_PKEY * pkey);
 	
 	
 	/// Loads PKCS12 file from given memory location.
@@ -293,12 +293,12 @@ namespace ext::openssl
 	
 	/// Writes PKCS12 into memory in DER format and returns it.
 	/// Throws std::system_error in case of errors
-	std::vector<char> write_pkcs12(::PKCS12 * pkcs12);
+	std::vector<char> write_pkcs12(const ::PKCS12 * pkcs12);
 	/// Writes PKCS12 into given file in DER format.
 	/// Passwork protection is set by other functions, this is just a serializtion function.
 	/// Throws std::system_error in case of errors
-	void write_pkcs12_to_file(std::FILE * fp, ::PKCS12 * pkcs12);
-	void write_pkcs12_to_file(const char * path, ::PKCS12 * pkcs12);
+	void write_pkcs12_to_file(std::FILE * fp, const ::PKCS12 * pkcs12);
+	void write_pkcs12_to_file(const char * path, const ::PKCS12 * pkcs12);
 
 	inline pkcs12_uptr load_pkcs12(std::string_view str) { return load_pkcs12(str.data(), str.size()); }
 
