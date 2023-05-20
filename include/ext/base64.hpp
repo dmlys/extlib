@@ -1,6 +1,7 @@
 #pragma once
 #include <ciso646>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <algorithm>
