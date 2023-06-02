@@ -4,7 +4,11 @@
 
 #if BOOST_COMP_MSVC
 #include <intrin.h>
-#pragma intrinsic(_BitScanForward64)
+ #ifdef _WIN64
+  #pragma intrinsic(_BitScanForward64)
+ #else
+  #pragma intrinsic(_BitScanForward)
+ #endif
 #endif
 
 namespace ext::hexdump
@@ -27,9 +31,15 @@ namespace ext::hexdump
 
 		p2 = sizeof(std::size_t) * CHAR_BIT - clz;
 	#elif BOOST_COMP_MSVC
+	  #ifdef _WIN64
 		unsigned long msb_index;
 		_BitScanReverse64(&msb_index, nlast);
 		p2 = msb_index + 1;
+	  #else
+		unsigned long msb_index;
+		_BitScanReverse(&msb_index, nlast);
+		p2 = msb_index + 1;
+	  #endif
 	#else
 		p2 = 1 + static_cast<unsigned>(std::log2(nlast));
 	#endif
