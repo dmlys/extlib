@@ -66,9 +66,9 @@ BOOST_AUTO_TEST_CASE( BasicTest )
 	wstring wstrRestored;
 	string str;
 
-	BOOST_CHECK_NO_THROW((ext::codecvt_convert::to_bytes(cp1251, wstr, str)));
-	BOOST_CHECK(str == "Test Русский Текст Test");
-	BOOST_CHECK_NO_THROW((ext::codecvt_convert::from_bytes(cp1251, str, wstrRestored)));
+	BOOST_CHECK_NO_THROW((ext::codecvt_convert::to_bytes(utf8, wstr, str)));
+	BOOST_CHECK_EQUAL(str, u8"Test Русский Текст Test");
+	BOOST_CHECK_NO_THROW((ext::codecvt_convert::from_bytes(utf8, str, wstrRestored)));
 	BOOST_CHECK(wstr == wstrRestored);
 }
 
