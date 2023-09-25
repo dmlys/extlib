@@ -1,7 +1,7 @@
 #include <ext/stream_filtering/filtering.hpp>
 #include <ext/errors.hpp>
 #include <boost/core/demangle.hpp>
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 namespace ext::stream_filtering
 {
@@ -33,7 +33,9 @@ namespace ext::stream_filtering
 			int err = errno;
 			const auto & sb = *is.rdbuf();
 			auto classname = boost::core::demangle(typeid(sb).name());
-			auto errdescr = fmt::format("ext::stream_filtering:read_data: istream read error: rdstate = {:b}, streambuf class = {}, errno = {}", is.rdstate(), classname, ext::format_errno(err));
+			auto errdescr = fmt::format("ext::stream_filtering:read_data: istream read error: rdstate = {:b}, streambuf class = {}, errno = {}",
+			                            fmt::underlying(is.rdstate()), classname, ext::format_errno(err));
+			
 			throw std::runtime_error(std::move(errdescr));
 		}
 	}
@@ -69,7 +71,8 @@ namespace ext::stream_filtering
 			int err = errno;
 			const auto & sb = *os.rdbuf();
 			auto classname = boost::core::demangle(typeid(sb).name());
-			auto errdescr = fmt::format("ext::stream_filtering::write_data: ostream write error: rdstate = {:b}, streambuf class = {}, errno = {}", os.rdstate(), classname, ext::format_errno(err));
+			auto errdescr = fmt::format("ext::stream_filtering::write_data: ostream write error: rdstate = {:b}, streambuf class = {}, errno = {}",
+			                            fmt::underlying(os.rdstate()), classname, ext::format_errno(err));
 			throw std::runtime_error(std::move(errdescr));
 		}
 	}
