@@ -71,11 +71,11 @@ namespace ext::openssl
 	/// ERR_get_error, through, removes error from queue, and ::ERR_print_errors will miss that error
 	///
 	/// Some of this library functions provide error_retrieve_type enum pointing how to take openssl error: get or peek
-	/// By default it's always get, but if you more comfortable with print_error_queue - you can change to peek, and than use one, just don't forget to call openssl_clear_errors
+	/// By default it's always get, but if you more comfortable with print_error_queue - you can change to peek, and than use one, note that ERR_print_errors clears queue
 	enum class error_retrieve : unsigned
 	{
 		get,  /// use ::ERR_get_error
-		peek, /// use ::ERR_peek_error, don't forget to call openssl_clear_errors after examining errors
+		peek, /// use ::ERR_peek_error
 	};
 
 	// those can be used as err == ext::openssl_error::zero_return.

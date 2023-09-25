@@ -342,7 +342,7 @@ namespace ext::openssl
 		
 		// XN_FLAG_DN_REV - for XML DSIG, names subject and issuers should be in reversed order
 		if (-1 == ::X509_NAME_print_ex(mem_bio.get(), name, 0, flags))
-			ext::openssl::throw_last_error("::X509_NAME_print_ex failed");
+			ext::openssl::throw_last_error("ext::openssl::x509_name_string: ::X509_NAME_print_ex failed");
 
 		char * data;
 		int len = ::BIO_get_mem_data(mem_bio.get(), &data);
@@ -403,7 +403,7 @@ namespace ext::openssl
 	{
 		std::tm tm;
 		if (1 != ::ASN1_TIME_to_tm(time, &tm))
-			ext::openssl::throw_last_error("::ASN1_TIME_to_tm failed");
+			ext::openssl::throw_last_error("ext::openssl::asn1_time_tm: ::ASN1_TIME_to_tm failed");
 		
 		return tm;
 	}
@@ -414,7 +414,7 @@ namespace ext::openssl
 		if (not mem_bio) throw_last_error("ext::openssl::asn1_time_print: ::BIO_new failed");
 
 		if (1 != ::ASN1_TIME_print(mem_bio.get(), time))
-			ext::openssl::throw_last_error("::ASN1_TIME_print failed");
+			ext::openssl::throw_last_error("ext::openssl::asn1_time_print: ::ASN1_TIME_print failed");
 		
 		char * data;
 		int len = ::BIO_get_mem_data(mem_bio.get(), &data);
