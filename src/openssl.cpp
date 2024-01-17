@@ -858,7 +858,7 @@ namespace ext::openssl
 		return std::chrono::system_clock::from_time_t(t);
 	}
 	
-	std::vector<unsigned char> cert_sha1fingerprint(::X509 * cert)
+	std::vector<unsigned char> cert_sha1fingerprint(const ::X509 * cert)
 	{
 		assert(cert);
 		

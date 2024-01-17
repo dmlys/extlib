@@ -375,7 +375,7 @@ namespace ext::openssl
 	
 	/// Calculates and returns certificate SHA1 fingerprint, basicly ::X509_digest wrapper
 	/// Throws std::system_error in case of errors
-	std::vector<unsigned char> cert_sha1fingerprint(::X509 * cert);
+	std::vector<unsigned char> cert_sha1fingerprint(const ::X509 * cert);
 	
 	/// Wrapper around X509_NAME_add_entry_by_txt:
 	///   X509_NAME_add_entry_by_txt(cert_name, name.c_str(), MBSTRING_UTF8, value.data(), value.size(), -1, 0);
