@@ -300,6 +300,11 @@ namespace ext::openssl
 		::X509_free(cert);
 	}
 
+	void evp_pkey_ctx_deleter::operator()(::EVP_PKEY_CTX * ctx) const noexcept
+	{
+		::EVP_PKEY_CTX_free(ctx);
+	}
+	
 	void stackof_x509_deleter::operator()(STACK_OF(X509) * x590s) const noexcept
 	{
 		// https://wiki.nikhef.nl/grid/How_to_handle_OpenSSL_and_not_get_hurt_and_what_does_that_library_call_really_do%3F#Proper_memory_liberation_of_a_STACK_OF_.28X509.29_.2A

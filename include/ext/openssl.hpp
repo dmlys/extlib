@@ -24,6 +24,7 @@ typedef struct X509_extension_st X509_EXTENSION;
 typedef struct x509_st           X509;
 typedef struct rsa_st            RSA;
 typedef struct evp_pkey_st       EVP_PKEY;
+typedef struct evp_pkey_ctx_st   EVP_PKEY_CTX;
 typedef struct PKCS12_st         PKCS12;
 typedef struct evp_md_st         EVP_MD;
 
@@ -173,6 +174,7 @@ namespace ext::openssl
 	
 	struct x509_extension_deleter { void operator()(::X509_EXTENSION * extension) const noexcept; };
 	
+	struct evp_pkey_ctx_deleter { void operator()(::EVP_PKEY_CTX * ctx) const noexcept; };
 	struct stackof_x509_deleter { void operator()(::stack_st_X509 * x590s) const noexcept; };
 	struct stack_st_x509_extension_deleter { void operator()(::stack_st_X509_EXTENSION * extensions) const noexcept; };
 
@@ -185,7 +187,8 @@ namespace ext::openssl
 	using rsa_uptr      = std::unique_ptr<::RSA, rsa_deleter>;
 	using evp_pkey_uptr = std::unique_ptr<::EVP_PKEY, evp_pkey_deleter>;
 	using pkcs12_uptr   = std::unique_ptr<::PKCS12, pkcs12_deleter>;
-	
+
+	using evp_pkey_ctx_uptr   = std::unique_ptr<::EVP_PKEY_CTX, evp_pkey_ctx_deleter>;
 	using x509_extension_uptr = std::unique_ptr<::X509_EXTENSION, x509_extension_deleter>;
 	using stackof_x509_uptr   = std::unique_ptr<::stack_st_X509, stackof_x509_deleter>;
 	
