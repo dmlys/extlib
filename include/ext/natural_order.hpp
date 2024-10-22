@@ -1,12 +1,31 @@
 #include <cctype> // for std::isdigit
 #include <locale>
 #include <tuple>
+#include <type_traits>
 #include <string_view>
 #include <boost/predef.h>
 #include <boost/locale/collator.hpp>
 
 #include <ext/range/str_view.hpp>
 #include <ext/algorithm/tribool_compare.hpp>
+
+
+// on msvc std lib does not like locales for char16_t, char32_t :(
+// locale(126): warning C4273: 'id': inconsistent dll linkage
+// error C2491: 'std::collate<CharType>::id': definition of dllimport static data member not allowed
+// https://social.msdn.microsoft.com/Forums/en-US/3e1d37a5-0b50-41fe-ac18-2b4db5e1262b/compile-error-for-stl-stream-containers-in-visual-studio?forum=vcgeneral
+// maybe static linkage of stdlib would work?
+// 
+// Also from boost 1.85 boost locale also does not provide facets(when std::use_facet is used): for char16_t and char32_t
+//   undefined reference to boost::locale::detail::facet_id<boost::locale::collator<char16_t>>::id
+//   undefined reference to boost::locale::detail::facet_id<boost::locale::collator<char32_t>>::id
+
+//#define EXT_NATURAL_ORDER_CHAR32_SUPPORT not BOOST_LIB_STD_DINKUMWARE
+//#define EXT_NATURAL_ORDER_CHAR16_SUPPORT not BOOST_LIB_STD_DINKUMWARE
+
+#define EXT_NATURAL_ORDER_CHAR32_SUPPORT 0
+#define EXT_NATURAL_ORDER_CHAR16_SUPPORT 0
+
 
 /// natural order related stuff. natural order is where number parts of string are collated as numbers and not just chars.
 /// So str1txt < str12txt with natural order, while if comparing them just as strings str1txt > str12txt
@@ -118,13 +137,10 @@ namespace ext::natural_order
 		std::tuple<
 			  result_type (localized_char_traits::*)(const char     * s1_first, const char     * s1_last, const char     * s2_first, const char     * s2_last) const
 			, result_type (localized_char_traits::*)(const wchar_t  * s1_first, const wchar_t  * s1_last, const wchar_t  * s2_first, const wchar_t  * s2_last) const
-		// on msvc std lib does not like locales for char16_t, char32_t :(
-		// locale(126): warning C4273: 'id': inconsistent dll linkage
-		// error C2491: 'std::collate<CharType>::id': definition of dllimport static data member not allowed
-		// https://social.msdn.microsoft.com/Forums/en-US/3e1d37a5-0b50-41fe-ac18-2b4db5e1262b/compile-error-for-stl-stream-containers-in-visual-studio?forum=vcgeneral
-		// maybe static linkage of stdlib would work?
-		#if not BOOST_LIB_STD_DINKUMWARE
+		#if EXT_NATURAL_ORDER_CHAR16_SUPPORT
 			, result_type (localized_char_traits::*)(const char16_t * s1_first, const char16_t * s1_last, const char16_t * s2_first, const char16_t * s2_last) const
+		#endif
+		#if EXT_NATURAL_ORDER_CHAR32_SUPPORT
 			, result_type (localized_char_traits::*)(const char32_t * s1_first, const char32_t * s1_last, const char32_t * s2_first, const char32_t * s2_last) const
 		#endif
 		> m_methods;
@@ -148,8 +164,10 @@ namespace ext::natural_order
 		m_methods = std::make_tuple(
 			  &localized_char_traits::std_compare<char>
 			, &localized_char_traits::std_compare<wchar_t>
-		#if not BOOST_LIB_STD_DINKUMWARE
+		#if EXT_NATURAL_ORDER_CHAR16_SUPPORT
 			, &localized_char_traits::std_compare<char16_t>
+		#endif
+		#if EXT_NATURAL_ORDER_CHAR32_SUPPORT
 			, &localized_char_traits::std_compare<char32_t>
 		#endif
 		);
@@ -163,8 +181,10 @@ namespace ext::natural_order
 			m_methods = std::make_tuple(
 				  &localized_char_traits::std_compare<char>
 				, &localized_char_traits::std_compare<wchar_t>
-			#if not BOOST_LIB_STD_DINKUMWARE
+			#if EXT_NATURAL_ORDER_CHAR16_SUPPORT
 				, &localized_char_traits::std_compare<char16_t>
+			#endif
+			#if EXT_NATURAL_ORDER_CHAR32_SUPPORT
 				, &localized_char_traits::std_compare<char32_t>
 			#endif
 			);
@@ -174,8 +194,10 @@ namespace ext::natural_order
 			m_methods = std::make_tuple(
 				  &localized_char_traits::boost_compare<char>
 				, &localized_char_traits::boost_compare<wchar_t>
-			#if not BOOST_LIB_STD_DINKUMWARE
+			#if EXT_NATURAL_ORDER_CHAR16_SUPPORT
 				, &localized_char_traits::boost_compare<char16_t>
+			#endif
+			#if EXT_NATURAL_ORDER_CHAR32_SUPPORT
 				, &localized_char_traits::boost_compare<char32_t>
 			#endif
 			);
@@ -194,15 +216,19 @@ namespace ext::natural_order
 	auto localized_char_traits::boost_compare(const CharType * s1_first, const CharType * s1_last, const CharType * s2_first, const CharType * s2_last) const -> result_type
 	{
 		using boost_collator_facet = boost::locale::collator<CharType>;
+		using std_collator_facet = std::collate<CharType>;
+		
 		const auto & facet = std::use_facet<boost_collator_facet>(m_loc);
 		
 #if not defined NDEBUG
-		// boost::locale::collator and std::collate sort of share same id in locale facet database,
-		// so if std::collate is present - boost::locale::collator is present to, even if it's actually not.
-		// So we better check if it's really boost::locale::collator.
-		using std_collator_facet = std::collate<CharType>;
-		auto * std_collator = static_cast<const std_collator_facet *>(&facet);
-		assert(dynamic_cast<const boost_collator_facet *>(std_collator));
+		if constexpr(std::is_base_of_v<std_collator_facet, boost_collator_facet>)
+		{
+			// boost::locale::collator and std::collate sort of share same id in locale facet database,
+			// so if std::collate is present - boost::locale::collator is present to, even if it's actually not.
+			// So we better check if it's really boost::locale::collator.
+			auto * std_collator = static_cast<const std_collator_facet *>(&facet);
+			assert(dynamic_cast<const boost_collator_facet *>(std_collator));
+		}
 #endif
 		
 		return facet.compare(m_compare_level, s1_first, s1_last, s2_first, s2_last);
