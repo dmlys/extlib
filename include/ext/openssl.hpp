@@ -9,8 +9,10 @@
 #include <string_view>
 #include <chrono>
 #include <system_error>
+#include <fmt/format.h>
 #include <openssl/opensslv.h> // for openssl version
 #include <ext/intrusive_ptr.hpp>
+#include <ext/config.hpp>
 
 // forward some openssl types
 typedef struct asn1_string_st ASN1_INTEGER;
@@ -116,10 +118,29 @@ namespace ext::openssl
 
 	/// returns last SSL error via ::ERR_get_error()
 	std::error_code last_error(error_retrieve rtype = error_retrieve::get) noexcept;
+	
 	/// throws openssl_error with last_error error_code
 	/// if rtype == get, prints whole openssl error queue and places result into thrown exception,
 	/// if rtype == peek, does not extract openssl error queue, exception object will hold empty string
-	[[noreturn]] void throw_last_error(const std::string & errmsg, error_retrieve rtype = error_retrieve::get);
+	EXT_NORETURN void throw_last_error_str(error_retrieve rtype, const std::string & errmsg);
+	
+	
+	EXT_NORETURN inline void throw_last_error_str(const std::string & errmsg)
+	{
+		throw_last_error_str(error_retrieve::get, errmsg);
+	}
+	
+	template <class ... Args>
+	EXT_NORETURN inline void throw_last_error(error_retrieve rtype, fmt::format_string<> fmt, Args && ... args)
+	{
+		throw_last_error_str(rtype, fmt::format(fmt, std::forward<Args>(args)...));
+	}
+	
+	template <class ... Args>
+	EXT_NORETURN inline void throw_last_error(fmt::format_string<> fmt, Args && ... args)
+	{
+		throw_last_error_str(fmt::format(fmt, std::forward<Args>(args)...));
+	}
 
 	/// prints openssl error queue into string, see ::ERR_print_errors,
 	/// error queue will be empty after executing this function

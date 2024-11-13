@@ -187,7 +187,7 @@ namespace ext::openssl
 		return std::error_code(err, openssl_err_category());
 	}
 
-	[[noreturn]] void throw_last_error(const std::string & errmsg, error_retrieve rtype)
+	EXT_NORETURN void throw_last_error_str(error_retrieve rtype, const std::string & errmsg)
 	{
 		int err = ::ERR_peek_error();
 		std::string error_queue;
