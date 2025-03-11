@@ -247,7 +247,7 @@ namespace ext::openssl
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 		::ERR_load_crypto_strings();
 #elif OPENSSL_VERSION_NUMBER >= 0x10100000L
-		::OPENSSL_init_crypto(0, nullptr);
+		//::OPENSSL_init_crypto(0, nullptr);
 #endif
 	}
 	
@@ -257,7 +257,7 @@ namespace ext::openssl
 		::SSL_load_error_strings();
 		::SSL_library_init();
 #elif OPENSSL_VERSION_NUMBER >= 0x10100000L
-		::OPENSSL_init_ssl(0, nullptr);
+		//::OPENSSL_init_ssl(0, nullptr);
 #endif
 
 	}
@@ -269,6 +269,8 @@ namespace ext::openssl
 		::CRYPTO_cleanup_all_ex_data();
 		::ERR_free_strings();
 		::EVP_cleanup();
+#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
+		
 #endif
 	}
 

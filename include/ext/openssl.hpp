@@ -173,10 +173,10 @@ namespace ext::openssl
 	};
 	
 	/// per process initialization.
-	/// Calls SSL_load_error_strings, SSL_library_init
+	/// Calls ERR_load_crypto_strings for older versions of library, does nothing for modern versions.
 	void crypto_init();
 	/// per process initialization.
-	/// Calls SSL_load_error_strings, SSL_library_init
+	/// Calls SSL_load_error_strings, SSL_library_init for older versions of library, does nothing for modern versions.
 	void ssl_init();
 	/// per process ssl/crypto cleanup
 	void lib_cleanup();
