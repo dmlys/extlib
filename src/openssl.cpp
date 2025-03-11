@@ -1021,11 +1021,11 @@ namespace ext::openssl
 		x509_name_add_entry_by_txt(issuer_name, std::move(issuer));
 		
 		auto cert_ext = ::X509V3_EXT_nconf_nid(nullptr, nullptr, NID_basic_constraints, "critical, CA:false");
-		if (not cert_ext) throw_last_error("ext::openssl::init_certificate: basicContraints extension ::X509V3_EXT_nconf_nid failed");
+		if (not cert_ext) throw_last_error("ext::openssl::init_certificate: basicConstraints extension ::X509V3_EXT_nconf_nid failed");
 		
 		x509_extension_uptr ext_uptr(cert_ext);
 		res = ::X509_add_ext(cert, cert_ext, -1);
-		if (not res) throw_last_error("ext::openssl::init_certificate: basicContraints extension ::X509_add_ext failed");
+		if (not res) throw_last_error("ext::openssl::init_certificate: basicConstraints extension ::X509_add_ext failed");
 	}
 	
 	void init_self_signed_certificate(::X509 * cert, std::string subject)
@@ -1046,11 +1046,11 @@ namespace ext::openssl
 		if (not res) throw_last_error("ext::openssl::init_self_signed_certificate: ::X509_set_issuer_name failed");
 		
 		auto cert_ext = ::X509V3_EXT_nconf_nid(nullptr, nullptr, NID_basic_constraints, "critical, CA:true");
-		if (not cert_ext) throw_last_error("ext::openssl::init_self_signed_certificate: basicContraints extension ::X509V3_EXT_nconf_nid failed");
+		if (not cert_ext) throw_last_error("ext::openssl::init_self_signed_certificate: basicConstraints extension ::X509V3_EXT_nconf_nid failed");
 		
 		x509_extension_uptr ext_uptr(cert_ext);
 		res = ::X509_add_ext(cert, cert_ext, -1);
-		if (not res) throw_last_error("ext::openssl::init_self_signed_certificate: basicContraints extension ::X509_add_ext failed");
+		if (not res) throw_last_error("ext::openssl::init_self_signed_certificate: basicConstraints extension ::X509_add_ext failed");
 	}
 	
 	x509_iptr create_self_signed_certificate(::EVP_PKEY * pkey, std::string subject, std::chrono::seconds duration)
@@ -1109,13 +1109,13 @@ namespace ext::openssl
 	
 }
 
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
 static unsigned double_digits_to_uint(const char *& str)
 {
 	unsigned n = 10 * (*str++ - '0');
 	return n + (*str++ - '0');
 }
 
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
 static int ASN1_TIME_to_tm(const ::ASN1_TIME * time, std::tm * tm)
 {
 	if (not time) return -1;

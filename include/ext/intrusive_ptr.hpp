@@ -293,7 +293,7 @@ namespace ext
 	};
 
 	template <class Type, class PointerTraits>
-	void intrusive_cow_ptr<Type, PointerTraits>::detach()
+	inline void intrusive_cow_ptr<Type, PointerTraits>::detach()
 	{
 		// we are the only one, detach is not needed
 		if (use_count() <= 1) return;
@@ -306,7 +306,7 @@ namespace ext
 	}
 
 	template <class Type, class PointerTraits>
-	void intrusive_cow_ptr<Type, PointerTraits>::reset(value_type * ptr) noexcept
+	inline void intrusive_cow_ptr<Type, PointerTraits>::reset(value_type * ptr) noexcept
 	{
 		subref();
 		m_ptr = ptr;
@@ -314,14 +314,14 @@ namespace ext
 	}
 
 	template <class Type, class PointerTraits>
-	void intrusive_cow_ptr<Type, PointerTraits>::reset(value_type * ptr, noaddref_type) noexcept
+	inline void intrusive_cow_ptr<Type, PointerTraits>::reset(value_type * ptr, noaddref_type) noexcept
 	{
 		subref();
 		m_ptr = ptr;
 	}
 
 	template <class Type, class PointerTraits>
-	void intrusive_cow_ptr<Type, PointerTraits>::reset(value_type * ptr, bool add_ref) noexcept
+	inline void intrusive_cow_ptr<Type, PointerTraits>::reset(value_type * ptr, bool add_ref) noexcept
 	{
 		subref();
 		m_ptr = ptr;
@@ -436,13 +436,13 @@ namespace ext
 	}
 
 	template <class Type>
-	std::nullptr_t intrusive_ptr_default(const intrusive_atomic_counter<Type> *) noexcept
+	inline std::nullptr_t intrusive_ptr_default(const intrusive_atomic_counter<Type> *) noexcept
 	{
 		return nullptr;
 	}
 
 	template <class Type, class DestType>
-	void intrusive_ptr_clone(const intrusive_atomic_counter<Type> * ptr, DestType * & dest)
+	inline void intrusive_ptr_clone(const intrusive_atomic_counter<Type> * ptr, DestType * & dest)
 	{
 		assert(ptr);
 		dest = new Type(*static_cast<const Type *>(ptr));
@@ -528,7 +528,7 @@ namespace ext
 	}
 
 	template <class Type, class DestType>
-	void intrusive_ptr_clone(const intrusive_plain_counter<Type> * ptr, DestType * & dest)
+	inline void intrusive_ptr_clone(const intrusive_plain_counter<Type> * ptr, DestType * & dest)
 	{
 		assert(ptr);
 		dest = new Type(*static_cast<const Type *>(ptr));
