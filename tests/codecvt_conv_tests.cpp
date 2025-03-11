@@ -62,12 +62,15 @@ BOOST_FIXTURE_TEST_SUITE( CvtSuite, CodecvtFixture )
 BOOST_AUTO_TEST_CASE( BasicTest )
 {
 	using namespace std;
+	
+	std::string expected = reinterpret_cast<const char *>(u8"Test Русский Текст Test");
+	
 	wstring wstr = L"Test Русский Текст Test";
 	wstring wstrRestored;
 	string str;
 
 	BOOST_CHECK_NO_THROW((ext::codecvt_convert::to_bytes(utf8, wstr, str)));
-	BOOST_CHECK_EQUAL(str, u8"Test Русский Текст Test");
+	BOOST_CHECK_EQUAL(str, expected);
 	BOOST_CHECK_NO_THROW((ext::codecvt_convert::from_bytes(utf8, str, wstrRestored)));
 	BOOST_CHECK(wstr == wstrRestored);
 }
