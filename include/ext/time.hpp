@@ -10,24 +10,24 @@ namespace ext
 	using std::mktime;
 
 	/// версия gmtime без использование глобальных переменных
-	inline void gmtime(const time_t * tpoint, std::tm * t)
+	inline auto gmtime(const time_t * tpoint, std::tm * t)
 	{
 		#if BOOST_OS_WINDOWS
-			gmtime_s(t, tpoint);
+			return gmtime_s(t, tpoint);
 		#elif BOOST_OS_LINUX || BOOST_OS_UNIX
-			gmtime_r(tpoint, t);
+			return gmtime_r(tpoint, t);
 		#else
 			#error(not implemented for this platform)
 		#endif
 	}
 
 	/// версия localtime без использование глобальных переменных
-	inline void localtime(const std::time_t * tpoint, std::tm * t)
+	inline auto localtime(const std::time_t * tpoint, std::tm * t)
 	{
 		#if BOOST_OS_WINDOWS
-			localtime_s(t, tpoint);
+			return localtime_s(t, tpoint);
 		#elif BOOST_OS_LINUX || BOOST_OS_UNIX
-			localtime_r(tpoint, t);
+			return localtime_r(tpoint, t);
 		#else
 			#error(not implemented for this platform)
 		#endif
@@ -60,7 +60,7 @@ namespace ext
 		t->tm_hour = hour;
 		t->tm_min  = minute;
 		t->tm_sec  = seconds;
-		t->tm_isdst = -1; // negative value means that mktime() should (use timezone information and system databases to)
+		t->tm_isdst = -1; // negative value means that mktime() should (use timezone information and system databases)
 		                  // attempt to determine whether DST is in effect at the specified time.
 	}
 	
