@@ -19,12 +19,13 @@ namespace ext
 			std::size_t capacity;
 			char buffer[1];
 		};
-
+		
 		friend inline      void intrusive_ptr_add_ref(heap_body * ptr) noexcept   { ++ptr->refs; }
-		friend inline      void intrusive_ptr_release(heap_body * ptr) noexcept   { if (--ptr->refs == 0) delete[] ptr; }
+		friend inline      void intrusive_ptr_release(heap_body * ptr) noexcept   { if (--ptr->refs == 0) intrusive_ptr_free(ptr); }
 		friend inline  unsigned intrusive_ptr_use_count(const heap_body * ptr) noexcept { return ptr->refs; }
 		friend inline heap_body * intrusive_ptr_default(const heap_body * ptr) noexcept { intrusive_ptr_add_ref(&ms_shared_null); return &ms_shared_null; }
 		friend void intrusive_ptr_clone(const heap_body * ptr, heap_body * & dest);
+		friend void intrusive_ptr_free(heap_body * ptr) noexcept;
 
 	public:
 		typedef char value_type;

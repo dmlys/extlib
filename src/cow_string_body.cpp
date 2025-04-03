@@ -46,10 +46,16 @@ namespace ext
 		return const_cast<value_type *>(m_body->buffer + m_body->size);
 	}
 
+	void intrusive_ptr_free(cow_string_body::heap_body * ptr) noexcept
+	{
+		ptr->~heap_body();
+		::operator delete(ptr);
+	}
+	
 	inline auto cow_string_body::alloc_body(std::nothrow_t, size_type cap) -> heap_body *
 	{
 		cap += sizeof(size_type) * 3 + 1; // 1 for null terminator
-		heap_body * body = reinterpret_cast<heap_body *>(new(std::nothrow) char[cap]);
+		heap_body * body = static_cast<heap_body *>(operator new(cap, std::nothrow));
 		new (body) heap_body;
 		return body;
 	}
@@ -57,15 +63,15 @@ namespace ext
 	inline auto cow_string_body::alloc_body(size_type cap) -> heap_body *
 	{
 		cap += sizeof(heap_body) - alignof(heap_body) + 1; // 1 for null terminator
-		heap_body * body = reinterpret_cast<heap_body *>(new char[cap]);
-		new (body) heap_body;
+		heap_body * body = static_cast<heap_body *>(::operator new(cap));
+		if (body) new (body) heap_body;
 		return body;
 	}
 
 	void intrusive_ptr_clone(const cow_string_body::heap_body * ptr, cow_string_body::heap_body * & body)
 	{
 		auto cap = sizeof(cow_string_body::size_type) * 3 + ptr->size + 1; // 1 for null terminator
-		body = reinterpret_cast<cow_string_body::heap_body *>(new char[cap]);
+		body = static_cast<cow_string_body::heap_body *>(::operator new(cap));
 		new (body) cow_string_body::heap_body;
 
 		body->capacity = body->size = ptr->size;
