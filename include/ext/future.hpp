@@ -4,7 +4,6 @@
 // license: boost software license
 //          http://www.boost.org/LICENSE_1_0.txt
 
-#include <ciso646> // for not, and, etc
 #include <climits> // for CHAR_BIT
 #include <cstdint> // for std::uintptr_t
 #include <cassert>

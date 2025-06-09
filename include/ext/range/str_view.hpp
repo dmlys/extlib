@@ -5,7 +5,6 @@
 //          http://www.boost.org/LICENSE_1_0.txt
 //          
 
-#include <ciso646>
 #include <cassert>
 #include <utility>
 #include <type_traits>
