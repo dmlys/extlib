@@ -375,7 +375,7 @@ namespace ext::openssl
 	/// see https://www.openssl.org/docs/man1.1.0/apps/ciphers.html,
 	/// also invokes SSL_CTX_set_tmp_dh with result of DH_get_2048_256.
 	///
-	/// NOTE: this is insecure and should not be used at all,
+	/// NOTE: this is INSECURE and should not be used at all,
 	///       but allows establishing connection without certificates.
 	///       most clients have those ciphers disabled by default
 	ssl_ctx_iptr create_anonymous_sslctx(const ::SSL_METHOD * method);
