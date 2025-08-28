@@ -7,6 +7,10 @@ struct GlobalFixture
 {
 	GlobalFixture()
 	{
+		static char TZ[] = "TZ=UTC";
+		putenv(TZ);
+		//tzset();
+		
 		auto argc = boost::unit_test::framework::master_test_suite().argc;
 		auto argv = boost::unit_test::framework::master_test_suite().argv;
 

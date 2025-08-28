@@ -95,6 +95,10 @@ namespace ext::openssl
 		want_connect     = 7, // SSL_ERROR_WANT_CONNECT
 		want_accept      = 8, // SSL_ERROR_WANT_ACCEPT
 	};
+	
+	// timezone in which date/time should be reported, used by some API
+	enum timezone { utc, localtime };
+	
 
 	extern const unsigned long rsa_f4; // = RSA_F4/65537
 	
@@ -241,10 +245,15 @@ namespace ext::openssl
 	std::string bignum_string(const ::BIGNUM * num);
 	/// converts asn1 integer to bignum and prints it
 	std::string asn1_integer_string(const ::ASN1_INTEGER * integer);
-	/// converts asn1 time to time_t, then prints via std::strftime(..., "%c", ...)
+	/// converts ASN1_TIME to std::tm via ASN1_TIME_to_tm,
+	/// then prints via std::strftime(..., fmt, ...)
 	/// %c - locale specific standard date and time string
-	/// see also asn1_time_print, asn1_time_timet
-	std::string asn1_time_string(const ::ASN1_TIME * time);
+	/// 
+	/// ASN1_TIME_to_tm gives UTC result,
+	/// if tz == localtime - converts result std::tm to local time via gmtime and localtime pair calls
+	std::string asn1_time_string(const ::ASN1_TIME * time, timezone tz, const char * fmt = "%c", int max_size = 128);
+	inline std::string asn1_time_string(const ::ASN1_TIME * time, const char * fmt = "%c", int max_size = 128)
+	{ return asn1_time_string(time, localtime, fmt, max_size); }
 
 	/// Converts time to time_t type, with help of asn1_time_tm and std::mkgmtime(or platform alternative)
 	/// returns -1 for special invalid date value
@@ -257,6 +266,8 @@ namespace ext::openssl
 	time_t asn1_time_timet(const ::ASN1_TIME * time);
 	/// ASN1_TIME_to_tm wrapper
 	std::tm asn1_time_tm(const ::ASN1_TIME * time);
+	/// converse of ASN1_TIME_to_tm
+	ASN1_TIME * asn1_time_tm(::ASN1_TIME * time, const std::tm * utc_tm);
 	/// ASN1_TIME_print wrapper
 	std::string asn1_time_print(const ::ASN1_TIME * time);
 	/// ASN1_TIME_set wrapper
@@ -319,7 +330,7 @@ namespace ext::openssl
 	/// Throws std::system_error in case of errors
 	std::vector<char> write_pkcs12(const ::PKCS12 * pkcs12);
 	/// Writes PKCS12 into given file in DER format.
-	/// Passwork protection is set by other functions, this is just a serializtion function.
+	/// Password protection is set by other functions, this is just a serialization function.
 	/// Throws std::system_error in case of errors
 	void write_pkcs12_to_file(std::FILE * fp, const ::PKCS12 * pkcs12);
 	void write_pkcs12_to_file(const char * path, const ::PKCS12 * pkcs12);
@@ -385,17 +396,37 @@ namespace ext::openssl
 	/************************************************************************/
 	/*                certificate attributes/extensions                     */
 	/************************************************************************/
+	/// Gets certificate not before property
+	void get_notbefore(const ::X509 * cert, std::tm * utc_tpoint);
+	void get_notbefore(const ::X509 * cert, std::time_t * tpoint);
+	void get_notbefore(const ::X509 * cert, std::chrono::system_clock::time_point * tpoint);
+	auto get_notbefore(const ::X509 * cert) -> std::chrono::system_clock::time_point;
+	
+	/// Gets certificate not after property
+	void get_notafter(const ::X509 * cert, std::tm * utc_tpoint);
+	void get_notafter(const ::X509 * cert, std::time_t * tpoint);
+	void get_notafter(const ::X509 * cert, std::chrono::system_clock::time_point * tpoint);
+	auto get_notafter(const ::X509 * cert) -> std::chrono::system_clock::time_point;
+	
 	
 	/// Sets not before property of cert to given time point
+	void set_notbefore(::X509 * cert, const std::tm * utc_tpoint);
+	void set_notbefore(::X509 * cert, std::time_t tpoint);
 	void set_notbefore(::X509 * cert, std::chrono::system_clock::time_point tpoint);
+	
 	/// Sets not after property of cert to given time point
+	void set_notafter(::X509 * cert, const std::tm * utc_tpoint);
+	void set_notafter(::X509 * cert, std::time_t tpoint);
 	void set_notafter(::X509 * cert, std::chrono::system_clock::time_point tpoint);
+	
+	/// Sets certificate duration, basicly takes not before, adds duration, sets result into not after
+	void set_duration(::X509 * cert, const std::tm * utc_not_before, const std::tm * urc_not_after);
+	void set_duration(::X509 * cert, std::chrono::system_clock::time_point not_before, std::chrono::system_clock::time_point not_after);
+	void set_duration(::X509 * cert, std::chrono::system_clock::time_point not_before, std::chrono::system_clock::duration duration);
 	/// Sets certificate duration, basicly takes not before, adds duration, sets result into not after
 	void set_duration(::X509 * cert, std::chrono::system_clock::duration duration);
-	/// Gets certificate not before property as std::chrono::system_clock::time_point
-	auto get_notbefore(const ::X509 * cert) -> std::chrono::system_clock::time_point;
-	/// Gets certificate not after property as std::chrono::system_clock::time_point
-	auto get_notafter(const ::X509 * cert) -> std::chrono::system_clock::time_point;
+	
+	
 	
 	/// Calculates and returns certificate SHA1 fingerprint, basicly ::X509_digest wrapper
 	/// Throws std::system_error in case of errors

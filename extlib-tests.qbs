@@ -32,8 +32,7 @@ CppApplication
 				libs.push("z")
 			
 			if (extlib.with_openssl)
-				libs = libs.concat(["crypto"])
-				//libs = libs.concat(["ssl", "crypto"])
+				libs = libs.concat(["ssl", "crypto"])
 			
 			if (qbs.toolchain.contains("mingw"))
 				libs.push("ssp") // for mingw(gcc) stack protector, _FORTIFY_SOURCE stuff
@@ -56,11 +55,10 @@ CppApplication
 				libs.push("zlib")
 			
 			if (extlib.with_openssl)
-				libs = libs.concat(["openssl-crypto"])
-				//libs = libs.concat(["openssl-crypto", "openssl-ssl"])
+				libs = libs.concat(["openssl-crypto", "openssl-ssl"])
 			
 			libs = BuildUtils.make_winlibs(qbs, cpp, libs)
-			libs = libs.concat(["crypt32", "user32", "advapi32"])
+			libs = libs.concat(["crypt32", "user32", "advapi32", "ws2_32.lib"])
 			return libs
 		}
 	}

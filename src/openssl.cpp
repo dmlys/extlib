@@ -6,6 +6,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/dh.h>
 #include <openssl/pkcs12.h>
+#include <openssl/crypto.h> // for OPENSSL_gmtime_adj
 
 #include <ext/codecvt_conv/generic_conv.hpp>
 #include <ext/codecvt_conv/wchar_cvt.hpp>
@@ -18,6 +19,7 @@
 
 #include <ext/openssl.hpp>
 #include <ext/time.hpp>
+#include <ext/errors.hpp>
 
 #include <cstring> // for std::memset
 
@@ -36,7 +38,12 @@
 #pragma comment(lib, "crypt32.lib")
 #endif // _MSC_VER
 
+#define alloca _alloca
+
 #endif // BOOST_OS_WINDOWS
+
+
+static const char * const ASN1_TIME_GENERALIZED_FMT = "%Y%m%d%H%M%SZ";
 
 
 int  intrusive_ptr_add_ref(::BIO * ptr)  { return ::BIO_up_ref(ptr); }
@@ -386,16 +393,105 @@ namespace ext::openssl
 		return result;
 	}
 	
-	std::string asn1_time_string(const ::ASN1_TIME * time)
+	static int utc_offset()
 	{
-		constexpr unsigned buffsize = 128;
-		char buffer[buffsize];
-		auto t = asn1_time_timet(time);
+		// Calculate difference between local time and UTC
+		// by breaking current UNIX time stamp into tm struct,
+		// and converting back as it was local time.
+		//
+		// That way both timezone and daylight saving will be taken into account.
+		//
+		// for + timezones result offset will be positive
+		// for - timezones result offset will be negative
+	
+		std::time_t t1, t2;
+		std::tm tm;
+	
+		t1 = time(nullptr);
+	
+	#ifdef _WIN32
+		gmtime_s(&tm, &t1); // to UTC time
+	#else
+		gmtime_r(&t1, &tm); // to UTC time
+	#endif
+	
+		t2 = mktime(&tm);   // from local time
+	
+		// offset should not be bigger than a day
+		assert(-86400 < t1 - t2 && t1 - t2 < 86400);
+	
+		return t1 - t2;
+	}
+	
+	std::string asn1_time_string(const ::ASN1_TIME * time, timezone tz, const char * fmt, int max_size)
+	{
+		if (time == nullptr)
+			return "(null)";
+		
+		// RFC 5280 among other things states that date/time fields(including not after, not before)
+		// should be encoded as ASN1 UTCTime or GeneralizedTime.
+		// Those are actually strings in format YYMMDDHHMMSSZ / YYYYMMDDHHMMSSZ.
+		// So we already have broken down time, ASN1_TIME_to_tm parses string into struct tm.
+		//
+		// That time is UTC. If we want local time - we could convert to time_t via timegm and back via localtime.
+		// timegm is not very portable: some platforms have it, others don't.
+		//
+		// On windows localtime, gmtime and others actually can't work with dates bigger than _MAX__TIME64_T
+		// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/localtime-s-localtime32-s-localtime64-s?view=msvc-170
+		// _MAX__TIME64_T is not public constant and defined in internal header, in practice it is limited by end of 3rd millennia.
+		// For dates like 3002-01-12 - localtime_r returns EINVAL and sets struct tm to 1970.
+		//
+		//   It happens that some people do make certificates with "not after" in 3020-12-31 year...
+		//
+		// OpenSSL have platform agnostic function OPENSSL_gmtime_adj - it adds to struct tm offset number of days and seconds.
+		// Internally it's implemented by converting to Julian day(Uses Fliegel & Van Flandern algorithm).
+		// It works with any dates(probably)
+		//
+		// So for UTC we already have broken time, and for localtime add utc offset with OPENSSL_gmtime_adj
+		// UTC offset can be calculated by taking current time(time), breaking it into tm as UTC(gmtime), converting it back as if localtime(mktime).
 		
 		std::tm tm;
-		ext::localtime(&t, &tm);
-		auto written = std::strftime(buffer, buffsize, "%c", &tm);
+		if (::ASN1_TIME_to_tm(time, &tm) != 1)
+			throw_last_error("ext::openssl::asn1_time_string: ASN1_TIME_to_tm failed");
+		
+		if (tz == localtime)
+		{
+		#if not BOOST_OS_WINDOWS
+			auto t = ext::mkgmtime(&tm);
+			ext::localtime(&t, &tm);
+		#else // BOOST_OS_WINDOWS
+			constexpr int seconds_per_day = 60 * 60 * 24;
+			int seconds, days;
+	
+			seconds = utc_offset();
+			days = seconds / seconds_per_day;    // in practice days should be always zero
+			seconds = seconds % seconds_per_day;
+	
+			OPENSSL_gmtime_adj(&tm, days, seconds);
+		#endif
+		}
+				
+	#if BOOST_OS_UNIX or BOOST_OS_WINDOWS
+		char * buffer = static_cast<char *>(alloca(max_size));
+		
+		errno = 0;
+		auto written = std::strftime(buffer, max_size, fmt, &tm);
+		if (written == 0 and errno)
+			ext::throw_last_errno("ext::openssl::asn1_time_string: strftime failed");
+		
 		return std::string(buffer, written);
+	#else
+		std::string result;
+		result.resize(max_size);
+		
+		errno = 0;
+		auto written = std::strftime(result.data(), max_size, fmt, &tm);
+		if (written == 0 and errno)
+			ext::throw_last_errno("ext::openssl::asn1_time_string: strftime failed");
+		
+		result.resize(written);
+		return result;
+	#endif
 	}
 
 
@@ -413,6 +509,23 @@ namespace ext::openssl
 			ext::openssl::throw_last_error("ext::openssl::asn1_time_tm: ::ASN1_TIME_to_tm failed");
 		
 		return tm;
+	}
+	
+	ASN1_TIME * asn1_time_tm(::ASN1_TIME * time, const std::tm * utc_tm)
+	{
+		assert(utc_tm);
+		
+		constexpr unsigned N = 64;
+		char buffer[N];
+		
+		if (not time)
+			time = ASN1_TIME_new();
+		
+		std::strftime(buffer, N, ASN1_TIME_GENERALIZED_FMT, utc_tm);
+		if (ASN1_TIME_set_string_X509(time, buffer) != 1)
+			throw_last_error("ext::openssl::asn1_time_tm: ::ASN1_TIME_set_string_X509 failed");
+		
+		return time;
 	}
 	
 	std::string asn1_time_print(const ::ASN1_TIME * time)
@@ -817,6 +930,111 @@ namespace ext::openssl
 		return ssl_ctx_iptr;
 	}
 	
+	/************************************************************************/
+	/*                  not_before/not_after date stuff                     */
+	/************************************************************************/
+	void get_notbefore(const ::X509 * cert, std::tm * utc_tpoint)
+	{
+		assert(cert);
+		assert(utc_tpoint);
+		
+		const auto * notbefore = ::X509_get0_notBefore(cert);
+		if (ASN1_TIME_to_tm(notbefore, utc_tpoint) != 1)
+			throw_last_error("ext::openssl::get_notbefore: ::ASN1_TIME_to_tm failed");
+	}
+	
+	void get_notbefore(const ::X509 * cert, std::time_t * tpoint)
+	{
+		assert(cert);
+		assert(tpoint);
+		
+		const auto * notbefore = ::X509_get0_notBefore(cert);
+		
+		std::tm utc;
+		if (ASN1_TIME_to_tm(notbefore, &utc) != 1)
+			throw_last_error("ext::openssl::get_notbefore: ::ASN1_TIME_to_tm failed");
+		
+		*tpoint = ext::mkgmtime(&utc);
+	}
+	
+	void get_notbefore(const ::X509 * cert, std::chrono::system_clock::time_point * tpoint)
+	{
+		std::time_t t;
+		get_notbefore(cert, &t);
+		
+		*tpoint = std::chrono::system_clock::from_time_t(t);
+	}
+	
+	auto get_notbefore(const ::X509 * cert) -> std::chrono::system_clock::time_point
+	{
+		std::chrono::system_clock::time_point tpoint;
+		get_notbefore(cert, &tpoint);
+		return tpoint;
+	}
+	
+	
+	void get_notafter(const ::X509 * cert, std::tm * utc_tpoint)
+	{
+		assert(cert);
+		assert(utc_tpoint);
+		
+		const auto * notbefore = ::X509_get0_notAfter(cert);
+		if (ASN1_TIME_to_tm(notbefore, utc_tpoint) != 1)
+			throw_last_error("ext::openssl::get_notbefore: ::ASN1_TIME_to_tm failed");
+	}
+	
+	void get_notafter(const ::X509 * cert, std::time_t * tpoint)
+	{
+		assert(cert);
+		assert(tpoint);
+		
+		const auto * notbefore = ::X509_get0_notAfter(cert);
+		
+		std::tm utc;
+		if (ASN1_TIME_to_tm(notbefore, &utc) != 1)
+			throw_last_error("ext::openssl::get_notbefore: ::ASN1_TIME_to_tm failed");
+		
+		*tpoint = ext::mkgmtime(&utc);
+	}
+	
+	void get_notafter(const ::X509 * cert, std::chrono::system_clock::time_point * tpoint)
+	{
+		std::time_t t;
+		get_notafter(cert, &t);
+		
+		*tpoint = std::chrono::system_clock::from_time_t(t);
+	}
+	
+	auto get_notafter(const ::X509 * cert) -> std::chrono::system_clock::time_point
+	{
+		std::chrono::system_clock::time_point t;
+		get_notafter(cert, &t);
+		return t;
+	}
+	
+	
+	
+	void set_notbefore(::X509 * cert, const std::tm * utc_tpoint)
+	{
+		assert(cert);
+		
+		constexpr unsigned N = 64;
+		char buffer[N];
+		
+		auto * notbefore = ::X509_getm_notBefore(cert);
+		std::strftime(buffer, N, ASN1_TIME_GENERALIZED_FMT, utc_tpoint);
+		if (ASN1_TIME_set_string_X509(notbefore, buffer) != 1)
+			throw_last_error("ext::openssl::set_notbefore: ::ASN1_TIME_set_string_X509 failed");
+	}
+	
+	void set_notbefore(::X509 * cert, std::time_t tpoint)
+	{
+		assert(cert);
+		
+		auto * notbefore = ::X509_getm_notBefore(cert);
+		ASN1_TIME_set(notbefore, tpoint);
+	}
+	
 	void set_notbefore(::X509 * cert, std::chrono::system_clock::time_point tpoint)
 	{
 		assert(cert);
@@ -824,7 +1042,28 @@ namespace ext::openssl
 		std::time_t t = std::chrono::system_clock::to_time_t(tpoint);
 		
 		auto * notbefore = ::X509_getm_notBefore(cert);
-		asn1_time_set(notbefore, t);
+		ASN1_TIME_set(notbefore, t);
+	}
+	
+	void set_notafter(::X509 * cert, const std::tm * utc_tpoint)
+	{
+		assert(cert);
+		
+		constexpr unsigned N = 64;
+		char buffer[N];
+		
+		auto * notafter = ::X509_getm_notAfter(cert);
+		std::strftime(buffer, N, ASN1_TIME_GENERALIZED_FMT, utc_tpoint);
+		if (ASN1_TIME_set_string_X509(notafter, buffer) != 1)
+			throw_last_error("ext::openssl::set_notafter: ::ASN1_TIME_set_string_X509 failed");
+	}
+	
+	void set_notafter(::X509 * cert, std::time_t tpoint)
+	{
+		assert(cert);
+		
+		auto * notbefore = ::X509_getm_notAfter(cert);
+		ASN1_TIME_set(notbefore, tpoint);
 	}
 	
 	void set_notafter(::X509 * cert, std::chrono::system_clock::time_point tpoint)
@@ -834,35 +1073,67 @@ namespace ext::openssl
 		std::time_t t = std::chrono::system_clock::to_time_t(tpoint);
 		
 		auto * notafter = ::X509_getm_notAfter(cert);
-		asn1_time_set(notafter, t);
+		ASN1_TIME_set(notafter, t);
+	}
+	
+	
+	
+	void set_duration(::X509 * cert, const std::tm * utc_not_before, const std::tm * utc_not_after)
+	{
+		assert(cert);
+		assert(utc_not_before);
+		assert(utc_not_after);
+				
+		constexpr unsigned N = 64;
+		char buffer[N];
+		
+		auto * notbefore = ::X509_getm_notBefore(cert);
+		auto * notafter  = ::X509_getm_notAfter(cert);
+		
+		std::strftime(buffer, N, ASN1_TIME_GENERALIZED_FMT, utc_not_before);
+		if (ASN1_TIME_set_string_X509(notbefore, buffer) != 1)
+			throw_last_error("ext::openssl::set_duration: ::ASN1_TIME_set_string_X509(not_before) failed");
+		
+		std::strftime(buffer, N, ASN1_TIME_GENERALIZED_FMT, utc_not_after);
+		if (ASN1_TIME_set_string_X509(notafter, buffer) != 1)
+			throw_last_error("ext::openssl::set_duration: ::ASN1_TIME_set_string_X509(not_after) failed");
+	}
+	
+	void set_duration(::X509 * cert, std::chrono::system_clock::time_point not_before, std::chrono::system_clock::time_point not_after)
+	{
+		assert(cert);
+		
+		auto * notbefore = ::X509_getm_notBefore(cert);
+		auto * notafter  = ::X509_getm_notAfter(cert);
+		
+		::ASN1_TIME_set(notbefore, std::chrono::system_clock::to_time_t(not_before));
+		::ASN1_TIME_set(notafter, std::chrono::system_clock::to_time_t(not_after));
+	}
+	
+	void set_duration(::X509 * cert, std::chrono::system_clock::time_point not_before, std::chrono::system_clock::duration duration)
+	{
+		assert(cert);
+		
+		auto * notbefore = ::X509_getm_notBefore(cert);
+		auto * notafter  = ::X509_getm_notAfter(cert);
+		
+		::ASN1_TIME_set(notbefore, std::chrono::system_clock::to_time_t(not_before));
+		::ASN1_STRING_copy(notafter, notbefore); // notafter <- notbefore
+		
+		auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+		::X509_gmtime_adj(notafter, seconds.count());
 	}
 	
 	void set_duration(::X509 * cert, std::chrono::system_clock::duration duration)
 	{
 		assert(cert);
 		
+		auto * notbefore = ::X509_get0_notBefore(cert);
+		auto * notafter  = ::X509_getm_notAfter(cert);
+		::ASN1_STRING_copy(notafter, notbefore); // notafter <- notbefore
+		
 		auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
-		::X509_gmtime_adj(::X509_get_notAfter(cert), seconds.count());
-	}
-	
-	auto get_notbefore(const ::X509 * cert) -> std::chrono::system_clock::time_point
-	{
-		assert(cert);
-		
-		const auto * notbefore = ::X509_get0_notBefore(cert);
-		time_t t = asn1_time_timet(notbefore);
-		
-		return std::chrono::system_clock::from_time_t(t);
-	}
-	
-	auto get_notafter(const ::X509 * cert) -> std::chrono::system_clock::time_point
-	{
-		assert(cert);
-		
-		const auto * notafter = ::X509_get0_notAfter(cert);
-		time_t t = asn1_time_timet(notafter);
-		
-		return std::chrono::system_clock::from_time_t(t);
+		::X509_gmtime_adj(notafter, seconds.count());
 	}
 	
 	std::vector<unsigned char> cert_sha1fingerprint(const ::X509 * cert)
