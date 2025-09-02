@@ -1,4 +1,4 @@
-#if EXT_ENABLE_OPENSSL
+#ifdef EXT_ENABLE_OPENSSL
 
 #include <openssl/asn1.h>
 #include <ext/openssl.hpp>
@@ -16,7 +16,7 @@ BOOST_AUTO_TEST_CASE(openssl_asn1_time_test)
 	testval.type = V_ASN1_GENERALIZEDTIME;
 	testval.flags = ASN1_STRING_FLAG_MSTRING;
 	
-	auto result = ext::openssl::asn1_time_string(&testval, ext::openssl::localtime, "%F %X");
+	auto result = ext::openssl::asn1_time_string(&testval, ext::openssl::timezone::localtime, "%F %X");
 	BOOST_CHECK_EQUAL(result, "3020-12-31 09:19:36");
 }
 

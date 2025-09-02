@@ -81,7 +81,7 @@ namespace ext::openssl
 		peek, /// use ::ERR_peek_error
 	};
 
-	// those can be used as err == ext::openssl_error::zero_return.
+	// Those can be used as err == ext::openssl_error::zero_return.
 	// also we do not include openssl/ssl.h, those definition are asserted in ext/openssl.cpp
 	enum class ssl_errc
 	{
@@ -96,8 +96,12 @@ namespace ext::openssl
 		want_accept      = 8, // SSL_ERROR_WANT_ACCEPT
 	};
 	
-	// timezone in which date/time should be reported, used by some API
-	enum timezone { utc, localtime };
+	// Timezone in which date/time should be reported, used by some API
+	enum class timezone { utc, localtime };
+	// Serialized format: DER, PEM, auto.
+	// auto - detect, if can't detect - fallback to PEM.
+	// For writing auto is equal to PEM.
+	enum class sformat { DER, PEM, auto_ };
 	
 
 	extern const unsigned long rsa_f4; // = RSA_F4/65537
@@ -253,7 +257,7 @@ namespace ext::openssl
 	/// if tz == localtime - converts result std::tm to local time via gmtime and localtime pair calls
 	std::string asn1_time_string(const ::ASN1_TIME * time, timezone tz, const char * fmt = "%c", int max_size = 128);
 	inline std::string asn1_time_string(const ::ASN1_TIME * time, const char * fmt = "%c", int max_size = 128)
-	{ return asn1_time_string(time, localtime, fmt, max_size); }
+	{ return asn1_time_string(time, timezone::localtime, fmt, max_size); }
 
 	/// Converts time to time_t type, with help of asn1_time_tm and std::mkgmtime(or platform alternative)
 	/// returns -1 for special invalid date value
@@ -278,50 +282,50 @@ namespace ext::openssl
 	/*         write/load certificate/private key/PKCS12 functions          */
 	/************************************************************************/
 	
-	/// Loads X509 certificate from given memory location and with optional password(password probably will never be used).
+	/// Loads X509 certificate from given memory location.
 	/// Throws std::system_error in case of errors
-	x509_iptr     load_certificate(const char * data, std::size_t len, std::string_view passwd = "");
-	// loads private key from given memory location and with optional password
+	x509_iptr     load_certificate(const char * data, std::size_t len, sformat form = sformat::auto_);
+	// loads private key from given memory location.
 	/// Throws std::system_error in case of errors
-	evp_pkey_iptr load_private_key(const char * data, std::size_t len, std::string_view passwd = "");
+	evp_pkey_iptr load_private_key(const char * data, std::size_t len, sformat form = sformat::auto_);
 
-	inline x509_iptr     load_certificate(std::string_view str, std::string_view passwd = "") { return load_certificate(str.data(), str.size(), passwd); }
-	inline evp_pkey_iptr load_private_key(std::string_view str, std::string_view passwd = "") { return load_private_key(str.data(), str.size(), passwd); }
+	inline x509_iptr     load_certificate(std::string_view str, sformat form = sformat::auto_) { return load_certificate(str.data(), str.size(), form); }
+	inline evp_pkey_iptr load_private_key(std::string_view str, sformat form = sformat::auto_) { return load_private_key(str.data(), str.size(), form); }
 	
-	/// Writes X509 certificate into memory in PEM format and returns string holding it.
+	/// Writes X509 certificate into memory in PEM(or DER) format and returns string holding it.
 	/// Throws std::system_error in case of errors
-	std::string write_certificate(const ::X509 * cert);
-	/// Writes private key into memory in PEM format and returns string holding it.
+	std::string write_certificate(const ::X509 * cert, sformat form = sformat::auto_);
+	/// Writes private key into memory in PEM(or DER) format and returns string holding it.
 	/// Key will be unprotected(no password encryption).
 	/// Throws std::system_error in case of errors
-	std::string write_pkey(const ::EVP_PKEY * key);
+	std::string write_private_key(const ::EVP_PKEY * key, sformat form = sformat::auto_);
 
-	/// Loads X509 certificate from given path and with optional password
+	/// Loads X509 certificate from given path.
 	/// Throws std::system_error in case of errors
-	x509_iptr load_certificate_from_file(const char * path, std::string_view passwd = "");
-	x509_iptr load_certificate_from_file(std::FILE * file, std::string_view passwd = "");
+	x509_iptr load_certificate_from_file(const char * path, sformat form = sformat::auto_);
+	x509_iptr load_certificate_from_file(std::FILE * file, sformat form = sformat::auto_);
 
-	/// loads private key from given given path and with optional password
+	/// loads private key from given given path.
 	/// Throws std::system_error in case of errors
-	evp_pkey_iptr load_private_key_from_file(const char * path, std::string_view passwd = "");
-	evp_pkey_iptr load_private_key_from_file(std::FILE * path, std::string_view passwd = "");
+	evp_pkey_iptr load_private_key_from_file(const char * path, sformat form = sformat::auto_);
+	evp_pkey_iptr load_private_key_from_file(std::FILE * path, sformat form = sformat::auto_);
 
-	/// Writes X509 certificate into given file in PEM format.
+	/// Writes X509 certificate into given file in PEM(or DER) format.
 	/// Throws std::system_error in case of errors
-	void write_certificate_to_file(std::FILE * fp, ::X509 * cert);
-	void write_certificate_to_file(const char * fname, ::X509 * cert);
+	void write_certificate_to_file(std::FILE * fp, const ::X509 * cert, sformat form = sformat::auto_);
+	void write_certificate_to_file(const char * fname, const ::X509 * cert, sformat form = sformat::auto_);
 	
-	/// Writes private key into given file in PEM format.
+	/// Writes private key into given file in PEM(or DER) format.
 	/// Key will be unprotected(no password encryption).
 	/// Throws std::system_error in case of errors
-	void write_pkey_to_file(std::FILE * fp, const ::EVP_PKEY * pkey);
-	void write_pkey_to_file(const char * fname, const ::EVP_PKEY * pkey);
+	void write_private_key_to_file(std::FILE * fp, const ::EVP_PKEY * pkey, sformat form = sformat::auto_);
+	void write_private_key_to_file(const char * fname, const ::EVP_PKEY * pkey, sformat form = sformat::auto_);
 	
 	
-	/// Loads PKCS12 file from given memory location.
+	/// Loads PKCS12 file from given memory location in DER format.
 	/// Throws std::system_error in case of errors
 	pkcs12_uptr load_pkcs12(const char * data, std::size_t len);
-	/// Loads PKCS12 file from given path.
+	/// Loads PKCS12 file from given path in DER format.
 	/// Throws std::system_error in case of errors
 	pkcs12_uptr load_pkcs12_from_file(const char * path);
 	pkcs12_uptr load_pkcs12_from_file(std::FILE * file);
@@ -335,10 +339,10 @@ namespace ext::openssl
 	void write_pkcs12_to_file(std::FILE * fp, const ::PKCS12 * pkcs12);
 	void write_pkcs12_to_file(const char * path, const ::PKCS12 * pkcs12);
 
-	inline pkcs12_uptr load_pkcs12(std::string_view str) { return load_pkcs12(str.data(), str.size()); }
+	inline pkcs12_uptr load_pkcs12(std::string_view str, sformat form = sformat::auto_) { return load_pkcs12(str.data(), str.size()); }
 
-	inline x509_iptr     load_certificate_from_file(const std::string & path, std::string_view passwd = "") { return load_certificate_from_file(path.c_str(), passwd); }
-	inline evp_pkey_iptr load_private_key_from_file(const std::string & path, std::string_view passwd = "") { return load_private_key_from_file(path.c_str(), passwd); }
+	inline x509_iptr     load_certificate_from_file(const std::string & path, sformat form = sformat::auto_) { return load_certificate_from_file(path.c_str(), form); }
+	inline evp_pkey_iptr load_private_key_from_file(const std::string & path, sformat form = sformat::auto_) { return load_private_key_from_file(path.c_str(), form); }
 	inline pkcs12_uptr   load_pkcs12_from_file(const std::string & path) { return load_pkcs12_from_file(path.c_str()); }
 	
 	/// Tests if PKCS12 is password encrypted, basicly a PKCS12_verify_mac wrapper.

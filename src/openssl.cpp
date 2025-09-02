@@ -1,4 +1,7 @@
 #ifdef EXT_ENABLE_OPENSSL
+#include <stdio.h>
+#include <sys/stat.h>
+
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -38,7 +41,15 @@
 #pragma comment(lib, "crypt32.lib")
 #endif // _MSC_VER
 
+#ifndef alloca
 #define alloca _alloca
+#endif
+
+#ifndef S_ISREG
+#define _S_ISTYPE(mode, mask)  (((mode) & _S_IFMT) == (mask))
+#define S_ISREG(mode) _S_ISTYPE((mode), _S_IFREG)
+#define S_ISDIR(mode) _S_ISTYPE((mode), _S_IFDIR)
+#endif // S_ISREG
 
 #endif // BOOST_OS_WINDOWS
 
@@ -454,7 +465,7 @@ namespace ext::openssl
 		if (::ASN1_TIME_to_tm(time, &tm) != 1)
 			throw_last_error("ext::openssl::asn1_time_string: ASN1_TIME_to_tm failed");
 		
-		if (tz == localtime)
+		if (tz == timezone::localtime)
 		{
 		#if not BOOST_OS_WINDOWS
 			auto t = ext::mkgmtime(&tm);
@@ -551,40 +562,148 @@ namespace ext::openssl
 	/************************************************************************/
 	/*                  utility stuff                                       */
 	/************************************************************************/
-	static int password_callback(char * buff, int bufsize, int rwflag, void * userdata)
+	static bool is_pem(sformat form, const char * data, std::size_t len)
 	{
-		auto & passwd = *static_cast<std::string_view *>(userdata);
-		passwd.copy(buff, bufsize);
+		switch (form)
+		{
+			case sformat::PEM: return true;
+			case sformat::DER: return false;
+			case sformat::auto_:
+			{
+				std::string_view str(data, len);
+				std::string_view::size_type cur = 0;
+				while (cur < str.size())
+				{
+					auto line_end = str.find('\n', cur);
+					auto line = str.substr(cur, line_end - cur);
+					auto nspace_pos = line.find_first_not_of(" \t\r\0");
+					if (nspace_pos == line.npos)
+					{
+						cur = line_end + 1;
+						continue;
+					}
+					
+					return line.compare(nspace_pos, 5, "-----") == 0;
+				}
+				
+				return false;
+			}
+			
+			default:
+				EXT_UNREACHABLE();
+		}
+	}
+	
+	static bool is_pem(sformat form, std::FILE * fp)
+	{
+		switch (form)
+		{
+			case sformat::PEM: return true;
+			case sformat::DER: return false;
+			case sformat::auto_:
+			{
+				constexpr unsigned N = 512;
+				char buffer[N + 4];
+				
+				struct stat stat;
+				if (fstat(fileno(fp), &stat) != 0)
+					ext::throw_last_errno("ext::openssl::is_pem: fstat failure");
+				
+				if (not S_ISREG(stat.st_mode))
+					return true;
+				
+				while (std::fgets(buffer, N + 1, fp))
+				{
+					auto isspace = [](char c) { return c == ' ' or c == '\t' or c == '\r' or c == '\0'; };
+					auto it = std::find_if_not(buffer, buffer + N, isspace);
+					if (it == buffer + N or *it == '\n')
+						continue;
+					
+					std::rewind(fp);
+					if (errno)
+						ext::throw_last_errno("ext::openssl::is_pem: std::rewind failure");
+					
+					return std::strncmp(it, "-----", 5) == 0;
+				}
+				
+				std::rewind(fp);
+				if (errno)
+					ext::throw_last_errno("ext::openssl::is_pem: std::rewind failure");
+				
+				return false;
+			}
+			
+			default:
+				EXT_UNREACHABLE();
+		}
+	}
+	
+	struct FILE_closer
+	{
+		void operator()(FILE * f) const noexcept { std::fclose(f); }
+	};
+	
+	static int empty_password_callback(char * buff, int bufsize, int rwflag, void * userdata)
+	{
+		*buff = 0;
 		return 0;
 	}
+	
+	static int (* const PASSWORD_CALLBACK)(char * buff, int bufsize, int rwflag, void * userdata) = &empty_password_callback;
 
-	x509_iptr load_certificate(const char * data, std::size_t len, std::string_view passwd)
+	x509_iptr load_certificate(const char * data, std::size_t len, sformat form)
 	{
 		bio_uptr bio_uptr;
 
 		auto * bio = ::BIO_new_mem_buf(data, static_cast<int>(len));
 		bio_uptr.reset(bio);
-		if (not bio) throw_last_error("ext::openssl::load_certificate: ::BIO_new_mem_buf failed");
-
-		::X509 * cert = ::PEM_read_bio_X509(bio, nullptr, password_callback, &passwd);
-		if (not cert) throw_last_error("ext::openssl::load_certificate: ::PEM_read_bio_X509 failed");
+		if (not bio)
+			throw_last_error("ext::openssl::load_certificate: ::BIO_new_mem_buf failed");
+		
+		::X509 * cert;
+		if (is_pem(form, data, len))
+		{
+			cert = ::PEM_read_bio_X509(bio, nullptr, PASSWORD_CALLBACK, nullptr);
+			if (not cert)
+				throw_last_error("ext::openssl::load_certificate: ::PEM_read_bio_X509 failed");
+		}
+		else
+		{
+			cert = ::d2i_X509_bio(bio, nullptr);
+			if (not cert)
+				throw_last_error("ext::openssl::load_certificate: ::d2i_X509_bio failed");
+		}
+		
 		return x509_iptr(cert, ext::noaddref);
 	}
 
-	evp_pkey_iptr load_private_key(const char * data, std::size_t len, std::string_view passwd)
+	evp_pkey_iptr load_private_key(const char * data, std::size_t len, sformat form)
 	{
 		bio_uptr bio_uptr;
 
 		auto * bio = ::BIO_new_mem_buf(data, static_cast<int>(len));
 		bio_uptr.reset(bio);
-		if (not bio) throw_last_error("ext::openssl::load_private_key: ::BIO_new_mem_buf failed");
-
-		::EVP_PKEY * pkey = ::PEM_read_bio_PrivateKey(bio, nullptr, password_callback, &passwd);
-		if (not bio) throw_last_error("ext::openssl::load_private_key: ::PEM_read_bio_PrivateKey failed");
+		if (not bio)
+			throw_last_error("ext::openssl::load_private_key: ::BIO_new_mem_buf failed");
+		
+		::EVP_PKEY * pkey;
+		if (is_pem(form, data, len))
+		{
+			pkey = ::PEM_read_bio_PrivateKey(bio, nullptr, PASSWORD_CALLBACK, nullptr);
+			if (not pkey)
+				throw_last_error("ext::openssl::load_private_key: ::PEM_read_bio_PrivateKey failed");
+		}
+		else
+		{
+			pkey = ::d2i_PrivateKey_bio(bio, nullptr);
+			if (not pkey)
+				throw_last_error("ext::openssl::load_private_key: ::d2i_PrivateKey_bio failed");
+		}
+		
 		return evp_pkey_iptr(pkey, ext::noaddref);
 	}
 	
-	std::string write_certificate(const ::X509 * cert)
+	std::string write_certificate(const ::X509 * cert, sformat form)
 	{
 		assert(cert);
 		
@@ -592,16 +711,35 @@ namespace ext::openssl
 		if (not mem_bio) throw_last_error("ext::openssl::write_certificate: ::BIO_new failed");
 		bio_uptr bio_ptr(mem_bio);
 		
-		int res = ::PEM_write_bio_X509(mem_bio, v1_unconst(cert));
-		if (not res) throw_last_error("ext::openssl::write_certificate: ::PEM_write_bio_X509 failed");
-		
+		int res;
+		switch (form)
+		{
+			case sformat::auto_:
+			case sformat::PEM:
+				res = ::PEM_write_bio_X509(mem_bio, v1_unconst(cert));
+				if (not res)
+					throw_last_error("ext::openssl::write_certificate: ::PEM_write_bio_X509 failed");
+				
+				break;
+				
+			case sformat::DER:
+				res = ::i2d_X509_bio(mem_bio, v1_unconst(cert));
+				if (not res)
+					throw_last_error("ext::openssl::write_certificate: ::i2d_X509_bio failed");
+				
+				break;
+			
+			default:
+				EXT_UNREACHABLE();
+		}
+				
 		char * data;
 		int len = ::BIO_get_mem_data(mem_bio, &data);
 		
 		return std::string(data, len);
 	}
 	
-	std::string write_pkey(const ::EVP_PKEY * key)
+	std::string write_private_key(const ::EVP_PKEY * key, sformat form)
 	{
 		assert(key);
 		
@@ -609,22 +747,41 @@ namespace ext::openssl
 		if (not mem_bio) throw_last_error("ext::openssl::write_pkey: ::BIO_new failed");
 		bio_uptr bio_ptr(mem_bio);
 		
-		int res = ::PEM_write_bio_PrivateKey(mem_bio, v1_unconst(key), nullptr, nullptr, 0, nullptr, nullptr);
-		if (not res) throw_last_error("ext::openssl::write_pkey: ::PEM_write_bio_X509 failed");
-		
+		int res;
+		switch (form)
+		{
+			case sformat::auto_:
+			case sformat::PEM:
+				res = ::PEM_write_bio_PrivateKey(mem_bio, v1_unconst(key), nullptr, nullptr, 0, nullptr, nullptr);
+				if (not res)
+					throw_last_error("ext::openssl::write_pkey: ::PEM_write_bio_X509 failed");
+				
+				break;
+				
+			case sformat::DER:
+				res = ::i2d_PrivateKey_bio(mem_bio, v1_unconst(key));
+				if (not res)
+					throw_last_error("ext::openssl::write_pkey: ::i2d_PrivateKey_bio failed");
+				
+				break;
+				
+			default:
+				EXT_UNREACHABLE();
+		}
+				
 		char * data;
 		int len = ::BIO_get_mem_data(mem_bio, &data);
 		
 		return std::string(data, len);
 	}
 
-	x509_iptr load_certificate_from_file(const char * path, std::string_view passwd)
+	x509_iptr load_certificate_from_file(const char * path, sformat form)
 	{
 #if BOOST_OS_WINDOWS
 		auto wpath = ext::codecvt_convert::wchar_cvt::to_wchar(path);
-		std::FILE * fp = ::_wfopen(wpath.c_str(), L"r");
+		std::unique_ptr<std::FILE, FILE_closer> fp(::_wfopen(wpath.c_str(), L"rb"));
 #else
-		std::FILE * fp = std::fopen(path, "r");
+		std::unique_ptr<std::FILE, FILE_closer> fp(std::fopen(path, "rb"));
 #endif
 		if (fp == nullptr)
 		{
@@ -632,30 +789,37 @@ namespace ext::openssl
 			throw std::system_error(errc, "ext::openssl::load_certificate_from_file: std::fopen failed");
 		}
 
-		::X509 * cert = ::PEM_read_X509(fp, nullptr, password_callback, &passwd);
-		std::fclose(fp);
-
-		if (not cert) throw_last_error("ext::openssl::load_certificate_from_file: ::PEM_read_X509 failed");
-		return x509_iptr(cert, ext::noaddref);
+		return load_certificate_from_file(fp.get(), form);
 	}
 
-	x509_iptr load_certificate_from_file(std::FILE * file, std::string_view passwd)
+	x509_iptr load_certificate_from_file(std::FILE * file, sformat form)
 	{
 		assert(file);
-		::X509 * cert = ::PEM_read_X509(file, nullptr, password_callback, &passwd);
-
-		if (not cert) throw_last_error("ext::openssl::load_certificate_from_file: ::PEM_read_X509 failed");
+		::X509 * cert;
+		if (is_pem(form, file))
+		{
+			cert = ::PEM_read_X509(file, nullptr, PASSWORD_CALLBACK, nullptr);
+			if (not cert)
+				throw_last_error("ext::openssl::load_certificate_from_file: ::PEM_read_X509 failed");
+		}
+		else
+		{
+			cert = ::d2i_X509_fp(file, nullptr);
+			if (not cert)
+				throw_last_error("ext::openssl::load_certificate_from_file: ::d2i_X509_fp failed");
+		}
+		
 		return x509_iptr(cert, ext::noaddref);
 	}
 
 
-	evp_pkey_iptr load_private_key_from_file(const char * path, std::string_view passwd)
+	evp_pkey_iptr load_private_key_from_file(const char * path, sformat form)
 	{
 #if BOOST_OS_WINDOWS
 		auto wpath = ext::codecvt_convert::wchar_cvt::to_wchar(path);
-		std::FILE * fp = ::_wfopen(wpath.c_str(), L"r");
+		std::unique_ptr<std::FILE, FILE_closer> fp(::_wfopen(wpath.c_str(), L"rb"));
 #else
-		std::FILE * fp = std::fopen(path, "r");
+		std::unique_ptr<std::FILE, FILE_closer> fp(std::fopen(path, "rb"));
 #endif
 
 		if (fp == nullptr)
@@ -664,43 +828,69 @@ namespace ext::openssl
 			throw std::system_error(errc, "ext::openssl::load_private_key_from_file: std::fopen failed");
 		}
 
-		//                  traditional or PKCS#8 format
-		::EVP_PKEY * pkey = ::PEM_read_PrivateKey(fp, nullptr, password_callback, &passwd);
-		std::fclose(fp);
-
-		if (not pkey) throw_last_error("ext::openssl::load_private_key_from_file: ::PEM_read_PrivateKey failed");
-		return evp_pkey_iptr(pkey, ext::noaddref);
+		return load_private_key_from_file(fp.get(), form);
 	}
 
-	evp_pkey_iptr load_private_key_from_file(std::FILE * file, std::string_view passwd)
+	evp_pkey_iptr load_private_key_from_file(std::FILE * file, sformat form)
 	{
 		assert(file);
+		
 		//                  traditional or PKCS#8 format
-		::EVP_PKEY * pkey = ::PEM_read_PrivateKey(file, nullptr, password_callback, &passwd);
-
-		if (not pkey) throw_last_error("ext::openssl::load_private_key_from_file: ::PEM_read_PrivateKey failed");
+		::EVP_PKEY * pkey;
+		if (is_pem(form, file))
+		{
+			pkey = ::PEM_read_PrivateKey(file, nullptr, PASSWORD_CALLBACK, nullptr);
+			if (not pkey)
+				throw_last_error("ext::openssl::load_private_key_from_file: ::PEM_read_PrivateKey failed");
+		}
+		else
+		{
+			pkey = ::d2i_PrivateKey_fp(file, nullptr);
+			if (not pkey)
+				throw_last_error("ext::openssl::load_private_key_from_file: ::d2i_PrivateKey_fp failed");
+		}
+		
 		return evp_pkey_iptr(pkey, ext::noaddref);
 	}
 	
-	void write_certificate_to_file(std::FILE * fp, ::X509 * cert)
+	void write_certificate_to_file(std::FILE * fp, const ::X509 * cert, sformat form)
 	{
 		assert(fp);
 		assert(cert);
 		
-		int res = ::PEM_write_X509(fp, cert);
-		if (not res) throw_last_error("ext::openssl::write_certificate_to_file: ::PEM_write_X509 failed");
+		int res;
+		switch (form)
+		{
+			case sformat::auto_:
+			case sformat::PEM:
+				res = ::PEM_write_X509(fp, v1_unconst(cert));
+				if (not res)
+					throw_last_error("ext::openssl::write_certificate_to_file: ::PEM_write_X509 failed");
+				
+				break;
+				
+			case sformat::DER:
+				res = ::i2d_X509_fp(fp, v1_unconst(cert));
+				if (not res)
+					throw_last_error("ext::openssl::write_certificate_to_file: ::i2d_X509_fp failed");
+				
+				break;
+				
+			default:
+				EXT_UNREACHABLE();
+		}
 	}
 	
-	void write_certificate_to_file(const char * path, ::X509 * cert)
+	void write_certificate_to_file(const char * path, const ::X509 * cert, sformat form)
 	{
 		assert(path);
 		assert(cert);
 		
 #if BOOST_OS_WINDOWS
 		auto wpath = ext::codecvt_convert::wchar_cvt::to_wchar(path);
-		std::FILE * fp = ::_wfopen(wpath.c_str(), L"wb");
+		std::unique_ptr<std::FILE, FILE_closer> fp(::_wfopen(wpath.c_str(), L"wb"));
 #else
-		std::FILE * fp = std::fopen(path, "wb");
+		std::unique_ptr<std::FILE, FILE_closer> fp(std::fopen(path, "wb"));
 #endif
 
 		if (fp == nullptr)
@@ -709,31 +899,47 @@ namespace ext::openssl
 			throw std::system_error(errc, "ext::openssl::write_certificate_to_file: std::fopen failed");
 		}
 		
-		int res = ::PEM_write_X509(fp, cert);
-		fclose(fp);
-		
-		if (not res) throw_last_error("ext::openssl::write_certificate_to_file: ::PEM_write_X509 failed");
+		return write_certificate_to_file(fp.get(), cert, form);
 	}
 	
-	void write_pkey_to_file(std::FILE * fp, const ::EVP_PKEY * pkey)
+	void write_private_key_to_file(std::FILE * fp, const ::EVP_PKEY * pkey, sformat form)
 	{
 		assert(fp);
 		assert(pkey);
 		
-		int res = ::PEM_write_PrivateKey(fp, v1_unconst(pkey), nullptr, nullptr, 0, nullptr, nullptr);
-		if (not res) throw_last_error("ext::openssl::write_pkey_to_file: ::PEM_write_PrivateKey failed");
+		int res;
+		switch (form)
+		{
+			case sformat::auto_:
+			case sformat::PEM:
+				res = ::PEM_write_PrivateKey(fp, v1_unconst(pkey), nullptr, nullptr, 0, nullptr, nullptr);
+				if (not res)
+					throw_last_error("ext::openssl::write_pkey_to_file: ::PEM_write_PrivateKey failed");
+				
+				break;
+				
+			case sformat::DER:
+				res = ::i2d_PrivateKey_fp(fp, v1_unconst(pkey));
+				if (not res)
+					throw_last_error("ext::openssl::write_pkey_to_file: ::PEM_write_PrivateKey failed");
+				
+				break;
+			
+			default:
+				EXT_UNREACHABLE();
+		}
 	}
 	
-	void write_pkey_to_file(const char * path, const ::EVP_PKEY * pkey)
+	void write_private_key_to_file(const char * path, const ::EVP_PKEY * pkey, sformat form)
 	{
 		assert(path);
 		assert(pkey);
 		
 #if BOOST_OS_WINDOWS
 		auto wpath = ext::codecvt_convert::wchar_cvt::to_wchar(path);
-		std::FILE * fp = ::_wfopen(wpath.c_str(), L"wb");
+		std::unique_ptr<std::FILE, FILE_closer> fp(::_wfopen(wpath.c_str(), L"wb"));
 #else
-		std::FILE * fp = std::fopen(path, "wb");
+		std::unique_ptr<std::FILE, FILE_closer> fp(std::fopen(path, "wb"));
 #endif
 
 		if (fp == nullptr)
@@ -742,10 +948,7 @@ namespace ext::openssl
 			throw std::system_error(errc, "ext::openssl::write_pkey_to_file: std::fopen failed");
 		}
 		
-		int res = ::PEM_write_PrivateKey(fp, v1_unconst(pkey), nullptr, nullptr, 0, nullptr, nullptr);
-		fclose(fp);
-		
-		if (not res) throw_last_error("ext::openssl::write_pkey_to_file: ::PEM_write_PrivateKey failed");
+		return write_private_key_to_file(fp.get(), pkey, form);
 	}
 
 	pkcs12_uptr load_pkcs12(const char * data, std::size_t len)
@@ -762,9 +965,9 @@ namespace ext::openssl
 	{
 #if BOOST_OS_WINDOWS
 		auto wpath = ext::codecvt_convert::wchar_cvt::to_wchar(path);
-		std::FILE * fp = ::_wfopen(wpath.c_str(), L"r");
+		std::FILE * fp = ::_wfopen(wpath.c_str(), L"rb");
 #else
-		std::FILE * fp = std::fopen(path, "r");
+		std::FILE * fp = std::fopen(path, "rb");
 #endif
 
 		if (fp == nullptr)
