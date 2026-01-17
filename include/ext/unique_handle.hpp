@@ -7,10 +7,10 @@
 namespace ext
 {
 	/// similar to unique_ptr, but manges object pointed by numeric handle.
-	/// HandleTraits should provide 2 static functions:
+	/// HandleTraits should provide 2 functions:
 	/// * void close(HandleType handle) noexcept
 	///        closes handle
-	/// * HandleType emptyval() noexcept
+	/// * static HandleType emptyval() noexcept
 	///        returns empty/invalid handle value, this is default value, analog for nullptr for unique_ptr
 	template <class HandleType, class HandleTraits, class TagType = void>
 	class unique_handle :

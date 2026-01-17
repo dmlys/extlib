@@ -305,6 +305,11 @@ namespace ext::openssl
 		::SSL_CTX_free(sslctx);
 	}
 
+	void openssl_deleter::operator()(void * ptr) const noexcept
+	{
+		OPENSSL_free(ptr);
+	}
+	
 	void bignum_deleter::operator()(::BIGNUM * bn) const noexcept
 	{
 		::BN_free(bn);
@@ -320,6 +325,11 @@ namespace ext::openssl
 		::X509_free(cert);
 	}
 
+	void evp_md_ctx_deleter::operator()(::EVP_MD_CTX * ctx) const noexcept
+	{
+		::EVP_MD_CTX_free(ctx);
+	}
+	
 	void evp_pkey_ctx_deleter::operator()(::EVP_PKEY_CTX * ctx) const noexcept
 	{
 		::EVP_PKEY_CTX_free(ctx);
@@ -389,19 +399,14 @@ namespace ext::openssl
 	
 	std::string bignum_string(const ::BIGNUM * num)
 	{
-		auto * str = ::BN_bn2dec(num);
-		std::string result = str;
-		::OPENSSL_free(str);
-		return result;
+		openssl_uptr<char> str(::BN_bn2dec(num));
+		return std::string(str.get());
 	}
 	
 	std::string asn1_integer_string(const ::ASN1_INTEGER * integer)
 	{
-		auto * bn = ::ASN1_INTEGER_to_BN(integer, nullptr);
-		auto result = bignum_string(bn);
-		::BN_free(bn);
-
-		return result;
+		bignum_uptr bn(::ASN1_INTEGER_to_BN(integer, nullptr));
+		return bignum_string(bn.get());
 	}
 	
 	static int utc_offset()
