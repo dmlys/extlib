@@ -624,6 +624,7 @@ namespace ext::openssl
 					if (it == buffer + N or *it == '\n')
 						continue;
 					
+					errno = 0;
 					std::rewind(fp);
 					if (errno)
 						ext::throw_last_errno("ext::openssl::is_pem: std::rewind failure");
@@ -631,6 +632,7 @@ namespace ext::openssl
 					return std::strncmp(it, "-----", 5) == 0;
 				}
 				
+				errno = 0;
 				std::rewind(fp);
 				if (errno)
 					ext::throw_last_errno("ext::openssl::is_pem: std::rewind failure");
