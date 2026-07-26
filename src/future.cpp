@@ -453,6 +453,16 @@ namespace ext
 		ext::unconst(this)->release_waiter(waiter);
 		return res;
 	}
+	
+	void * shared_state_basic::get_ptr()
+	{
+		wait();
+		// wait checks m_fstnext for ready with std::memory_order_relaxed
+		// to see m_val, we must synchronize with release operation in set_* functions
+		std::atomic_thread_fence(std::memory_order_acquire);
+		
+		return get_ptr_nowait();
+	}
 
 	void unwrap_continuation::set_future_ready() noexcept
 	{
@@ -521,11 +531,11 @@ namespace ext
 		return state->cancel();
 	}
 
-	void * unwrap_continuation::get_ptr()
+	void * unwrap_continuation::get_ptr_nowait()
 	{
 		auto ptr = m_future_ptr.load(std::memory_order_relaxed);
 		auto state = reinterpret_cast<ext::shared_state_basic *>(ptr);
-		return state->get_ptr();
+		return state->get_ptr_nowait();
 	}
 
 	unwrap_continuation::unwrap_continuation(ext::intrusive_ptr<shared_state_basic> future, unsigned unwrap_count) noexcept

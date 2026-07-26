@@ -570,9 +570,11 @@ namespace ext
 		/// Type-erased get method, returns pointer to a stored value, for void future returns nullptr
 		/// for reference specializations returns stored pointer.
 		/// Does not wait or checks for future become ready,
-		/// use get<Type>() instead - it waits for becoming ready
-		virtual void * get_ptr() = 0;
-		/// typed return, type is specified explicitly, it uses get_ptr internally and necessary casts
+		/// use get_ptr or get<Type>() instead - it waits for becoming ready
+		virtual void * get_ptr_nowait() = 0;
+		/// Type-erased get method, same as get_ptr_nowait, but waits future to become ready
+		virtual void * get_ptr();
+		/// Typed return, type is specified explicitly, it uses get_ptr internally and necessary casts
 		template <class Type> Type get();
 
 		/// Type-erased set_value method, fulfills promise and sets value result from ptr.
@@ -623,8 +625,8 @@ namespace ext
 	class continuation_base : public shared_state_basic
 	{
 	public:
-		// both get_ptr and set_exception are not needed and should not be used for service continuations
-		void * get_ptr() override { throw std::logic_error("continuation_base::get_ptr unexpected"); };
+		// get_ptr_nowait, set_ptr and set_exception are not needed and should not be used for service continuations
+		void * get_ptr_nowait() override { throw std::logic_error("continuation_base::get_ptr_nowait unexpected"); };
 		void set_ptr(void * ptr) override { throw std::logic_error("continuation_base::set_ptr unexpected"); }
 		void set_exception(std::exception_ptr eptr) override { throw std::logic_error("continuation_base::set_exception unexpected"); }
 
@@ -661,7 +663,7 @@ namespace ext
 		};
 
 	public:
-		void * get_ptr() override;
+		void * get_ptr_nowait() override;
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
@@ -702,7 +704,7 @@ namespace ext
 		};
 
 	public:
-		void * get_ptr() override;
+		void * get_ptr_nowait() override;
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(value_type & val);
@@ -743,7 +745,7 @@ namespace ext
 		};
 
 	public:
-		void * get_ptr() override;
+		void * get_ptr_nowait() override;
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(void);
@@ -785,7 +787,7 @@ namespace ext
 		};
 
 	public:
-		void * get_ptr() override;
+		void * get_ptr_nowait() override;
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(const value_type & val);
@@ -824,7 +826,7 @@ namespace ext
 		value_type * m_val;
 
 	public:
-		void * get_ptr() override;
+		void * get_ptr_nowait() override;
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(value_type & val);
@@ -856,7 +858,7 @@ namespace ext
 		using base_type::set_future_ready;
 		
 	public:
-		void * get_ptr() override;
+		void * get_ptr_nowait() override;
 		void set_ptr(void * ptr) override;
 		/// fulfills promise and sets shared result val
 		void set_value(void);
@@ -1232,7 +1234,7 @@ namespace ext
 	public:
 		bool cancel() noexcept override;
 		void continuate(shared_state_basic * caller) noexcept override;
-		void * get_ptr() override;
+		void * get_ptr_nowait() override;
 
 	public:
 		unwrap_continuation(ext::intrusive_ptr<shared_state_basic> future, unsigned unwrap_count) noexcept;
@@ -1333,11 +1335,6 @@ namespace ext
 	template <class Type>
 	inline Type shared_state_basic::get()
 	{
-		wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchronize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
-
 		using cast_type = std::conditional_t<
 			std::is_reference<Type>::value,
 			Type &,     // if reference return as from reference
@@ -1355,11 +1352,6 @@ namespace ext
 	template <>
 	inline void shared_state_basic::get()
 	{
-		wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
-		// to see m_val, we must synchronize with release operation in set_* functions
-		std::atomic_thread_fence(std::memory_order_acquire);
-
 		get_ptr();
 	}
 
@@ -1413,7 +1405,7 @@ namespace ext
 	/*          shared_state<Type>      method implementation               */
 	/************************************************************************/
 	template <class Type>
-	void * shared_state<Type>::get_ptr()
+	void * shared_state<Type>::get_ptr_nowait()
 	{
 		assert(is_ready());
 		switch (status())
@@ -1489,7 +1481,7 @@ namespace ext
 	/*          shared_state<Type &>      method implementation             */
 	/************************************************************************/
 	template <class Type>
-	void * shared_state<Type &>::get_ptr()
+	void * shared_state<Type &>::get_ptr_nowait()
 	{
 		assert(is_ready());
 		switch (status())
@@ -1554,7 +1546,7 @@ namespace ext
 	/************************************************************************/
 	/*          shared_state<void>      method implementation               */
 	/************************************************************************/
-	inline void * shared_state<void>::get_ptr()
+	inline void * shared_state<void>::get_ptr_nowait()
 	{
 		assert(is_ready());
 		switch (status())
@@ -1615,7 +1607,7 @@ namespace ext
 	/*      shared_state_unexceptional<Type>      method implementation     */
 	/************************************************************************/
 	template <class Type>
-	void * shared_state_unexceptional<Type>::get_ptr()
+	void * shared_state_unexceptional<Type>::get_ptr_nowait()
 	{
 		assert(is_ready());
 		switch (status())
@@ -1687,7 +1679,7 @@ namespace ext
 	/*      shared_state_unexceptional<Type &>    method implementation     */
 	/************************************************************************/
 	template <class Type>
-	void * shared_state_unexceptional<Type &>::get_ptr()
+	void * shared_state_unexceptional<Type &>::get_ptr_nowait()
 	{
 		assert(is_ready());
 		switch (status())
@@ -1728,7 +1720,7 @@ namespace ext
 	/************************************************************************/
 	/*        shared_state_unexceptional<void>    method implementation     */
 	/************************************************************************/
-	inline void * shared_state_unexceptional<void>::get_ptr()
+	inline void * shared_state_unexceptional<void>::get_ptr_nowait()
 	{
 		assert(is_ready());
 		switch (status())
