@@ -12,7 +12,7 @@ Project
 		Depends { name: "dmlys.qbs-common"; required: false }
 		Depends { name: "ProjectSettings"; required: false }
 
-		cpp.cxxLanguageVersion : "c++17"
+		cpp.cxxLanguageVersion : "c++20"
 		cpp.includePaths: ["include"]
 
 		cpp.defines: {
@@ -33,7 +33,7 @@ Project
 			property bool with_openssl: project.with_openssl
 			
 			Depends { name: "cpp" }
-			cpp.cxxLanguageVersion : "c++17"
+			cpp.cxxLanguageVersion : "c++20"
 
 			cpp.includePaths: [exportingProduct.sourceDirectory + "/include"]
 			cpp.defines: {

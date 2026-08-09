@@ -29,6 +29,8 @@
 #include <ext/intrusive_ptr.hpp>
 #include <ext/try_reserve.hpp>
 
+#include <boost/integer/static_log2.hpp>
+
 namespace ext
 {
 	/// status of a future
@@ -48,7 +50,7 @@ namespace ext
 		value,        // holds a value
 		exception,    // holds an exception
 		cancellation, // promise was cancelled though an associated future
-		abandonned,   // promise was abandoned
+		abandonned,   // promise was abandoned(promise destroyed without setting any result - value, exception, cancelled)
 	};
 
 	/// launch policy
@@ -58,7 +60,7 @@ namespace ext
 		deferred = 2,
 	};
 
-	/// future error conditions(strictly error codes)
+	/// future error conditions(strictly speaking error codes)
 	enum class future_errc
 	{
 		broken_promise             = 1,   // the asynchronous task abandoned its shared state
@@ -115,7 +117,7 @@ namespace ext
 	template <class ... Type>
 	constexpr bool is_future_types_v = is_future_types<Type...>::value;
 
-	/// metafunction, returns how many future type wrappers is in type:
+	/// meta-function, returns how many future type wrappers is in type:
 	/// other type - 0
 	/// future<type> - 1
 	/// future<future<type>> - 2
@@ -131,7 +133,7 @@ namespace ext
 	template <class Type>
 	constexpr unsigned future_depth_v = future_depth<Type>::value;
 
-	/// metafunction, unwrap future chain and returns underlying type
+	/// meta-function, unwraps future chain and returns underlying type
 	/// future<int> - int
 	/// future<future<string>> - string
 	/// ...
@@ -166,9 +168,18 @@ namespace ext
 	};
 
 
-
+	/// Initializes future library, sets custom continuation_waiters_pool
+	/// This pool is used to provide waiters for wait operations.
 	bool init_future_library(std::unique_ptr<continuation_waiters_pool> pool);
+	/// Initializes future library. This function should be called at before using any other functions/classes from future lib,
+	/// NOTE: Calling this function is not mandatory - default_continuation_waiters_pool will be used by default.
+	/// 
+	/// if waiter_slots == 0 setups default_continuation_waiters_pool which allocates and frees waiters as needed
+	/// if waiter_slots >  0 setups arena_continuation_pool with given fixed number of waiters.
 	bool init_future_library(unsigned waiter_slots = 0);
+	/// Frees future library. Typically this function should be called at application termination.
+	/// NOTE: Calling this function is not mandatory
+	/// Currently releases custom continuation_waiters_pool if was set.
 	void free_future_library();
 
 
@@ -258,50 +269,8 @@ namespace ext
 	
 	
 
-
-	// Ideally i want to specify abstract virtual interfaces for future, promise, packaged_task,
-	// and ext::future, ext::promise, ext::packaged_task would be front-end classes used by clients.
-	// This library would provide implementation of those interfaces via:
-	// * shared_state_basic - type-independent implementation: refcount, wait, etc
-	// * shared_state - type-dependent implementation: get, set_value, etc
-	// but clients would be able to implement own if they need so.
-	//
-	// It's very hard to specify future interface(ifuture) for 2 reasons:
-	// * this one minor:
-	//
-	//   If ifuture is template of Type, then shared_state_basic implements ifuture<Type>(or other template interface).
-	//   This would lead to duplication of type-independent methods for each specialization in objects files - code bloat.
-	//   Another option - use multiple inheritance(possibly with virtual base classes) - this leads to slightly increased object size, which is unwanted.
-	//
-	//   ifuture could be not a template class -> and get method would return void *.
-	//   Parametrization would be done by front-end classes: future, shared_future.
-	//   While ifuture is loosely typed, ext::future, ext::shared_future takes care of this.
-	//
-	// * major:
-	//
-	//   it's hard to specify/define 'then' method:
-	//   it's takes some functor template as argument, and returns future of RetType,
-	//   where RetType is return type of argument-functor.
-	//
-	//   What signature should method 'then' have? (it is in a interface and should be virtual)
-	//   It could return typeless ifuture, and ext::future, ext::shared_future takes care of typization.
-	//   But how functor should be passed? std::function<RetType()>? What RetType should be?
-	//
-	//      std::function<void *()> could be used -> now method 'then' could create packaged_task<void *()> and return it.
-	//      But it's state is of type void *, not Type. Where Type instance will be stored?
-	//      Implementation of then method cannot know origin type, so it cannot allocate some additional storage for it.
-	//
-	//      Special type erased object with virtual methods can be created, holding internally both space for return value and functor itself.
-	//      That object can be created on stack and pointer and it's size can be passed into then method,
-	//      implementation would create object based on that additional space and copy into it - this would avoid extra heap allocation.
-	//      Also there are would be some align caveats, but they are solvable.
-	//      That would work - but it's somewhat complicated, also incur some additional virtual calls.
-	//
-	// For now implement without interfaces. ext::future would hold a pointer to shared_state<Type>.
-	// Method 'then' will be template function -> thus can easily create packaged_task<RetType()>
-
 	// Shared state implementation is divided between several classes:
-	// * shared_state_basic - type independent part, implementation of promise state, continuations
+	// * shared_state_basic - type independent part, implementation of future/promise state, continuations
 	// * shared_state - type dependent part, have space for object, exception pointer
 	// * shared_state_unexceptional - same as shared_state, but does not allow set_exception and thus not storing std::exception_ptr,
 	//                                can be used by asynchronous task not throwing exceptions
@@ -332,12 +301,12 @@ namespace ext
 	class when_any_task_continuation;
 	class when_all_task_continuation;
 
-	template <class> class when_any_task;
-	template <class> class when_all_task;
+	template <class Type> class when_any_task;
+	template <class Type> class when_all_task;
 
 
 
-	/// shared_state_basic type independent part, implementation of future/promise state, basic continuations support
+	/// shared_state_basic - type independent part, implementation of future/promise state, basic continuations support
 	/// 
 	/// Design goals:
 	/// * we must hold information of promise state to prevent multiple value submission.
@@ -346,14 +315,18 @@ namespace ext
 	/// * waiting - future can be waited for becoming ready, including concurrently via shared_futures
 	/// 
 	///
+	/// TODO: Actually not, we can use futexes.
+	///       Implement this stuff competly without waiters, just using futexes if possible.
 	/// Waiting means mutex and condition_variable.
 	/// On the other hand - I want this object to be as small as possible, with reasonable complexity.
-	/// I don't want it to always hold mutex and condition variable, which are not trivial classes.
+	/// I don't want it to always hold mutex and condition variable, which are not trivial classes and not that small.
 	/// 
-	/// Also while future goal is to be used in multi-thread environment -
-	/// 'wait' and 'then' calls would not have big concurrency in normal program.
-	/// Normally user adds few continuations and that's all, wait calls also usually not so frequent(not like call wait_for(10ms) in a loop).
+	/// Also while promise/future classes goal is to be used in multi-thread environment -
+	/// 'wait' and 'then' calls should not have big concurrency in normal program.
+	/// There should not be many frequent calls from many threads to same future(wait, get, then or other).
+	/// It is a mechanism to pass data once from thread to thread, but not a concurrent queue or some other contaner.
 	///
+	/// 
 	/// To handle continuations we have sort of intrusive single linked list of continuations.
 	/// We control implementation of 'then' method and how continuation are created.
 	/// Each continuation is heap-allocated object derived from us(shared_state_basic)
@@ -371,14 +344,17 @@ namespace ext
 	/// While atomic pointers are used, single linked list is NOT lock-free.
 	/// Lock-free implementation would be very hard, if possible.
 	/// 
-	/// Instead we use pointer locking:
-	/// locking pointer - is a spin-lock loop trying to set low bit to 1, while expecting it to be 0.
+	/// Instead we use pointer locking with futex - sort of custom light mutex:
+	///   lowest bit is a lock bit flag, and second lowest bit is a wait bit flag.
+	/// Locking pointer - is a loop trying to set lock bit bit to 1, while expecting it to be 0.
+	/// If we can't lock for one or few tries - set wait bit and park thread via std::atomic::wait operation(futex).
+	/// When lock owner finishes it will release lock inspecting prev value, if wait bit is set - invoke std::atomic::notify_one.
 	/// Assuming not high concurrency(see above) it should posses no problems.
 	/// 
 	/// Also when shared_state become ready, all new submitted continuations must be executed immediately.
 	/// There is a race condition here. While we are adding new continuation - we could become ready.
 	/// To prevent this, continuation submission and transition to fulfilled state must be done in single atomic step.
-	/// This is done by locking head and replacing it with special ready value.
+	/// This is done by replacing head with special ready value.
 	/// 
 	/// Simplified algorithms:
 	/// Wherever there is a waiting request:
@@ -401,20 +377,22 @@ namespace ext
 	/// we hold state as atomic std::uintptr_t:
 	/// * 0x0      - future_status::ready, unlocked
 	/// * 0x1      - future_status::ready, locked
-	/// * 0xFF..FF - waiting result and no continuations, locked
-	///   0xFF..FE - waiting result and no continuations, unlocked, also initial value
+	/// * 0xFF..FC - waiting result and no continuations, unlocked, also initial value
+	///   0xFF..FD - waiting result and no continuations, locked
+	///   0xFF..FF - waiting result and no continuations, locked, and has waiting thread(s)
 	/// * other    - waiting result and this is head of slist(pointer to next continuation)
+	///              (last 2 bits used as wait and lock flags)
 	/// 
 	/// When shared_state becomes ready, state changes to future_status::ready
 	/// and previous val is head of continuation slist which must be executed.
 	///
-	/// NOTE: promise state is only checked by set_value path -> we can use sort of hierarchical lock,
+	/// NOTE: promise state is only checked by set_value path,
 	///       first change promise state -> than change future state.
 	class shared_state_basic
 	{
 		using self_type = shared_state_basic;
 
-	protected:
+	public:
 		using continuation_type = shared_state_basic;
 
 		/// future already retrieved from this object
@@ -428,23 +406,36 @@ namespace ext
 
 		/// future ready state continuation marker, see description above.
 		static constexpr std::uintptr_t ready = 0;
-		/// mask to extract lock state
-		static constexpr std::uintptr_t lock_mask = 1;
+		/// mask to extract lock state(lowest bit is lock flag)
+		static constexpr std::uintptr_t lock_mask = 0b01;
+		/// mask to extract lock and wait state(2nd lowest bit is a wait flag)
+		static constexpr std::uintptr_t wait_mask = 0b11;
+		/// mask to extract pointer value(without lock and wait bits)
+		static constexpr std::uintptr_t ptr_mask = ~wait_mask;
 		/// special value indication this the end of continuation chain
-		static constexpr std::uintptr_t not_a_continuation = ~lock_mask;
+		static constexpr std::uintptr_t not_a_continuation = ptr_mask;
 		/// initial value of fsnext
-		static constexpr std::uintptr_t fsnext_init = ~lock_mask;
+		static constexpr std::uintptr_t fsnext_init = not_a_continuation;
+		
+		/// check that we have space for our bit shenanigans
+		static_assert(boost::static_log2<sizeof(std::max_align_t)>::value >= 2);
 
+	public:
+		/// If pointer is already locked - try several times in a loop with hw pause instruction after each failure.
+		/// If it fails for N times - block thread via std::atomic::wait call.
+		/// This variable sets number of such hwpause spins. Can be changed at start of program.
+		static unsigned NHWPAUSE_SPINS; // = 40
+		
 	protected:
 		/// object lifetime reference counter
 		std::atomic_uint m_refs = ATOMIC_VAR_INIT(1);
 		/// state of promise, unsatisfied, satisfied by: value, exception, cancellation, ...
 		std::atomic_uint m_promise_state = ATOMIC_VAR_INIT(static_cast<unsigned>(future_state::unsatisfied));
 		/// state and head of continuations slist
-		std::atomic_uintptr_t m_fstnext = ATOMIC_VAR_INIT(fsnext_init);
+		std::atomic_uintptr_t m_fsnext = ATOMIC_VAR_INIT(fsnext_init);
 
 	public:
-		/// locks pointer by setting lowest bit in spin-lock loop.
+		/// locks pointer by setting lowest bit.
 		/// returns value which pointer actually had.
 		/// has std::memory_order_acquire semantics.
 		static auto lock_ptr(std::atomic_uintptr_t & ptr) noexcept -> std::uintptr_t;
@@ -455,16 +446,16 @@ namespace ext
 		/// has std::memory_order_release semantics.
 		static void unlock_ptr(std::atomic_uintptr_t & ptr, std::uintptr_t newval) noexcept;
 
-		/// set fstnext status to ready and returns continuation chain.
+		/// set fsnext status to ready and returns continuation chain.
 		/// has std::memory_order_acq_rel semantics.
-		static std::uintptr_t signal_future(std::atomic_uintptr_t & fstnext) noexcept;
+		static std::uintptr_t signal_future(std::atomic_uintptr_t & fsnext) noexcept;
 		/// attaches continuation to a continuation list with head.
 		/// if successful(shared_state was not ready)           - increments continuation refcount and returns true.
 		/// if not(shared_state was or became ready in process) - fires continuation immediately, refcount is not incremented, returns false
 		static bool attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation, shared_state_basic * caller) noexcept;
 		/// runs continuations slist pointed by addr(checks if addr is_continuation - not ready val), typically should be called after signal_future.
-		/// for each item in list continuate and release are called, than next item is taken from m_fstnext.
-		/// if continuate some how affects item pointed by m_fstnext - it probably should set it to ready or not_a_continuation.
+		/// for each item in list continuate and release are called, than next item is taken from m_fsnext.
+		/// if continuate some how affects item pointed by m_fsnext - it probably should set it to ready or not_a_continuation.
 		static void run_continuations(std::uintptr_t addr, shared_state_basic * caller) noexcept;
 		/// acquires waiter from continuation list, it it has it,
 		/// or acquires it from waiter objects pool and attaches it to continuation list.
@@ -473,11 +464,12 @@ namespace ext
 		/// and release it to waiter objects pool. waiter must be acquired by acquire_waiter call.
 		static void release_waiter(std::atomic_uintptr_t & head, continuation_waiter * waiter) noexcept;
 
-	protected:
+	public:
 		static bool is_waiter(continuation_type * ptr) noexcept;
-		static bool is_continuation(std::uintptr_t fstate) noexcept { return fstate < ~lock_mask; }
+		static bool is_continuation(std::uintptr_t fstate) noexcept { return fstate < ptr_mask; }
 		static future_state pstatus(unsigned promise_state) noexcept { return static_cast<future_state>(promise_state & status_mask); }
 
+	protected:
 		/// re-inits this shared_state_basic as deferred, should be called from constructor of derived class.
 		/// NOTE: probably shared_state_basic constructor initializing this class as deferred is better,
 		///       but than it's must be forwarded by all derived classes...
@@ -621,7 +613,7 @@ namespace ext
 	/// base class for service continuations,
 	/// classes inheriting this class are service continuations and should not be seen to user.
 	/// they do not have result, and implement some logic on continuate method.
-	/// also they do not affect m_fstnext member leaving it as is for run_continuations method.
+	/// also they do not affect m_fsnext member leaving it as is for run_continuations method.
 	class continuation_base : public shared_state_basic
 	{
 	public:
@@ -1010,7 +1002,6 @@ namespace ext
 
 	protected:
 		using continuation_type = shared_state_basic;
-		using base_type::lock_mask;
 		using base_type::fsnext_init;
 		
 		using base_type::signal_future;
@@ -1196,7 +1187,6 @@ namespace ext
 		using base_type = ext::continuation_base;
 
 	protected:
-		using base_type::lock_mask;
 		using base_type::fsnext_init;
 
 		using base_type::signal_future;
@@ -1844,7 +1834,7 @@ namespace ext
 		auto fstate = signal_future(m_task_next);
 		run_continuations(fstate, this);
 		
-		//auto next = base_type::m_fstnext.load(std::memory_order_acquire);
+		//auto next = base_type::m_fsnext.load(std::memory_order_acquire);
 		//run_continuations(next, this);
 	}
 

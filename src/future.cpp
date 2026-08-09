@@ -5,7 +5,39 @@
 
 #include <ext/future.hpp>
 #include <vector>
-#include <thread>
+
+#if BOOST_OS_WINDOWS
+#include <intrin.h>
+#endif
+
+#if BOOST_COMP_GNUC || BOOST_COMP_CLANG
+	#if BOOST_ARCH_X86
+		#define MNHWPAUSE_SPINS 40
+		#define HWPAUSE() __builtin_ia32_pause()
+	#elif BOOST_ARCH_ARM
+		#define MNHWPAUSE_SPINS 40
+		#define HWPAUSE() asm volatile("yield" ::: "memory")
+	#elif
+		#define MNHWPAUSE_SPINS 0
+		#define HWPAUSE()
+	#endif
+#elif BOOST_COMP_MSVC
+	#if BOOST_ARCH_X86
+		#define MNHWPAUSE_SPINS 40
+		#define HWPAUSE() _mm_pause()
+	#elif BOOST_ARCH_ARM
+		#define MNHWPAUSE_SPINS 40
+		#define HWPAUSE() __yield()
+	#elif
+		#define MNHWPAUSE_SPINS 0
+		#define HWPAUSE()
+	#endif
+#elif
+		#define MNHWPAUSE_SPINS 0
+		#define HWPAUSE()
+#endif
+
+
 
 namespace ext
 {
@@ -60,34 +92,52 @@ namespace ext
 			auto_unlocker(const auto_unlocker &) = delete;
 			auto_unlocker  & operator =(const auto_unlocker &) = delete;
 		};
-		
-		static void backoff() noexcept
-		{
-			std::this_thread::yield(); // there can be better options than yield
-		}
 	}
 
 
 	static continuation_waiter * acquire_waiter();
 	static void release_waiter(continuation_waiter * ptr) noexcept;
 
+	unsigned shared_state_basic::NHWPAUSE_SPINS = MNHWPAUSE_SPINS;
+	
 	std::uintptr_t shared_state_basic::lock_ptr(std::atomic_uintptr_t & ptr) noexcept
 	{
-		// lock head
+		// Try to lock pointer by settings lock bit, if failed try for MNHWPAUSE_SPINS more times,
+		// if still can't - try to set wait_bit and park thread. If failed to set wait_bit repeat until can. 
+		// Failure to set wait_bit means somebody changed unlocked this pointer or changed to completely new value.
+		
 		auto fstate = ptr.load(std::memory_order_relaxed);
-		if (fstate == ready) return ready;
+		if (fstate == ready)
+			return ready;
 
-		fstate &= ~lock_mask;
+		fstate &= ptr_mask;
+		
+		const unsigned hw_spins = MNHWPAUSE_SPINS;
+		unsigned cur_hw_spin = 0;
 
 		// std::memory_order_acquire - fstate is pointer to some continuation_type,
 		// and it will be checked if it's a waiter - we need acquire changes
 		while (not ptr.compare_exchange_weak(fstate, fstate | lock_mask,
 		                                     std::memory_order_acquire, std::memory_order_relaxed))
 		{
-			if (fstate == ready) return ready;
+			if (fstate == ready)
+				return ready;
 			
-			backoff();
-			fstate &= ~lock_mask;
+			if (cur_hw_spin < hw_spins)
+			{
+				cur_hw_spin++;
+				HWPAUSE();
+			}
+			else
+			{
+				if (fstate & lock_mask and ptr.compare_exchange_strong(fstate, fstate | wait_mask, std::memory_order_relaxed))
+				{
+					cur_hw_spin = 0;
+					ptr.wait(fstate | wait_mask, std::memory_order_relaxed);
+				}
+			}
+			
+			fstate &= ptr_mask;
 		}
 
 		return fstate;
@@ -97,29 +147,54 @@ namespace ext
 	{
 		// head is locked
 		assert(ptr.load(std::memory_order_relaxed) & lock_mask);
-		ptr.fetch_and(~lock_mask, std::memory_order_release);
+		auto prev = ptr.fetch_and(ptr_mask, std::memory_order_release);
+		if (prev & wait_mask)
+			ptr.notify_all();
 	}
 
 	void shared_state_basic::unlock_ptr(std::atomic_uintptr_t & ptr, std::uintptr_t newval) noexcept
 	{
+		// sanitize new val
+		assert((newval & ~ptr_mask) == 0);
 		// head is locked
-		assert(not (newval & lock_mask));
 		assert(ptr.load(std::memory_order_relaxed) & lock_mask);
-		ptr.exchange(newval, std::memory_order_release);
+		auto prev = ptr.exchange(newval, std::memory_order_release);
+		if (prev & wait_mask)
+			ptr.notify_all();
 	}
 
-	std::uintptr_t shared_state_basic::signal_future(std::atomic_uintptr_t & fstnext) noexcept
+	std::uintptr_t shared_state_basic::signal_future(std::atomic_uintptr_t & fsnext) noexcept
 	{
-		auto fstate = fstnext.load(std::memory_order_relaxed);
-		fstate &= ~lock_mask;
+		// Try to set new value to pointer, if failed try for MNHWPAUSE_SPINS more times,
+		// if still can't - try to set wait_bit and park thread. If failed to set wait_bit repeat until can. 
+		// Failure to set wait_bit means somebody changed unlocked this pointer or changed to completely new value.
+		
+		auto fstate = fsnext.load(std::memory_order_relaxed);
+		fstate &= ptr_mask;
 
+		const unsigned hw_spins = MNHWPAUSE_SPINS;
+		unsigned cur_hw_spin = 0;
+		
 		// compare_exchange only not locked value.
 		// release data set in promise: m_val, m_exception;
 		// acquire continuation list
-		while (not fstnext.compare_exchange_weak(fstate, ready, std::memory_order_acq_rel, std::memory_order_relaxed))
+		while (not fsnext.compare_exchange_weak(fstate, ready, std::memory_order_acq_rel, std::memory_order_relaxed))
 		{
-			backoff();
-			fstate &= ~lock_mask;
+			if (cur_hw_spin < hw_spins)
+			{
+				cur_hw_spin++;
+				HWPAUSE();
+			}
+			else
+			{
+				if (fstate & lock_mask and fsnext.compare_exchange_strong(fstate, fstate | wait_mask, std::memory_order_relaxed))
+				{
+					cur_hw_spin = 0;
+					fsnext.wait(fstate | wait_mask, std::memory_order_relaxed);
+				}
+			}
+			
+			fstate &= ptr_mask;
 		}
 
 		return fstate;
@@ -128,7 +203,7 @@ namespace ext
 	bool shared_state_basic::attach_continuation(std::atomic_uintptr_t & head, continuation_type * continuation, shared_state_basic * caller) noexcept
 	{
 		assert(not dynamic_cast<continuation_waiter *>(continuation));
-		assert(not is_continuation(continuation->m_fstnext.load(std::memory_order_relaxed)));
+		assert(not is_continuation(continuation->m_fsnext.load(std::memory_order_relaxed)));
 
 		auto fstate = lock_ptr(head);
 		if (fstate == ready)
@@ -141,14 +216,14 @@ namespace ext
 		if (is_continuation(fstate) && is_waiter(head_ptr))
 		{
 			continuation->addref();
-			auto next = head_ptr->m_fstnext.load(std::memory_order_relaxed);
-			continuation->m_fstnext.store(next, std::memory_order_relaxed);
-			head_ptr->m_fstnext.store(reinterpret_cast<std::uintptr_t>(continuation), std::memory_order_relaxed);
+			auto next = head_ptr->m_fsnext.load(std::memory_order_relaxed);
+			continuation->m_fsnext.store(next, std::memory_order_relaxed);
+			head_ptr->m_fsnext.store(reinterpret_cast<std::uintptr_t>(continuation), std::memory_order_relaxed);
 		}
 		else
 		{
 			continuation->addref();
-			continuation->m_fstnext.store(fstate, std::memory_order_relaxed);
+			continuation->m_fsnext.store(fstate, std::memory_order_relaxed);
 			fstate = reinterpret_cast<std::uintptr_t>(continuation);
 		}
 
@@ -158,13 +233,14 @@ namespace ext
 
 	void shared_state_basic::run_continuations(std::uintptr_t addr, shared_state_basic * caller) noexcept
 	{
-		if (not is_continuation(addr)) return;
+		if (not is_continuation(addr))
+			return;
 
 		auto * ptr = reinterpret_cast<continuation_type *>(addr);
 		if (is_waiter(ptr))
 		{
 			auto * waiter = static_cast<continuation_waiter *>(ptr);
-			addr = waiter->m_fstnext.load(std::memory_order_acquire);
+			addr = waiter->m_fsnext.load(std::memory_order_acquire);
 			waiter->continuate(caller);
 
 			if (waiter->release() == 1)
@@ -175,7 +251,7 @@ namespace ext
 
 		do
 		{
-			addr = ptr->m_fstnext.load(std::memory_order_acquire);
+			addr = ptr->m_fsnext.load(std::memory_order_acquire);
 			ptr->continuate(caller);
 			ptr->release();
 
@@ -187,7 +263,8 @@ namespace ext
 	auto shared_state_basic::acquire_waiter(std::atomic_uintptr_t & head) -> continuation_waiter *
 	{
 		auto fstate = lock_ptr(head);
-		if (fstate == ready) return nullptr;
+		if (fstate == ready)
+			return nullptr;
 
 		continuation_waiter * waiter;
 		auto continuation = reinterpret_cast<continuation_type *>(fstate);
@@ -206,7 +283,7 @@ namespace ext
 			// one for wait call, one for continuation chain running after set_value call.
 			// it will decrement refcount for all continuations in chain, so we must increment for them too
 			waiter->addref(2);
-			waiter->m_fstnext.store(fstate);
+			waiter->m_fsnext.store(fstate);
 			fstate = reinterpret_cast<std::uintptr_t>(waiter);
 		}
 
@@ -219,7 +296,8 @@ namespace ext
 		auto fstate = lock_ptr(head);
 		if (fstate == ready)
 		{
-			if (waiter->release() != 1) return;
+			if (waiter->release() != 1)
+				return;
 
 			return ext::release_waiter(waiter);
 		};
@@ -234,7 +312,7 @@ namespace ext
 		{	// we are the last one using this waiter, one was reserved to set_value call,
 			// but we holding pointer lock, so they will not traverse concurrently.
 			// remove waiter from chain and unlock pointer.
-			unlock_ptr(head, waiter->m_fstnext.load(std::memory_order_relaxed));
+			unlock_ptr(head, waiter->m_fsnext.load(std::memory_order_relaxed));
 			waiter->release();
 			
 			ext::release_waiter(waiter);
@@ -245,23 +323,23 @@ namespace ext
 
 	void shared_state_basic::set_future_ready() noexcept
 	{
-		auto chain = signal_future(m_fstnext);
+		auto chain = signal_future(m_fsnext);
 		run_continuations(chain, this);
 	}
 
 	bool shared_state_basic::add_continuation(continuation_type * continuation) noexcept
 	{
-		return attach_continuation(m_fstnext, continuation, this);
+		return attach_continuation(m_fsnext, continuation, this);
 	}
 
 	auto shared_state_basic::acquire_waiter() -> continuation_waiter *
 	{
-		return acquire_waiter(m_fstnext);
+		return acquire_waiter(m_fsnext);
 	}
 
 	void shared_state_basic::release_waiter(continuation_waiter * waiter) noexcept
 	{
-		return release_waiter(m_fstnext, waiter);
+		return release_waiter(m_fsnext, waiter);
 	}
 
 	bool shared_state_basic::satisfy_check_promise(future_state reason)
@@ -413,7 +491,8 @@ namespace ext
 
 	void shared_state_basic::release_promise() noexcept
 	{
-		if (not satisfy_promise(future_state::abandonned)) return;
+		if (not satisfy_promise(future_state::abandonned))
+			return;
 
 		set_future_ready();
 		return;
@@ -457,7 +536,7 @@ namespace ext
 	void * shared_state_basic::get_ptr()
 	{
 		wait();
-		// wait checks m_fstnext for ready with std::memory_order_relaxed
+		// wait checks m_fsnext for ready with std::memory_order_relaxed
 		// to see m_val, we must synchronize with release operation in set_* functions
 		std::atomic_thread_fence(std::memory_order_acquire);
 		
@@ -506,7 +585,7 @@ namespace ext
 		if (newstate->is_deferred())
 			newstate->wait();
 
-		m_fstnext.store(~lock_mask, std::memory_order_relaxed);
+		m_fsnext.store(not_a_continuation, std::memory_order_relaxed);
 		newstate->add_continuation(this);
 
 		// release old state
@@ -588,7 +667,7 @@ namespace ext
 	void continuation_waiter_impl::reset() noexcept
 	{
 		m_ready.store(false, std::memory_order_relaxed);
-		m_fstnext.store(fsnext_init, std::memory_order_relaxed);
+		m_fsnext.store(fsnext_init, std::memory_order_relaxed);
 		m_promise_state.store(static_cast<unsigned>(future_state::unsatisfied), std::memory_order_relaxed);
 	}
 
@@ -651,7 +730,7 @@ namespace ext
 		for (auto & val : m_objects)
 			val = ext::make_intrusive<ext::continuation_waiter_impl>();
 	
-		// Strictly speaking lockfree_continuation_pool should be created and initiated before any thread are created,
+		// Strictly speaking arena_continuation_pool should be created and initiated before any thread are created,
 		// any new threads will happen later and see anything done here, without any memory_fence. so this one is unneeded.
 		std::atomic_thread_fence(std::memory_order_release);
 
@@ -723,7 +802,7 @@ namespace ext
 		// Force order, by incrementing m_last_avail, only when m_last_avail is index of our cell.
 		// This is somewhat ugly, and produce waiting, for now i think it would suffice.
 		while (not m_last_avail.compare_exchange_weak(first_free, new_free, std::memory_order_release))
-			backoff();
+			HWPAUSE();
 	}
 
 	// global object pool of continuation_waiters.
