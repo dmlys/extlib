@@ -801,7 +801,7 @@ namespace ext
 		// but writing can be out of order - later call, can finish writing to cell earlier.
 		// Force order, by incrementing m_last_avail, only when m_last_avail is index of our cell.
 		// This is somewhat ugly, and produce waiting, for now i think it would suffice.
-		while (not m_last_avail.compare_exchange_weak(first_free, new_free, std::memory_order_release))
+		while (not m_last_avail.compare_exchange_weak(first_free, new_free, std::memory_order_release, std::memory_order_relaxed))
 			HWPAUSE();
 	}
 
